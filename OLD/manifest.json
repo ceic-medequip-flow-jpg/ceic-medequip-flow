@@ -1,0 +1,17 @@
+{
+  "name": "CEIC App v2.0",
+  "short_name": "CEIC",
+  "description": "Sistema de Gestão de Equipamentos CEIC",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/activity.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

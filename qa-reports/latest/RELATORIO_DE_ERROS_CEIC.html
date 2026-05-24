@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>RELATORIO_DE_ERROS_CEIC</title>
+  <style>
+    body { font-family: Segoe UI, Tahoma, sans-serif; background:#f3f4f6; color:#1f2937; padding:20px; line-height:1.55; }
+    .container { max-width:1200px; margin:0 auto; }
+    h1 { color:#111827; border-bottom:2px solid #e5e7eb; padding-bottom:10px; }
+    .summary { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:20px 0 30px; }
+    .summary-box { background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.1); text-align:center; font-weight:700; }
+    .summary-box span { display:block; font-size:1.8em; margin-top:4px; }
+    .root-cause, .ok-panel { background:#fff; border-radius:8px; padding:18px; margin:18px 0; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    .root-cause h2 { color:#991b1b; }
+    .root-cause h2 span { color:#4b5563; font-size:.65em; }
+    .card { border-left:6px solid #ef4444; background:#fff; padding:16px; margin-top:14px; border-radius:8px; border-top:1px solid #e5e7eb; border-right:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; }
+    .layer-diagnosis { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:14px; margin-top:14px; }
+    .evidence { background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:14px; margin-top:14px; }
+    dl { display:grid; grid-template-columns:220px 1fr; gap:6px 14px; margin:0; }
+    dt { font-weight:700; color:#374151; }
+    dd { margin:0; }
+    code { background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; }
+    pre { background:#111827; color:#f8fafc; padding:12px; border-radius:6px; overflow-x:auto; font-size:.9em; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; border-bottom:1px solid #e5e7eb; padding:8px; }
+    th { background:#f9fafb; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>RELATORIO_DE_ERROS_CEIC</h1>
+    <p>Gerado em: <strong>04/05/2026, 17:01:52</strong></p>
+    <section class="summary">
+      <div class="summary-box">Perfis<span>4</span></div>
+      <div class="summary-box">Ações<span>38</span></div>
+      <div class="summary-box">Fluxos OK<span>38</span></div>
+      <div class="summary-box">Falhas<span>0</span></div>
+      <div class="summary-box" style="background:#fef08a; color:#9a3412;">Bloqueios Seg.<span>0</span></div>
+    </section>
+    
+    <section class="ok-panel">
+      <h2>Resumo executivo</h2>
+      <pre>{
+  &quot;totalPerfis&quot;: 4,
+  &quot;totalAcoes&quot;: 38,
+  &quot;fluxosOk&quot;: 38,
+  &quot;falhas&quot;: 0,
+  &quot;bloqueadosPorSeguranca&quot;: 0,
+  &quot;featuresNaoVisiveis&quot;: 0,
+  &quot;causasRaiz&quot;: 0,
+  &quot;coberturaPorPerfil&quot;: {
+    &quot;ASSISTENCIAL&quot;: {
+      &quot;acoes&quot;: 11,
+      &quot;sucesso&quot;: 11,
+      &quot;falha&quot;: 0
+    },
+    &quot;OPERACIONAL&quot;: {
+      &quot;acoes&quot;: 13,
+      &quot;sucesso&quot;: 13,
+      &quot;falha&quot;: 0
+    },
+    &quot;GESTAO&quot;: {
+      &quot;acoes&quot;: 7,
+      &quot;sucesso&quot;: 7,
+      &quot;falha&quot;: 0
+    },
+    &quot;ADMIN_TESTE&quot;: {
+      &quot;acoes&quot;: 7,
+      &quot;sucesso&quot;: 7,
+      &quot;falha&quot;: 0
+    }
+  }
+}</pre>
+    </section>
+    
+    <section class="ok-panel"><h2>Erros agrupados por causa raiz</h2><p>Nenhum erro encontrado.</p></section>
+    
+    <section class="ok-panel">
+      <h2>Fluxos OK (38)</h2>
+      <table>
+        <thead><tr><th>Perfil</th><th>Usuário</th><th>Ação</th><th>Fluxo</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>ASSISTENCIAL</td><td>04CC</td><td>login</td><td>Autenticação</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>abrir_nova_solicitacao</td><td>abrir_nova_solicitacao</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>preencher_dados_solicitante</td><td>preencher_dados_solicitante</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>preencher_dados_paciente</td><td>preencher_dados_paciente</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>selecionar_tipo_equipamento</td><td>selecionar_tipo_equipamento</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>submeter_solicitacao</td><td>submeter_solicitacao</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>validar_sucesso_visual_solicitacao</td><td>validar_sucesso_visual_solicitacao</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>validar_persistencia_solicitacao</td><td>Criação de solicitação</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>validar_status_inicial</td><td>Criação de solicitação</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>validar_bloqueio_acoes_operacionais</td><td>validar_bloqueio_acoes_operacionais</td><td>sucesso</td></tr><tr><td>ASSISTENCIAL</td><td>04CC</td><td>logout</td><td>Encerramento de sessão</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>login</td><td>Autenticação</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>abrir_dashboard_operacional</td><td>abrir_dashboard_operacional</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>validar_lista_pendentes</td><td>validar_lista_pendentes</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>selecionar_solicitacao_pendente</td><td>selecionar_solicitacao_pendente</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>confirmar_solicitacao_com_tag</td><td>confirmar_solicitacao_com_tag</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>validar_status_aprovado</td><td>validar_status_aprovado</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>validar_persistencia_confirmacao</td><td>validar_persistencia_confirmacao</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>cancelar_solicitacao_com_motivo</td><td>cancelar_solicitacao_com_motivo</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>validar_status_cancelado</td><td>validar_status_cancelado</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>testar_fila_espera_se_disponivel</td><td>testar_fila_espera_se_disponivel</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>testar_triagem_se_disponivel</td><td>testar_triagem_se_disponivel</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>testar_expurgo_se_disponivel</td><td>testar_expurgo_se_disponivel</td><td>sucesso</td></tr><tr><td>OPERACIONAL</td><td>EQUIPE_OPERACIONAL</td><td>logout</td><td>Encerramento de sessão</td><td>sucesso</td></tr><tr><td>GESTAO</td><td>GESTAO_LIDERANCA</td><td>login</td><td>Autenticação</td><td>sucesso</td></tr><tr><td>GESTAO</td><td>GESTAO_LIDERANCA</td><td>abrir_dashboard_gestao</td><td>abrir_dashboard_gestao</td><td>sucesso</td></tr><tr><td>GESTAO</td><td>GESTAO_LIDERANCA</td><td>validar_cards_metricas</td><td>validar_cards_metricas</td><td>sucesso</td></tr><tr><td>GESTAO</td><td>GESTAO_LIDERANCA</td><td>testar_filtros_se_disponivel</td><td>testar_filtros_se_disponivel</td><td>sucesso</td></tr><tr><td>GESTAO</td><td>GESTAO_LIDERANCA</td><td>validar_leitura_dados</td><td>validar_leitura_dados</td><td>sucesso</td></tr><tr><td>GESTAO</td><td>GESTAO_LIDERANCA</td><td>validar_bloqueio_escrita</td><td>validar_bloqueio_escrita</td><td>sucesso</td></tr><tr><td>GESTAO</td><td>GESTAO_LIDERANCA</td><td>logout</td><td>Encerramento de sessão</td><td>sucesso</td></tr><tr><td>ADMIN_TESTE</td><td>TESTE</td><td>login</td><td>Autenticação</td><td>sucesso</td></tr><tr><td>ADMIN_TESTE</td><td>TESTE</td><td>abrir_gestao_equipamentos_se_disponivel</td><td>abrir_gestao_equipamentos_se_disponivel</td><td>sucesso</td></tr><tr><td>ADMIN_TESTE</td><td>TESTE</td><td>buscar_equipamento</td><td>buscar_equipamento</td><td>sucesso</td></tr><tr><td>ADMIN_TESTE</td><td>TESTE</td><td>selecionar_equipamento_existente</td><td>selecionar_equipamento_existente</td><td>sucesso</td></tr><tr><td>ADMIN_TESTE</td><td>TESTE</td><td>validar_dados_equipamento_real</td><td>validar_dados_equipamento_real</td><td>sucesso</td></tr><tr><td>ADMIN_TESTE</td><td>TESTE</td><td>editar_equipamento_real_se_permitido</td><td>editar_equipamento_real_se_permitido</td><td>sucesso</td></tr><tr><td>ADMIN_TESTE</td><td>TESTE</td><td>logout</td><td>Encerramento de sessão</td><td>sucesso</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>

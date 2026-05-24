@@ -1,0 +1,25 @@
+{
+  "assistencial": {
+    "loginProfile": "ASSISTENCIAL",
+    "requesterName": "TREINAMENTO CEIC",
+    "requesterBadge": "TREINO001",
+    "extension": "9999",
+    "patientName": "PACIENTE TREINAMENTO CEIC",
+    "patientMV": "MV-TREINO-CEIC",
+    "patientBed": "99",
+    "sector": "SETOR TREINAMENTO CEIC"
+  },
+  "equipment": {
+    "tag": "CEIC-TREINO-001",
+    "type": "MONITOR MULTIPARAMÉTRICO",
+    "model": "EQUIPAMENTO DE TREINAMENTO",
+    "location": "CEIC",
+    "specificLocation": "AREA DE TREINAMENTO",
+    "status": "available"
+  },
+  "operational": {
+    "cancelReason": "Cancelamento de treinamento operacional CEIC",
+    "operatorName": "OPERADOR TREINAMENTO CEIC",
+    "operatorBadge": "OP-TREINO"
+  }
+}

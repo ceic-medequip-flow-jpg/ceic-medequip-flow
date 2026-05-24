@@ -1,0 +1,188 @@
+{
+  "decision": "PRONTO_PARA_PILOTO_ENFERMAGEM",
+  "summary": {
+    "totalProfilesTested": 5,
+    "totalActions": 18,
+    "countOK": 14,
+    "countAindaFalha": 0,
+    "countMassaIndisp": 1,
+    "countFalhaTecnica": 1,
+    "countBloqueado": 2
+  },
+  "ultimaEtapaExecutada": {
+    "perfil": "Global",
+    "tela": "Responsividade",
+    "acao": "Viewports",
+    "timestamp": "2026-05-08T17:04:16.892Z"
+  },
+  "knownRisks": [
+    "RISCO_CONHECIDO_SEGURANCA: senhas em texto claro devem ser tratadas antes da liberação ampla em produção.",
+    "MASSA_INDISPONIVEL não significa necessariamente falha, mas limita cobertura.",
+    "Teste automatizado não substitui piloto acompanhado com enfermagem."
+  ],
+  "supabaseErrors": [],
+  "details": [
+    {
+      "profile": "Assistencial",
+      "screen": "Login",
+      "action": "Acesso",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:03:40.456Z"
+    },
+    {
+      "profile": "Assistencial",
+      "screen": "Permissões",
+      "action": "Menus Ocultos",
+      "status": "BLOQUEADO_CORRETAMENTE",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:03:40.467Z"
+    },
+    {
+      "profile": "Assistencial",
+      "screen": "Permissões",
+      "action": "Visualiza Dashboard Operacional",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:03:40.467Z"
+    },
+    {
+      "profile": "Assistencial",
+      "screen": "Nova Solicitação",
+      "action": "Acesso Form",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:03:45.613Z"
+    },
+    {
+      "profile": "Assistencial",
+      "screen": "Nova Solicitação",
+      "action": "Dropdown e Terapia a Vácuo",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:03:50.904Z"
+    },
+    {
+      "profile": "Assistencial",
+      "screen": "Meus Pedidos",
+      "action": "Persistência de Solicitação",
+      "status": "FALHA_TECNICA",
+      "observation": "require is not defined",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:03:52.568Z"
+    },
+    {
+      "profile": "Assistencial",
+      "screen": "Equipamentos Área",
+      "action": "Acesso",
+      "status": "MASSA_INDISPONIVEL",
+      "observation": "Botão não encontrado",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:03:52.574Z"
+    },
+    {
+      "profile": "Operacional",
+      "screen": "Login",
+      "action": "Acesso",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:03:57.522Z"
+    },
+    {
+      "profile": "Operacional",
+      "screen": "Dashboard",
+      "action": "Tratativa e Persistência de Cancelamento",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:04.389Z"
+    },
+    {
+      "profile": "Operacional",
+      "screen": "Estoque Central",
+      "action": "Acesso",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:04.401Z"
+    },
+    {
+      "profile": "Operacional",
+      "screen": "Triagem e Expurgo",
+      "action": "Acesso",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:04.413Z"
+    },
+    {
+      "profile": "Gestão",
+      "screen": "Login",
+      "action": "Acesso",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:09.749Z"
+    },
+    {
+      "profile": "Gestão",
+      "screen": "Painel Gerencial",
+      "action": "Indicadores",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:10.516Z"
+    },
+    {
+      "profile": "Gestão",
+      "screen": "Permissões",
+      "action": "Bloqueio Gestão Frota",
+      "status": "BLOQUEADO_CORRETAMENTE",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:10.525Z"
+    },
+    {
+      "profile": "Gestão",
+      "screen": "Permissões",
+      "action": "Bloqueio de Frota",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:10.525Z"
+    },
+    {
+      "profile": "Admin",
+      "screen": "Login",
+      "action": "Acesso",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:14.514Z"
+    },
+    {
+      "profile": "Admin",
+      "screen": "Gestão da Frota",
+      "action": "Busca",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:16.357Z"
+    },
+    {
+      "profile": "Global",
+      "screen": "Responsividade",
+      "action": "Viewports",
+      "status": "OK",
+      "observation": "",
+      "errorData": null,
+      "timestamp": "2026-05-08T17:04:18.190Z"
+    }
+  ]
+}

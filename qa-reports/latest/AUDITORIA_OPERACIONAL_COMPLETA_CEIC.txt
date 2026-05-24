@@ -1,0 +1,59 @@
+==========================================================
+AUDITORIA OPERACIONAL COMPLETA - CEIC APP
+==========================================================
+
+RESULTADO FINAL: PRONTO_PARA_PILOTO_ENFERMAGEM
+
+--- RESUMO ---
+Total de Ações: 18
+OK: 14
+Ainda Falha (Sistema): 0
+Massa Indisponível: 1
+Falha Técnica (Teste / Timeout): 1
+Bloqueado Corretamente: 2
+
+--- RISCOS CONHECIDOS ---
+- RISCO_CONHECIDO_SEGURANCA: senhas em texto claro devem ser tratadas antes da liberação ampla em produção.
+- MASSA_INDISPONIVEL não significa necessariamente falha, mas limita cobertura.
+- Teste automatizado não substitui piloto acompanhado com enfermagem.
+
+--- ERROS SUPABASE CAPTURADOS (0) ---
+--- DETALHES DAS AÇÕES ---
+[OK] Perfil: Assistencial | Tela: Login | Ação: Acesso
+
+[BLOQUEADO_CORRETAMENTE] Perfil: Assistencial | Tela: Permissões | Ação: Menus Ocultos
+
+[OK] Perfil: Assistencial | Tela: Permissões | Ação: Visualiza Dashboard Operacional
+
+[OK] Perfil: Assistencial | Tela: Nova Solicitação | Ação: Acesso Form
+
+[OK] Perfil: Assistencial | Tela: Nova Solicitação | Ação: Dropdown e Terapia a Vácuo
+
+[FALHA_TECNICA] Perfil: Assistencial | Tela: Meus Pedidos | Ação: Persistência de Solicitação
+   Obs: require is not defined
+
+[MASSA_INDISPONIVEL] Perfil: Assistencial | Tela: Equipamentos Área | Ação: Acesso
+   Obs: Botão não encontrado
+
+[OK] Perfil: Operacional | Tela: Login | Ação: Acesso
+
+[OK] Perfil: Operacional | Tela: Dashboard | Ação: Tratativa e Persistência de Cancelamento
+
+[OK] Perfil: Operacional | Tela: Estoque Central | Ação: Acesso
+
+[OK] Perfil: Operacional | Tela: Triagem e Expurgo | Ação: Acesso
+
+[OK] Perfil: Gestão | Tela: Login | Ação: Acesso
+
+[OK] Perfil: Gestão | Tela: Painel Gerencial | Ação: Indicadores
+
+[BLOQUEADO_CORRETAMENTE] Perfil: Gestão | Tela: Permissões | Ação: Bloqueio Gestão Frota
+
+[OK] Perfil: Gestão | Tela: Permissões | Ação: Bloqueio de Frota
+
+[OK] Perfil: Admin | Tela: Login | Ação: Acesso
+
+[OK] Perfil: Admin | Tela: Gestão da Frota | Ação: Busca
+
+[OK] Perfil: Global | Tela: Responsividade | Ação: Viewports
+

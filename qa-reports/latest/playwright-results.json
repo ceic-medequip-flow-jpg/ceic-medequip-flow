@@ -1,0 +1,393 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\playwright.config.js",
+    "rootDir": "C:/Users/Jesus Cavalcante/Documents/CEIC_App/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/Jesus Cavalcante/Documents/CEIC_App/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/Jesus Cavalcante/Documents/CEIC_App/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 900000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "open": "never",
+          "outputFolder": "playwright-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "qa-reports/latest/playwright-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm.cmd run dev -- --host 127.0.0.1",
+      "url": "http://127.0.0.1:5173",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "auditoria-operacional-completa-ceic.spec.js",
+      "file": "auditoria-operacional-completa-ceic.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "1. Perfil Assistencial - Fluxos permitidos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 16128,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[AUDITORIA] Assistencial - Login: Acesso\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] tentando login perfil ASSISTENCIAL\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] login perfil ASSISTENCIAL concluído\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Assistencial - Permissões: Visualiza Dashboard Operacional\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Assistencial - Nova Solicitação: Acesso Form\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Assistencial - Nova Solicitação: Dropdown e Terapia a Vácuo\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Assistencial - Meus Pedidos: Persistência de Solicitação\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Assistencial - Equipamentos Área: Acesso\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-08T17:03:36.818Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-0262d-tencial---Fluxos-permitidos-chromium\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-0262d-tencial---Fluxos-permitidos-chromium\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "093b86d4a3073e255e2a-6aa9436a26b67ca1f997",
+          "file": "auditoria-operacional-completa-ceic.spec.js",
+          "line": 150,
+          "column": 1
+        },
+        {
+          "title": "2. Perfil Operacional - Fluxos permitidos",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 11284,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[AUDITORIA] Operacional - Login: Acesso\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] tentando login perfil OPERACIONAL\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] login perfil OPERACIONAL concluído\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Operacional - Dashboard: Tratativa e Persistência de Cancelamento\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Operacional - Estoque Central: Acesso\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Operacional - Triagem e Expurgo: Acesso\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-08T17:03:54.088Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-640c8-acional---Fluxos-permitidos-chromium\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-640c8-acional---Fluxos-permitidos-chromium\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "093b86d4a3073e255e2a-ba88576a374522ddf5b8",
+          "file": "auditoria-operacional-completa-ceic.spec.js",
+          "line": 239,
+          "column": 1
+        },
+        {
+          "title": "3. Perfil Gestão - Leitura e bloqueios",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4372,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[AUDITORIA] Gestão - Login: Acesso\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] tentando login perfil GESTAO\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] login perfil GESTAO concluído\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Gestão - Painel Gerencial: Indicadores\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Gestão - Permissões: Bloqueio de Frota\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-08T17:04:06.428Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-1ddaa-estão---Leitura-e-bloqueios-chromium\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-1ddaa-estão---Leitura-e-bloqueios-chromium\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "093b86d4a3073e255e2a-4a5cac93b557def047c3",
+          "file": "auditoria-operacional-completa-ceic.spec.js",
+          "line": 297,
+          "column": 1
+        },
+        {
+          "title": "4. Perfil Admin/Teste - Gestão sem ações destrutivas",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5573,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[AUDITORIA] Admin - Login: Acesso\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] tentando login perfil ADMIN_TESTE\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] login perfil ADMIN_TESTE concluído\n"
+                    },
+                    {
+                      "text": "[AUDITORIA] Admin - Gestão da Frota: Busca\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-08T17:04:11.022Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-29e0d-estão-sem-ações-destrutivas-chromium\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-29e0d-estão-sem-ações-destrutivas-chromium\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "093b86d4a3073e255e2a-9f601615e4427bb59984",
+          "file": "auditoria-operacional-completa-ceic.spec.js",
+          "line": 322,
+          "column": 1
+        },
+        {
+          "title": "5. Responsividade essencial",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1620,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "[AUDITORIA] Global - Responsividade: Viewports\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-08T17:04:16.779Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-6677f--5-Responsividade-essencial-chromium\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\Jesus Cavalcante\\Documents\\CEIC_App\\test-results\\auditoria-operacional-comp-6677f--5-Responsividade-essencial-chromium\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "093b86d4a3073e255e2a-2672d83fb8ed121a79b8",
+          "file": "auditoria-operacional-completa-ceic.spec.js",
+          "line": 344,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-08T17:03:36.238Z",
+    "duration": 42600.148,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

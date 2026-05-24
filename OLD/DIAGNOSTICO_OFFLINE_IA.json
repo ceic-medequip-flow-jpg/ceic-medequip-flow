@@ -1,0 +1,15 @@
+{
+  "analise_geral": "FALHAS DETECTADAS",
+  "instrucao_para_ia_offline": "Leia o array 'falhas' abaixo. Se houver 'erros_supabase', crie um script SQL ou ajuste o payload JS para alinhar as colunas. Se houver 'erros_javascript' ou falhas de UI, corrija o React/Babel no index.html.",
+  "falhas": [
+    {
+      "cenario_testado": "4. Equipamento de Transporte (Requer Destino e Isolamento)",
+      "diagnostico_principal": "FALHA_JAVASCRIPT (Erro de renderização no React/Babel)",
+      "detalhe_interface_ui": "locator.fill: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByPlaceholder('Digite seu login')\u001b[22m\n",
+      "erros_javascript_console": [
+        "[ERRO CRÍTICO JS] /Inline Babel script: Identifier 'showPassword' has already been declared. (376:19)\n\n  374 |             const [isLoading, setIsLoading] = useState(false);\n  375 |             const [showPassword, setShowPassword] = useState(false);\n> 376 |             const [showPassword, setShowPassword] = useState(false);\n      |                    ^\n  377 |\n  378 |             const doLogin = async (e) => {\n  379 |                 e.preventDefault();"
+      ],
+      "erros_supabase_network": []
+    }
+  ]
+}

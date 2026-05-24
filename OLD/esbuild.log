@@ -1,0 +1,39 @@
+X [ERROR] The JSX syntax extension is not currently enabled
+
+    app.js:263:16:
+      263 │                 <span className={`flex items-center gap-1.5 px-2....
+          ╵                 ^
+
+  The esbuild loader for this file is currently set to "js" but it must be set to "jsx" to be able to parse JSX syntax. You can use "--loader:.js=jsx" to do that.
+
+X [ERROR] Unexpected ","
+
+    app.js:4886:9:
+      4886 │         }, []);
+           ╵          ^
+
+2 errors
+node:child_process:964
+    throw err;
+    ^
+
+Error: Command failed: C:\Users\Jesus Cavalcante\AppData\Local\npm-cache\_npx\beb367dfa21eb3f5\node_modules\@esbuild\win32-x64\esbuild.exe app.js
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at checkExecSyncError (node:child_process:925:11)
+    at Object.execFileSync (node:child_process:961:15)
+    at Object.<anonymous> (C:\Users\Jesus Cavalcante\AppData\Local\npm-cache\_npx\beb367dfa21eb3f5\node_modules\esbuild\bin\esbuild:222:28)
+    at Module._compile (node:internal/modules/cjs/loader:1830:14)
+    at Object..js (node:internal/modules/cjs/loader:1961:10)
+    at Module.load (node:internal/modules/cjs/loader:1553:32)
+    at Module._load (node:internal/modules/cjs/loader:1355:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19) {
+  status: 1,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 26324,
+  stdout: null,
+  stderr: null
+}
+
+Node.js v24.15.0

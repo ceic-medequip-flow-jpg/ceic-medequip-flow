@@ -1,0 +1,26 @@
+[
+  {
+    "perfil": "ASSISTENCIAL",
+    "login": "04CC",
+    "senha": "4001",
+    "descricao": "Enfermagem assistencial"
+  },
+  {
+    "perfil": "OPERACIONAL",
+    "login": "EQUIPE_OPERACIONAL",
+    "senha": "oP9!wK3@jRz5",
+    "descricao": "Equipe operacional"
+  },
+  {
+    "perfil": "GESTAO",
+    "login": "GESTAO_LIDERANCA",
+    "senha": "gS2@qL9!kVm4",
+    "descricao": "Gestão"
+  },
+  {
+    "perfil": "ADMIN_TESTE",
+    "login": "TESTE",
+    "senha": "tQ4#vB8!nZp7",
+    "descricao": "Perfil de teste/admin"
+  }
+]

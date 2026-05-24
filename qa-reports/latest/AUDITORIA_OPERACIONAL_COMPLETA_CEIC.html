@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Auditoria Operacional Completa CEIC</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f9fafb; color: #111827; }
+    h1 { color: #1f2937; }
+    .decision { font-size: 24px; font-weight: bold; padding: 15px; border-radius: 8px; margin-bottom: 20px; color: #fff; display: inline-block; }
+    .pronto { background: #059669; }
+    .nao_pronto { background: #dc2626; }
+    .invalida { background: #d97706; }
+    .card { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e7eb; }
+    th { background: #f3f4f6; }
+    .status-OK { color: #059669; font-weight: bold; }
+    .status-AINDA_FALHA { color: #dc2626; font-weight: bold; }
+    .status-FALHA_TECNICA { color: #9ca3af; font-weight: bold; }
+    .status-MASSA_INDISPONIVEL { color: #d97706; font-weight: bold; }
+    .status-BLOQUEADO_CORRETAMENTE { color: #2563eb; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Auditoria Operacional Completa - CEIC App</h1>
+  <div class="decision pronto">PRONTO_PARA_PILOTO_ENFERMAGEM</div>
+  
+  
+
+  <div class="card">
+    <h2>Resumo</h2>
+    <ul>
+      <li>Ações executadas: 18</li>
+      <li>OK / Corrigido: 14</li>
+      <li>Falhas Críticas no Sistema: 0</li>
+      <li>Massa Indisponível: 1</li>
+      <li>Bloqueios Válidos: 2</li>
+      <li>Erros Técnicos no Script/Cancelamentos: 1</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Riscos Conhecidos</h2>
+    <ul>
+      <li>RISCO_CONHECIDO_SEGURANCA: senhas em texto claro devem ser tratadas antes da liberação ampla em produção.</li><li>MASSA_INDISPONIVEL não significa necessariamente falha, mas limita cobertura.</li><li>Teste automatizado não substitui piloto acompanhado com enfermagem.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Ações Detalhadas</h2>
+    <table>
+      <thead>
+        <tr><th>Perfil</th><th>Tela</th><th>Ação</th><th>Status</th><th>Observação</th></tr>
+      </thead>
+      <tbody>
+        
+          <tr>
+            <td>Assistencial</td>
+            <td>Login</td>
+            <td>Acesso</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Assistencial</td>
+            <td>Permissões</td>
+            <td>Menus Ocultos</td>
+            <td class="status-BLOQUEADO_CORRETAMENTE">BLOQUEADO_CORRETAMENTE</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Assistencial</td>
+            <td>Permissões</td>
+            <td>Visualiza Dashboard Operacional</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Assistencial</td>
+            <td>Nova Solicitação</td>
+            <td>Acesso Form</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Assistencial</td>
+            <td>Nova Solicitação</td>
+            <td>Dropdown e Terapia a Vácuo</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Assistencial</td>
+            <td>Meus Pedidos</td>
+            <td>Persistência de Solicitação</td>
+            <td class="status-FALHA_TECNICA">FALHA_TECNICA</td>
+            <td>require is not defined</td>
+          </tr>
+        
+          <tr>
+            <td>Assistencial</td>
+            <td>Equipamentos Área</td>
+            <td>Acesso</td>
+            <td class="status-MASSA_INDISPONIVEL">MASSA_INDISPONIVEL</td>
+            <td>Botão não encontrado</td>
+          </tr>
+        
+          <tr>
+            <td>Operacional</td>
+            <td>Login</td>
+            <td>Acesso</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Operacional</td>
+            <td>Dashboard</td>
+            <td>Tratativa e Persistência de Cancelamento</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Operacional</td>
+            <td>Estoque Central</td>
+            <td>Acesso</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Operacional</td>
+            <td>Triagem e Expurgo</td>
+            <td>Acesso</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Gestão</td>
+            <td>Login</td>
+            <td>Acesso</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Gestão</td>
+            <td>Painel Gerencial</td>
+            <td>Indicadores</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Gestão</td>
+            <td>Permissões</td>
+            <td>Bloqueio Gestão Frota</td>
+            <td class="status-BLOQUEADO_CORRETAMENTE">BLOQUEADO_CORRETAMENTE</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Gestão</td>
+            <td>Permissões</td>
+            <td>Bloqueio de Frota</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Admin</td>
+            <td>Login</td>
+            <td>Acesso</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Admin</td>
+            <td>Gestão da Frota</td>
+            <td>Busca</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+          <tr>
+            <td>Global</td>
+            <td>Responsividade</td>
+            <td>Viewports</td>
+            <td class="status-OK">OK</td>
+            <td></td>
+          </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

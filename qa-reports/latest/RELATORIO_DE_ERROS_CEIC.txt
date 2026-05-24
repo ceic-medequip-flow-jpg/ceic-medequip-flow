@@ -1,0 +1,78 @@
+=== RELATORIO_DE_ERROS_CEIC ===
+Gerado em: 04/05/2026, 17:01:52
+
+Resumo executivo
+{
+  "totalPerfis": 4,
+  "totalAcoes": 38,
+  "fluxosOk": 38,
+  "falhas": 0,
+  "bloqueadosPorSeguranca": 0,
+  "featuresNaoVisiveis": 0,
+  "causasRaiz": 0,
+  "coberturaPorPerfil": {
+    "ASSISTENCIAL": {
+      "acoes": 11,
+      "sucesso": 11,
+      "falha": 0
+    },
+    "OPERACIONAL": {
+      "acoes": 13,
+      "sucesso": 13,
+      "falha": 0
+    },
+    "GESTAO": {
+      "acoes": 7,
+      "sucesso": 7,
+      "falha": 0
+    },
+    "ADMIN_TESTE": {
+      "acoes": 7,
+      "sucesso": 7,
+      "falha": 0
+    }
+  }
+}
+
+Erros agrupados por causa raiz
+Nenhum erro encontrado.
+
+Fluxos OK
+- ASSISTENCIAL | 04CC | login | Autenticação
+- ASSISTENCIAL | 04CC | abrir_nova_solicitacao | abrir_nova_solicitacao
+- ASSISTENCIAL | 04CC | preencher_dados_solicitante | preencher_dados_solicitante
+- ASSISTENCIAL | 04CC | preencher_dados_paciente | preencher_dados_paciente
+- ASSISTENCIAL | 04CC | selecionar_tipo_equipamento | selecionar_tipo_equipamento
+- ASSISTENCIAL | 04CC | submeter_solicitacao | submeter_solicitacao
+- ASSISTENCIAL | 04CC | validar_sucesso_visual_solicitacao | validar_sucesso_visual_solicitacao
+- ASSISTENCIAL | 04CC | validar_persistencia_solicitacao | Criação de solicitação
+- ASSISTENCIAL | 04CC | validar_status_inicial | Criação de solicitação
+- ASSISTENCIAL | 04CC | validar_bloqueio_acoes_operacionais | validar_bloqueio_acoes_operacionais
+- ASSISTENCIAL | 04CC | logout | Encerramento de sessão
+- OPERACIONAL | EQUIPE_OPERACIONAL | login | Autenticação
+- OPERACIONAL | EQUIPE_OPERACIONAL | abrir_dashboard_operacional | abrir_dashboard_operacional
+- OPERACIONAL | EQUIPE_OPERACIONAL | validar_lista_pendentes | validar_lista_pendentes
+- OPERACIONAL | EQUIPE_OPERACIONAL | selecionar_solicitacao_pendente | selecionar_solicitacao_pendente
+- OPERACIONAL | EQUIPE_OPERACIONAL | confirmar_solicitacao_com_tag | confirmar_solicitacao_com_tag
+- OPERACIONAL | EQUIPE_OPERACIONAL | validar_status_aprovado | validar_status_aprovado
+- OPERACIONAL | EQUIPE_OPERACIONAL | validar_persistencia_confirmacao | validar_persistencia_confirmacao
+- OPERACIONAL | EQUIPE_OPERACIONAL | cancelar_solicitacao_com_motivo | cancelar_solicitacao_com_motivo
+- OPERACIONAL | EQUIPE_OPERACIONAL | validar_status_cancelado | validar_status_cancelado
+- OPERACIONAL | EQUIPE_OPERACIONAL | testar_fila_espera_se_disponivel | testar_fila_espera_se_disponivel
+- OPERACIONAL | EQUIPE_OPERACIONAL | testar_triagem_se_disponivel | testar_triagem_se_disponivel
+- OPERACIONAL | EQUIPE_OPERACIONAL | testar_expurgo_se_disponivel | testar_expurgo_se_disponivel
+- OPERACIONAL | EQUIPE_OPERACIONAL | logout | Encerramento de sessão
+- GESTAO | GESTAO_LIDERANCA | login | Autenticação
+- GESTAO | GESTAO_LIDERANCA | abrir_dashboard_gestao | abrir_dashboard_gestao
+- GESTAO | GESTAO_LIDERANCA | validar_cards_metricas | validar_cards_metricas
+- GESTAO | GESTAO_LIDERANCA | testar_filtros_se_disponivel | testar_filtros_se_disponivel
+- GESTAO | GESTAO_LIDERANCA | validar_leitura_dados | validar_leitura_dados
+- GESTAO | GESTAO_LIDERANCA | validar_bloqueio_escrita | validar_bloqueio_escrita
+- GESTAO | GESTAO_LIDERANCA | logout | Encerramento de sessão
+- ADMIN_TESTE | TESTE | login | Autenticação
+- ADMIN_TESTE | TESTE | abrir_gestao_equipamentos_se_disponivel | abrir_gestao_equipamentos_se_disponivel
+- ADMIN_TESTE | TESTE | buscar_equipamento | buscar_equipamento
+- ADMIN_TESTE | TESTE | selecionar_equipamento_existente | selecionar_equipamento_existente
+- ADMIN_TESTE | TESTE | validar_dados_equipamento_real | validar_dados_equipamento_real
+- ADMIN_TESTE | TESTE | editar_equipamento_real_se_permitido | editar_equipamento_real_se_permitido
+- ADMIN_TESTE | TESTE | logout | Encerramento de sessão

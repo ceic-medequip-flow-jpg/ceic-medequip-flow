@@ -1,0 +1,6 @@
+{
+  "ollama-copilot.baseUrl": "http://localhost:11434",
+  "ollama-copilot.model": "qwen2.5-coder:latest",
+  "ollama-copilot.chatModel": "deepseek-r1:latest",
+  "ollama-copilot.autocompleteEnabled": true
+}

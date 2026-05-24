@@ -1,0 +1,48 @@
+{
+  "ASSISTENCIAL": [
+    "login",
+    "abrir_nova_solicitacao",
+    "preencher_dados_solicitante",
+    "preencher_dados_paciente",
+    "selecionar_tipo_equipamento",
+    "submeter_solicitacao",
+    "validar_sucesso_visual_solicitacao",
+    "validar_persistencia_solicitacao",
+    "validar_status_inicial",
+    "validar_bloqueio_acoes_operacionais",
+    "logout"
+  ],
+  "OPERACIONAL": [
+    "login",
+    "abrir_dashboard_operacional",
+    "validar_lista_pendentes",
+    "selecionar_solicitacao_pendente",
+    "confirmar_solicitacao_com_tag",
+    "validar_status_aprovado",
+    "validar_persistencia_confirmacao",
+    "cancelar_solicitacao_com_motivo",
+    "validar_status_cancelado",
+    "testar_fila_espera_se_disponivel",
+    "testar_triagem_se_disponivel",
+    "testar_expurgo_se_disponivel",
+    "logout"
+  ],
+  "GESTAO": [
+    "login",
+    "abrir_dashboard_gestao",
+    "validar_cards_metricas",
+    "testar_filtros_se_disponivel",
+    "validar_leitura_dados",
+    "validar_bloqueio_escrita",
+    "logout"
+  ],
+  "ADMIN_TESTE": [
+    "login",
+    "abrir_gestao_equipamentos_se_disponivel",
+    "buscar_equipamento",
+    "selecionar_equipamento_existente",
+    "validar_dados_equipamento_real",
+    "editar_equipamento_real_se_permitido",
+    "logout"
+  ]
+}

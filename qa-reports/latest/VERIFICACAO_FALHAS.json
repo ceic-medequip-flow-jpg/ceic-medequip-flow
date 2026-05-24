@@ -1,0 +1,82 @@
+[
+  {
+    "nome": "ERRO 3 (Terapia a Vácuo)",
+    "perfil": "ASSISTENCIAL",
+    "status": "CORRIGIDO",
+    "dados": {
+      "message": "Solicitação criada e persistida após reload"
+    }
+  },
+  {
+    "nome": "ERRO 4 - Notificação falha",
+    "perfil": "OPERACIONAL",
+    "status": "CORRIGIDO",
+    "dados": {
+      "message": "Notificação persistida no Supabase com colunas lowercase",
+      "patchResponse": [
+        {
+          "id": "REQ-9JZP5O3BA",
+          "created_at": "2026-05-06T04:33:04.212405+00:00",
+          "status": "pending",
+          "timestamp": "2026-05-06T04:33:04.65+00:00",
+          "equipmenttype": "MONITOR MULTIPARAMÉTRICO",
+          "accessories": [
+            "Acessórios: Cabo ECG"
+          ],
+          "patientname": "PACIENTE VERIFICACAO",
+          "patientmv": "MV-VERIF",
+          "patientbed": "98",
+          "requestername": "VERIFICACAO CEIC",
+          "requesterbadge": "VERIF001",
+          "extension": "9999",
+          "sector": "ENF. RETAG EMERG CLINICA",
+          "isurgent": false,
+          "requesterrole": "ASSISTENCIAL",
+          "fulfilledby": null,
+          "fulfilledat": null,
+          "equipmenttag": "",
+          "cancelreason": null,
+          "cancelledbyinfo": null,
+          "cancelledat": null,
+          "notificationmessage": "Equipamento Indisponível no momento. Por favor, decida se deseja cancelar a solicitação ou aguardar na fila de espera.",
+          "notificationtype": "unavailable",
+          "notificationtime": "2026-05-07T15:00:16.006+00:00",
+          "iswaitlisted": false,
+          "waitlisttime": null,
+          "equipmentType": "MONITOR MULTIPARAMÉTRICO",
+          "patientName": null,
+          "patientMV": null,
+          "patientBed": null,
+          "requesterName": null,
+          "requesterBadge": null,
+          "isUrgent": false,
+          "requesterRole": null
+        }
+      ]
+    }
+  },
+  {
+    "nome": "ERRO 1 - Cancelamento não remove solicitação",
+    "perfil": "OPERACIONAL",
+    "status": "MASSA_INDISPONIVEL",
+    "dados": {
+      "message": "Card não encontrado para cancelamento"
+    }
+  },
+  {
+    "nome": "ERRO 2 - Alocação não persiste",
+    "perfil": "OPERACIONAL",
+    "status": "MASSA_INDISPONIVEL",
+    "dados": {
+      "message": "Card não encontrado para alocação"
+    }
+  },
+  {
+    "nome": "ERRO 5 - Triagem com Defeito não persiste",
+    "perfil": "OPERACIONAL",
+    "status": "MASSA_INDISPONIVEL",
+    "dados": {
+      "message": "Tela de triagem não disponível para validar o cenário"
+    }
+  }
+]
