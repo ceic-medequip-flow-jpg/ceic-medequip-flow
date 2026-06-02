@@ -5775,16 +5775,16 @@ import { supabase } from './supabaseClient';
 
                 try {
                     // BLINDAGEM: Atualiza apenas transfer_status e transfer_to, sem mudar a location ainda
-                    const { data, error } = await supabase
+                    const { data: eqData, error: eqError } = await supabase
                         .from('equipamentos')
                         .update({
                             transfer_status: 'in_transit',
                             transfer_to: destination
                         })
-                        .eq('id', item.id)
+                        .eq('tag', equipmentTag)
                         .select();
 
-                    if (error || !data || data.length === 0) {
+                    if (eqError || !eqData || eqData.length === 0) {
                         throw new Error('Operação não persistiu no banco de equipamentos');
                     }
 
@@ -5802,7 +5802,7 @@ import { supabase } from './supabaseClient';
 
                     // Atualiza inventário local
                     setInventory(prev => prev.map(eq => 
-                        eq.id === item.id ? { ...eq, transferStatus: 'in_transit', transferTo: destination } : eq
+                        normUpper(eq.tag) === normUpper(equipmentTag) ? { ...eq, transferStatus: 'in_transit', transferTo: destination } : eq
                     ));
                     
                     if (activeReq) {
@@ -5942,16 +5942,16 @@ import { supabase } from './supabaseClient';
 
                 try {
                     // BLINDAGEM: Atualiza apenas transfer_status e transfer_to, sem mudar a location ainda
-                    const { data, error } = await supabase
+                    const { data: eqData, error: eqError } = await supabase
                         .from('equipamentos')
                         .update({
                             transfer_status: 'in_transit',
                             transfer_to: destination
                         })
-                        .eq('id', item.id)
+                        .eq('tag', tag)
                         .select();
 
-                    if (error || !data || data.length === 0) {
+                    if (eqError || !eqData || eqData.length === 0) {
                         throw new Error('Operação não persistiu no banco de equipamentos');
                     }
 
@@ -5969,7 +5969,7 @@ import { supabase } from './supabaseClient';
 
                     // Atualiza inventário localmente para refletir a intenção
                     setInventory(prev => prev.map(eq =>
-                        eq.id === item.id ? { ...eq, transferStatus: 'in_transit', transferTo: destination } : eq
+                        normUpper(eq.tag) === normUpper(tag) ? { ...eq, transferStatus: 'in_transit', transferTo: destination } : eq
                     ));
 
                     if (activeReq) {
