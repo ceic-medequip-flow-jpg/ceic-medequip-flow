@@ -3109,10 +3109,10 @@ import { supabase } from './supabaseClient';
                                             const pickupRequest = requests.find(r => r.status === 'pickup_requested' && splitTagList(r.equipmentTag).includes(normUpper(item.tag)));
                                             const isPendingPickup = !!pickupRequest;
 
-                                            const isPendingTransferToMe = sameText(item.transferTo, sector) && item.transferStatus === 'in_transit';
-                                            const isMyItemTransferring = sameText(item.location, sector) && item.transferStatus === 'in_transit';
-                                            const isRejected = sameText(item.location, sector) && item.transferStatus === 'rejected';
-                                            const canTransfer = sameText(item.location, sector) && (!item.transferStatus || item.transferStatus === 'completed');
+                                            const isPendingTransferToMe = (sameText(item.transferTo, sector) || sameText(item.transferTo, userProfile?.login)) && item.transferStatus === 'in_transit';
+                                            const isMyItemTransferring = (sameText(item.location, sector) || sameText(item.location, userProfile?.login)) && item.transferStatus === 'in_transit';
+                                            const isRejected = (sameText(item.location, sector) || sameText(item.location, userProfile?.login)) && item.transferStatus === 'rejected';
+                                            const canTransfer = (sameText(item.location, sector) || sameText(item.location, userProfile?.login)) && (!item.transferStatus || item.transferStatus === 'completed');
                                             const needsReceiptConfirmation = false;
 
                                             return (
@@ -3162,14 +3162,9 @@ import { supabase } from './supabaseClient';
                                                         ) : (
                                                             <div className="flex items-center gap-2">
                                                                 {isPendingTransferToMe ? (
-                                                                    <>
-                                                                        <button onClick={() => handleReceiveClick(item, 'accept')} className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200 hover:bg-green-100 font-bold text-sm transition-colors shadow-sm">
-                                                                            <CheckCircle size={16} /> Aceitar
-                                                                        </button>
-                                                                        <button onClick={() => handleReceiveClick(item, 'reject')} className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg border border-red-200 hover:bg-red-100 font-bold text-sm transition-colors shadow-sm">
-                                                                            <XCircle size={16} /> Recusar
-                                                                        </button>
-                                                                    </>
+                                                                    <button onClick={() => handleConfirmTransferClick(item)} className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200 hover:bg-green-100 font-bold text-sm transition-colors shadow-sm">
+                                                                        <CheckCircle size={16} /> Aceitar
+                                                                    </button>
                                                                 ) : isMyItemTransferring ? (
                                                                     <span className="text-sm text-gray-400 font-medium italic mr-2">Bloqueado em
                                                                         trânsito...</span>
