@@ -148,7 +148,8 @@ import { supabase } from './supabaseClient';
                 notificationTime: raw.notification_time || raw.notificationTime || raw.notificationtime || null,
                 fulfilledAt: raw.fulfilled_at || raw.fulfilledAt || raw.fulfilledat || null,
                 transfer_to: raw.transfer_to || raw.transferTo || raw.transferto || null,
-                timestamp: raw.timestamp || raw.created_at || raw.createdAt || raw.createdat || null
+                timestamp: raw.timestamp || raw.created_at || raw.createdAt || raw.createdat || null,
+                catalogo_equipamentos: raw.catalogo_equipamentos || null
             };
         };
 
@@ -625,7 +626,7 @@ import { supabase } from './supabaseClient';
             const [filter, setFilter] = useState('all');
             // (fix) soundEnabled vem do App via props
             const pending = requests.filter(r => {
-                if (r.status === 'pending' || r.status === 'waitlisted') return true;
+                if (r.status === 'pending' || r.status === 'waitlisted' || r.status === 'pickup_requested') return true;
                 if (r.status === 'approved' && isTransportRequest(r.equipmentType)) {
                     return !r.returnToCeicTime;
                 }
@@ -1104,7 +1105,11 @@ import { supabase } from './supabaseClient';
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <div className="flex-1">
-                                            {isTransport ? (
+                                            {req.status === 'pickup_requested' ? (
+                                                <button onClick={() => onProcessPickup(req)} className="w-full h-[44px] px-4 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 flex items-center justify-center shadow-sm">
+                                                    <ClipboardList size={18} className="mr-2" /> Devolução/Triagem
+                                                </button>
+                                            ) : isTransport ? (
                                                 <div className="flex flex-col gap-3">
                                                     {transportItemsList.map((item, idx) => (
                                                         <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -1624,6 +1629,12 @@ import { supabase } from './supabaseClient';
                                                              })()
                                                          )}
 
+                                                        {req.status === 'pickup_requested' && (
+                                                            <div className="mt-3 p-3 bg-blue-50 text-blue-800 text-sm rounded border border-blue-200">
+                                                                <strong>Instrução de Devolução:</strong> {req.catalogo_equipamentos?.instrucao_devolucao || "O equipamento deverá ser entregue na CEIC o mais breve possível, em até 2h."}
+                                                            </div>
+                                                        )}
+
                                                         {req.notificationMessage && !req.isWaitlisted && req.status !== 'approved' && req.status !== 'in_transfer' && (
                                                             <div className={`mt-3 border p-3 rounded-lg text-sm flex flex-col gap-2 animate-fade-in
                                     shadow-sm ${req.notificationType === 'unavailable'
@@ -1857,9 +1868,12 @@ import { supabase } from './supabaseClient';
                 }
 
                 let finalEquip = ''; let finalDetails = ''; let requestTevPriority = null;
+                let catalogo_id = null;
+                const norm = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
 
                 if (category === 'GERAIS') {
-                    const norm = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+                    const selectedCatItem = (generalCatalog || []).find(i => norm(i.nome_oficial) === norm(selectedItem));
+                    catalogo_id = selectedCatItem?.id || null;
 
                     finalEquip = normUpper(selectedItem);
 
@@ -1905,14 +1919,9 @@ import { supabase } from './supabaseClient';
                         } if (extras.length > 0) finalDetails = extras.join(' - ');
                     }
                 } else if (category === 'VENTILATORIA') {
-                    const norm = (s) => String(s ?? '')
-                        .normalize('NFD')
-                        .replace(/[̀-ͯ]/g, '')
-                        .trim()
-                        .toUpperCase();
-
                     const selectedCatItem = (ventilatoryCatalog || []).find(i => norm(i.nome_oficial) === norm(subType));
                     const catSubType = norm(selectedCatItem?.subcategoria);
+                    catalogo_id = selectedCatItem?.id || null;
 
                     finalEquip = normUpper(subType); // Grava o nome oficial canônico do catálogo
 
@@ -1966,7 +1975,7 @@ import { supabase } from './supabaseClient';
 
                 return {
                     equipmentType: String(finalEquip).trim().toUpperCase(), accessories: allAccessories, tevPriority: requestTevPriority,
-                    destinyUnitBed: destinyUnitBed
+                    destinyUnitBed: destinyUnitBed, catalogo_id
                 };
             };
 
@@ -2396,7 +2405,7 @@ import { supabase } from './supabaseClient';
 
             useEffect(() => {
                 if (initialData) {
-                    setTypedTag(normUpper(initialData.tag));
+                    setTypedTag(normUpper(initialData.tag || initialData.type || ''));
                     if (initialData.tag) setStep(2);
                     if (initialData.hasDefect) { setIsDefective(true); setDefectDesc(initialData.defectDesc || ''); }
                 }
@@ -2460,9 +2469,18 @@ import { supabase } from './supabaseClient';
                                 <label className="label">Digite a TAG do Equipamento</label>
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                    <SearchDropdown value={normUpper(typedTag)} onChange={(val) => setTypedTag(normUpper(val))}
-                                        options={returnOptions} placeholder="Pesquisar TAG (ex.: EVNI…, EETV…, ECEX…)"
-                                        className="w-full pl-12 font-mono uppercase" />
+                                    {initialData ? (
+                                        <input
+                                            type="text"
+                                            value={normUpper(initialData.tag || initialData.type || '')}
+                                            readOnly
+                                            className="input w-full pl-12 font-mono uppercase bg-gray-100 cursor-not-allowed text-gray-500"
+                                        />
+                                    ) : (
+                                        <SearchDropdown value={normUpper(typedTag)} onChange={(val) => setTypedTag(normUpper(val))}
+                                            options={returnOptions} placeholder="Pesquisar TAG (ex.: EVNI…, EETV…, ECEX…)"
+                                            className="w-full pl-12 font-mono uppercase" />
+                                    )}
                                 </div>
                                 <button onClick={proceed} className="btn-primary w-full">AVANÇAR PARA TRIAGEM</button>
                             </div>
@@ -2756,7 +2774,7 @@ import { supabase } from './supabaseClient';
 
         // View: Equipamentos na Área (Aparelhos alocados no setor logado).
         const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onTransferEquipment,
-            onResolveTransfer, onConfirmReceipt, showNotification, onBack }) => {
+            onConfirmTransfer, onConfirmReceipt, showNotification, onBack, userProfile }) => {
             const [modalOpen, setModalOpen] = useState(false);
             const [selectedItem, setSelectedItem] = useState(null);
 
@@ -2791,8 +2809,9 @@ import { supabase } from './supabaseClient';
                 fetchUnidades();
             }, []);
 
-            const myEquipments = inventory.filter(item =>
-                (sameText(item.location, sector) || sameText(item.transferTo, sector)) && item.status === 'in_use'
+            const myEquipments = inventory.filter(item => 
+                (item.status === 'in_use' || item.status === 'disponivel') && 
+                sameText(item.location, sector)
             );
 
             const groupedEquipments = myEquipments.reduce((acc, item) => {
@@ -2834,21 +2853,13 @@ import { supabase } from './supabaseClient';
                 setTransferModalOpen(false);
             };
 
-            const handleReceiveClick = (item, action) => {
-                setSelectedItem(item); setReceiveAction(action); setCollaboratorName(''); setCollaboratorBadge('');
-                setReceiveModalOpen(true);
-            };
-
-            const confirmReceive = () => {
-                if (!collaboratorName || !collaboratorBadge) {
-                    showNotification('error', 'Preencha nome e matrícula.');
-                    return;
+            const handleConfirmTransferClick = (item) => {
+                const pedido = requests.find(r => normUpper(r.equipmentTag).includes(normUpper(item.tag)) && r.status === 'in_transfer');
+                if (pedido) {
+                    onConfirmTransfer(pedido);
+                } else {
+                    showNotification('error', 'Pedido de transferência não encontrado.');
                 }
-                onResolveTransfer({
-                    equipmentTag: selectedItem.tag, action: receiveAction, collaboratorName,
-                    collaboratorBadge
-                });
-                setReceiveModalOpen(false);
             };
 
             const handleReceiptClick = (item) => {
@@ -3077,14 +3088,14 @@ import { supabase } from './supabaseClient';
                                     </div>
                                     <div className="divide-y divide-gray-100">
                                         {groupedEquipments[modelName].sort((a, b) => (a.tag || '').localeCompare(b.tag || '')).map(item => {
-                                            const isPendingPickup = requests.some(r => r.kind === 'return_pickup' && splitTagList(r.equipmentTag).includes(normUpper(item.tag)) && r.status === 'pending');
+                                            const pickupRequest = requests.find(r => r.status === 'pickup_requested' && splitTagList(r.equipmentTag).includes(normUpper(item.tag)));
+                                            const isPendingPickup = !!pickupRequest;
 
-                                            const isPendingTransferToMe = sameText(item.transferTo, sector) && item.transferStatus ===
-                                                'pending';
-                                            const isMyItemTransferring = sameText(item.location, sector) && item.transferStatus === 'pending';
-                                            const isRejected = sameText(item.location, sector) && item.transferRejected;
-                                            const canTransfer = sameText(item.location, sector) && !item.transferStatus;
-                                            const needsReceiptConfirmation = item.receivedBySector === false;
+                                            const isPendingTransferToMe = sameText(item.transferTo, sector) && item.transferStatus === 'in_transit';
+                                            const isMyItemTransferring = sameText(item.location, sector) && item.transferStatus === 'in_transit';
+                                            const isRejected = sameText(item.location, sector) && item.transferStatus === 'rejected';
+                                            const canTransfer = sameText(item.location, sector) && (!item.transferStatus || item.transferStatus === 'completed');
+                                            const needsReceiptConfirmation = false;
 
                                             return (
                                                 <div key={item.id} className={`p-4 flex flex-col hover:bg-blue-50/30 transition-colors
@@ -3127,19 +3138,9 @@ import { supabase } from './supabaseClient';
                                                         </div>
 
                                                         {isPendingPickup ? (
-                                                            getCategoryForType(item.type) === 'GERAIS' ? (
-                                                                <div
-                                                                    className="flex items-center gap-2 px-3 py-2 bg-orange-50 text-orange-800 rounded-lg border border-orange-300 shadow-sm">
-                                                                    <Clock size={16} className="animate-pulse" /> <span
-                                                                        className="text-sm font-bold">Entregar na CEIC em até 2h</span>
-                                                                </div>
-                                                            ) : (
-                                                                <div
-                                                                    className="flex items-center gap-2 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg border border-yellow-200 shadow-sm">
-                                                                    <Clock size={16} /> <span className="text-sm font-bold">Aguardando
-                                                                        Retirada</span>
-                                                                </div>
-                                                            )
+                                                            <div className="mt-2 p-2 bg-blue-50 text-blue-800 text-sm rounded border border-blue-200">
+                                                                <strong>Instrução de Devolução:</strong> {pickupRequest?.catalogo_equipamentos?.instrucao_devolucao || "O equipamento deverá ser entregue na CEIC o mais breve possível, em até 2h."}
+                                                            </div>
                                                         ) : (
                                                             <div className="flex items-center gap-2">
                                                                 {isPendingTransferToMe ? (
@@ -4944,7 +4945,7 @@ import { supabase } from './supabaseClient';
 
                     // Busca pedidos
                     try {
-                        const { data: reqData, error: reqError } = await supabase.from('pedidos').select('*');
+                        const { data: reqData, error: reqError } = await supabase.from('pedidos').select('*, catalogo_equipamentos(instrucao_devolucao)');
                         if (reqData && !reqError) {
                             setRequests((reqData || []).map(mapPedido).filter(Boolean));
                         } else if (reqError) {
@@ -5143,6 +5144,7 @@ import { supabase } from './supabaseClient';
                         kind: 'solicitacao',
                         status: 'pending',
                         equipment_type: normalizedEquipmentType,
+                        catalogo_id: requestData?.catalogo_id || null,
                         // Força os dados do usuário logado para garantir integridade
                         sector: userProfile?.sector || 'Emergência',
                         patient_name: String(requestData?.patientName || 'Não Informado').trim(),
@@ -5342,7 +5344,7 @@ import { supabase } from './supabaseClient';
             const handleProcessPickup = async (request) => {
                 try {
                     setTriageData({
-                        tag: request.equipmentTag, hasDefect: request.problemReported === 'Sim',
+                        tag: request.equipmentTag, type: request.equipmentType, hasDefect: request.problemReported === 'Sim',
                         defectDesc: request.problemDescription
                     });
                     const { data, error } = await supabase
@@ -5462,9 +5464,13 @@ import { supabase } from './supabaseClient';
                 const nextStatus = hasDefect ? 'maintenance' : 'cleaning';
                 const nextLocation = hasDefect ? 'Engenharia Clínica' : 'Expurgo CEIC';
 
-                const updates = {
+                const supabaseUpdates = {
                     status: nextStatus,
-                    location: nextLocation,
+                    location: nextLocation
+                };
+
+                const localUpdates = {
+                    ...supabaseUpdates,
                     previousLocation: item.location || 'Não informado',
                     specificLocation: null,
                     returnDate: new Date().toISOString(),
@@ -5480,25 +5486,30 @@ import { supabase } from './supabaseClient';
                 };
 
                 if (hasDefect) {
-                    updates.defectdescription = defectDescription ?? '';
-                    updates.unitnotified = !!unitNotified;
-                    updates.notificationnumber = notificationNumber ?? '';
-                    updates.patientdamage = !!patientDamage;
-                    updates.servicerequestnumber = null;
+                    localUpdates.defectdescription = defectDescription ?? '';
+                    localUpdates.unitnotified = !!unitNotified;
+                    localUpdates.notificationnumber = notificationNumber ?? '';
+                    localUpdates.patientdamage = !!patientDamage;
+                    localUpdates.servicerequestnumber = null;
                 }
 
                 try {
-                    const { data, error } = await supabase
+                    const { data, error: equipError } = await supabase
                         .from('equipamentos')
-                        .update(updates)
+                        .update(supabaseUpdates)
                         .eq('id', item.id)
                         .select();
 
-                    if (error || !data || data.length === 0) {
+                    if (equipError) {
+                        console.error("🕵️ ERRO EXATO NA DEVOLUÇÃO DO EQUIPAMENTO:", equipError.message, equipError.details, equipError.hint);
+                        throw new Error(`Erro: ${equipError.message}`);
+                    }
+
+                    if (!data || data.length === 0) {
                         throw new Error('Operação não persistiu no banco');
                     }
 
-                    setInventory(prev => prev.map(it => (normUpper(it.tag) === cleanTag ? mapEquip({ ...it, ...updates }) : it)));
+                    setInventory(prev => prev.map(it => (normUpper(it.tag) === cleanTag ? mapEquip({ ...it, ...localUpdates }) : it)));
                     setTriageData(null);
                     showNotification(hasDefect ? 'error' : 'success', hasDefect ? 'Enviado para Manutenção.' : 'Baixa concluída! Item enviado ao Expurgo.');
                     return true;
@@ -5942,38 +5953,11 @@ import { supabase } from './supabaseClient';
                 setIsMobileMenuOpen(false);
             };
 
-            const mySectorPendingRequests = useMemo(function() {
-                const filtered = requests.filter(function(r) {
-                    const s = String(r.status || '').toLowerCase();
-                    const activeStatuses = ['pending', 'pendente', 'approved', 'aprovado', 'acknowledged', 'atendido', 'in_transit', 'em_transporte', 'waitlist', 'waitlisted', 'fila', 'solicitacao', 'preparing', 'preparando', 'in_transfer', 'delivered'];
-                    
-                    const isStatusActive = activeStatuses.includes(s);
-                    if (!isStatusActive) return false;
-
-                    // Prioridade 1: Identificador único (Matrícula/Login)
-                    const isMineBadge = Boolean(userProfile?.login && r.requesterBadge) && sameText(r.requesterBadge, userProfile.login);
-                    
-                    // Prioridade 2: Nome do Solicitante (Fallback)
-                    const isMineName = Boolean(userProfile?.name && r.requesterName) && sameText(r.requesterName, userProfile.name);
-                    
-                    // Prioridade 3: Setor (Se o perfil do usuário tiver setor definido)
-                    const isMineSector = userProfile?.sector ? (sameText(r.sector, userProfile.sector) || sameText(r.unit, userProfile.sector)) : false;
-                    
-                    // Destino de remanejamento/transferência (para a Unidade B)
-                    const isDestination = Boolean(userProfile?.login && r.transfer_to) && (sameText(r.transfer_to, userProfile.login) || sameText(r.transfer_to, userProfile.sector));
-
-                    // Regra de Exceção/Teste: Se o usuário NÃO tiver setor definido, ele vê todos os pedidos ativos do sistema
-                    const noSectorFallback = !userProfile?.sector;
-
-                    return isMineBadge || isMineName || isMineSector || isDestination || noSectorFallback;
-                });
-                console.log('Meus Pedidos Filtrados (Flexibilidade de Teste):', { 
-                    totalNoBanco: requests.length, 
-                    visiveisNaTela: filtered.length, 
-                    userLogin: userProfile?.login,
-                    userSector: userProfile?.sector || 'NULO (Modo Ver Tudo)'
-                });
-                return filtered;
+            const mySectorPendingRequests = useMemo(() => {
+                return requests.filter(p => 
+                    ['pending', 'acknowledged', 'preparing', 'in_transit', 'waitlisted', 'in_transfer', 'pickup_requested'].includes(p.status) &&
+                    (p.sector === userProfile?.login || p.requesterBadge === userProfile?.login || p.transfer_to === userProfile?.login)
+                );
             }, [requests, userProfile]);
 
             if (isLoading) {
@@ -6139,10 +6123,11 @@ import { supabase } from './supabaseClient';
                         {currentView === 'equipamentos_area' && (
                             <MyAreaEquipmentView inventory={inventory}
                                 sector={userProfile.sector}
-                                requests={mySectorPendingRequests}
+                                userProfile={userProfile}
+                                requests={requests}
                                 onRequestPickup={handleRequestPickup}
                                 onTransferEquipment={handleTransferEquipment}
-                                onResolveTransfer={handleResolveTransfer}
+                                onConfirmTransfer={handleConfirmTransfer}
                                 onConfirmReceipt={handleConfirmReceipt}
                                 showNotification={showNotification} onBack={() =>
                                     setCurrentView('meus_pedidos')}
