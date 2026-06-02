@@ -2809,9 +2809,15 @@ import { supabase } from './supabaseClient';
                 fetchUnidades();
             }, []);
 
-            const myEquipments = inventory.filter(item => 
+            console.log("🕵️ DEBUG TELA DA ÁREA:", {
+                totalEquipamentosRecebidos: inventory?.length || "UNDEFINED - Prop não chegou",
+                meuLogin: userProfile?.login,
+                meuSetor: sector
+            });
+
+            const myEquipments = inventory.filter(item =>
                 (item.status === 'in_use' || item.status === 'disponivel') && 
-                (sameText(item.location, sector) || sameText(item.transferTo, sector))
+                (sameText(item.location, userProfile?.login) || sameText(item.transferTo, userProfile?.login))
             );
 
             const groupedEquipments = myEquipments.reduce((acc, item) => {
@@ -6030,6 +6036,17 @@ import { supabase } from './supabaseClient';
                                 <p
                                     className="text-xs text-gray-400 mt-1 uppercase tracking-wider font-bold">
                                     {userProfile.role}</p>
+
+                                {userProfile && (
+                                    <div className="mt-3 pt-3 border-t border-gray-100">
+                                        <p className="text-sm font-bold text-blue-800">
+                                            {userProfile.login}
+                                        </p>
+                                        <p className="text-xs font-medium text-gray-600 truncate" title={userProfile.nome || userProfile.name}>
+                                            {userProfile.nome || userProfile.name}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                             <button className="md:hidden p-2 text-gray-400 hover:bg-gray-100 rounded-lg"
                                 onClick={() => setIsMobileMenuOpen(false)}>
