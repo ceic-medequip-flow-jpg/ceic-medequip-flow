@@ -2811,7 +2811,7 @@ import { supabase } from './supabaseClient';
 
             const myEquipments = inventory.filter(item => 
                 (item.status === 'in_use' || item.status === 'disponivel') && 
-                sameText(item.location, sector)
+                (sameText(item.location, sector) || sameText(item.transferTo, sector))
             );
 
             const groupedEquipments = myEquipments.reduce((acc, item) => {
