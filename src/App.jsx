@@ -213,10 +213,10 @@ import { supabase } from './supabaseClient';
 
         const formatItemLocation = (item) => {
             if (!item || !item.location) return '-';
-            if (!item.specificLocation) return item.location;
-            if (isTevCompressorType(item.type) && sameText(item.location, 'Centro Cirúrgico')) return item.specificLocation;
-            if (sameText(item.location, 'Centro Cirúrgico')) return `${item.location} ${item.specificLocation}`;
-            return `${item.location}${item.specificLocation}`;
+            if (sameText(item.location, 'CEIC')) return 'CEIC (Disponível)';
+            
+            const locStr = item.specificLocation ? `${item.location} - ${item.specificLocation}` : item.location;
+            return `Alocado: ${locStr}`;
         };
 
         const getCategoryForType = (typeStr) => {
@@ -1248,7 +1248,13 @@ import { supabase } from './supabaseClient';
                                                 <td className="p-4">
                                                     <StatusBadge status={item.status} />
                                                 </td>
-                                                <td className="p-4 text-sm font-bold text-blue-700">{formatItemLocation(item)}</td>
+                                                <td className="p-4 text-sm font-bold">
+                                                    {item.location && item.location !== 'CEIC' ? (
+                                                        <span className="text-blue-700">Alocado: {item.location}</span>
+                                                    ) : (
+                                                        <span className="text-blue-700">{formatItemLocation(item)}</span>
+                                                    )}
+                                                </td>
                                                 <td className="p-4 text-sm font-mono text-gray-500">{item.patientMV || '-'}</td>
                                                 <td className="p-4 text-sm text-gray-600">{formatElapsed(item.inUseSince)}</td>
                                             </tr>
@@ -1431,7 +1437,13 @@ import { supabase } from './supabaseClient';
                                                 <td className="p-4">
                                                     <StatusBadge status={item.status} />
                                                 </td>
-                                                <td className="p-4 text-sm font-bold text-blue-700">{formatItemLocation(item)}</td>
+                                                <td className="p-4 text-sm font-bold">
+                                                    {item.location && item.location !== 'CEIC' ? (
+                                                        <span className="text-blue-700">Alocado: {item.location}</span>
+                                                    ) : (
+                                                        <span className="text-blue-700">{formatItemLocation(item)}</span>
+                                                    )}
+                                                </td>
                                                 <td className="p-4 text-sm font-mono text-gray-500">{item.patientMV || '-'}</td>
                                                 <td className="p-4 text-sm text-gray-600">{formatElapsed(item.inUseSince)}</td>
                                             </tr>
@@ -5929,11 +5941,12 @@ import { supabase } from './supabaseClient';
                 if (!item) return;
 
                 try {
-                    // BLINDAGEM: Envia apenas a localização do equipamento, sem chaves legadas de paciente/pedido.
+                    // BLINDAGEM: Atualiza apenas transfer_status e transfer_to, sem mudar a location ainda
                     const { data, error } = await supabase
                         .from('equipamentos')
                         .update({
-                            location: destination
+                            transfer_status: 'in_transit',
+                            transfer_to: destination
                         })
                         .eq('id', item.id)
                         .select();
@@ -5942,15 +5955,31 @@ import { supabase } from './supabaseClient';
                         throw new Error('Operação não persistiu no banco de equipamentos');
                     }
 
-                    // Atualiza inventário localmente para refletir a mudança instantaneamente
-                    setInventory(prev => prev.map(eq => 
-                        eq.id === item.id ? { ...eq, location: destination } : eq
+                    // Tenta atualizar o pedido ativo para manter histórico coerente
+                    const activeReq = requests.find(r => normUpper(r.equipmentTag).includes(normUpper(tag)) && (r.status === 'delivered' || r.status === 'aprovado' || r.status === 'approved'));
+                    if (activeReq) {
+                        await supabase
+                            .from('pedidos')
+                            .update({
+                                status: 'in_transfer',
+                                transfer_to: destination
+                            })
+                            .eq('id', activeReq.id);
+                    }
+
+                    // Atualiza inventário localmente para refletir a intenção
+                    setInventory(prev => prev.map(eq =>
+                        eq.id === item.id ? { ...eq, transferStatus: 'in_transit', transferTo: destination } : eq
                     ));
 
-                    showNotification('success', `Equipamento ${tag} remanejado com sucesso para ${destination}.`);
+                    if (activeReq) {
+                        setRequests(prev => prev.map(r => r.id === activeReq.id ? { ...r, status: 'in_transfer', transfer_to: destination } : r));
+                    }
+
+                    showNotification('success', `Transferência de ${tag} para ${destination} iniciada (Aguardando aceite).`);
                     setCurrentView('admin_dashboard');
                 } catch (error) {
-                    showNotification('error', `Erro ao remanejar: ${error.message}`);
+                    showNotification('error', `Erro ao iniciar remanejamento: ${error.message}`);
                 }
             };
 
