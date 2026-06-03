@@ -2827,10 +2827,21 @@ import { supabase } from './supabaseClient';
                 meuSetor: sector
             });
 
-            const myEquipments = inventory.filter(item =>
-                (item.status === 'in_use' || item.status === 'disponivel') && 
-                (sameText(item.location, userProfile?.login) || sameText(item.transferTo, userProfile?.login))
-            );
+            const myEquipments = (inventory || []).filter(e => {
+                if (!e.location) return false;
+                
+                const loc = String(e.location).trim().toUpperCase();
+                const transTo = String(e.transferTo || '').trim().toUpperCase();
+                const userLogin = String(userProfile?.login || '').trim().toUpperCase();
+
+                // O equipamento pertence à unidade logada se a localização ou o destino em trânsito baterem com o login.
+                const isMine = (loc === userLogin || transTo === userLogin);
+                
+                // Exibe equipamentos que estão na unidade e não foram recolhidos pela CEIC
+                const activeStatuses = ['in_use', 'allocated', 'pickup_requested', 'disponivel'];
+                
+                return loc !== 'CEIC' && isMine && activeStatuses.includes(e.status);
+            });
 
             const groupedEquipments = myEquipments.reduce((acc, item) => {
                 if (!acc[item.model]) { acc[item.model] = []; }
@@ -2873,11 +2884,7 @@ import { supabase } from './supabaseClient';
 
             const handleConfirmTransferClick = (item) => {
                 const pedido = requests.find(r => normUpper(r.equipmentTag).includes(normUpper(item.tag)) && r.status === 'in_transfer');
-                if (pedido) {
-                    onConfirmTransfer(pedido);
-                } else {
-                    showNotification('error', 'Pedido de transferência não encontrado.');
-                }
+                onConfirmTransfer(item, pedido);
             };
 
             const handleReceiptClick = (item) => {
@@ -3602,7 +3609,7 @@ import { supabase } from './supabaseClient';
             );
         };
 
-        const AdminRemanejamento = ({ inventory, onRemanejamento, showNotification }) => {
+        const AdminRemanejamento = ({ inventory, onRemanejamento, showNotification, unidades }) => {
             const [selectedTag, setSelectedTag] = useState('');
             const [destinationSector, setDestinationSector] = useState('');
             const [destinationBed, setDestinationBed] = useState('');
@@ -3671,7 +3678,11 @@ import { supabase } from './supabaseClient';
                                         <select className="input h-[50px]" value={destinationSector} onChange={e =>
                                             setDestinationSector(e.target.value)}>
                                             <option value="">Selecione o setor...</option>
-                                            {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                                            {unidades?.map(u => (
+                                                <option key={u.login} value={u.login}>
+                                                    {u.login} - {u.nome || u.name}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div>
@@ -5295,27 +5306,28 @@ import { supabase } from './supabaseClient';
                         throw new Error('Operação não persistiu no banco de pedidos');
                     }
 
-                    // BLINDAGEM: Update na tabela equipamentos APENAS com a coluna status
+                    // BLINDAGEM: Update na tabela equipamentos com a coluna status e a nova location
                     const { error: eqError } = await supabase
                         .from('equipamentos')
                         .update({
-                            status: 'in_use'
+                            status: 'allocated',
+                            location: request.requesterBadge || request.sector || request.login
                         })
                         .in('id', equipmentsToAssign.map(eq => eq.id));
 
                     if (eqError) {
-                        console.error('Erro estrito no update de equipamentos:', eqError);
-                        throw new Error(`Falha ao atualizar estoque: ${eqError.message}`);
+                        console.error('Erro estrito no update de equipamentos:', eqError);  
+                        throw new Error(`Falha ao atualizar estoque: ${eqError.message}`);  
                     }
 
                     // Atualiza estado local de pedidos
                     const updatedReq = mapPedido(data[0]);
                     setRequests(prev => prev.map(r => r.id === request.id ? updatedReq : r));
-                    
+
                     // Atualiza inventário local
-                    setInventory(prev => prev.map(eq => 
-                        equipmentsToAssign.some(e => e.id === eq.id) 
-                        ? { ...eq, status: 'in_use' } 
+                    setInventory(prev => prev.map(eq =>
+                        equipmentsToAssign.some(e => e.id === eq.id)
+                        ? { ...eq, status: 'allocated', location: request.requesterBadge || request.sector || request.login }
                         : eq
                     ));
 
@@ -5754,8 +5766,25 @@ import { supabase } from './supabaseClient';
 
                     const { data, error } = await supabase.from('pedidos').insert([newReq]).select();
                     if (error || !data || data.length === 0) {
-                        throw new Error('Operação não persistiu no banco');
+                        throw new Error('Operação não persistiu no banco de pedidos');
                     }
+                    
+                    // Atualiza a tabela equipamentos com status de devolução
+                    const { error: eqError } = await supabase.from('equipamentos')
+                        .update({ status: 'pickup_requested' })
+                        .eq('tag', item.tag);
+                        
+                    if (eqError) {
+                         throw new Error('Erro ao atualizar status do equipamento para devolução.');
+                    }
+                    
+                    // Atualiza inventário local
+                    setInventory(prev => prev.map(eq => normUpper(eq.tag) === normUpper(item.tag) ? { ...eq, status: 'pickup_requested' } : eq));
+                    
+                    if (data && data[0]) {
+                        setRequests(prev => [mapPedido(data[0]), ...prev]);
+                    }
+
                     showNotification('success', 'Solicitação de retirada enviada.');
 
                 } catch (error) {
@@ -5767,6 +5796,9 @@ import { supabase } from './supabaseClient';
             const handleTransferEquipment = async ({ equipmentTag, destination, destinationBed, collaboratorName, collaboratorBadge }) => {
                 const item = inventory.find(i => normUpper(i.tag) === normUpper(equipmentTag));
                 if (!item) return;
+
+                // Garante que apenas a sigla limpa seja salva e processada em todo o fluxo
+                destination = destination ? destination.trim().split(' ')[0] : '';
 
                 try {
                     // BLINDAGEM: Atualiza apenas transfer_status e transfer_to, sem mudar a location ainda
@@ -5811,35 +5843,48 @@ import { supabase } from './supabaseClient';
                 }
             };
 
-            const handleConfirmTransfer = async (pedido) => {
+            const handleConfirmTransfer = async (item, pedido) => {
                 try {
-                    // 1. Atualiza o Equipamento:
-                    const { error: equipError } = await supabase.from('equipamentos').update({
-                      location: userProfile.login, // Agora sim muda de setor fisicamente
-                      transfer_status: 'completed',
-                      transfer_to: null,
-                      received_by_sector: userProfile.login
-                    }).eq('tag', pedido.equipmentTag);
+                    // 1. Atualiza o Equipamento (Payload Limpo e Sanitizado):
+                    const payloadAtualizacao = {
+                        location: userProfile?.login, // Envia estritamente a sigla do login
+                        transfer_status: null,        // Limpa usando null nativo
+                        transfer_to: null             // Limpa usando null nativo
+                    };
 
-                    if (equipError) throw equipError;
+                    const { error: equipError } = await supabase.from('equipamentos')
+                        .update(payloadAtualizacao)
+                        .eq('tag', item.tag);
 
-                    // 2. Atualiza o Pedido:
-                    const { data, error } = await supabase.from('pedidos').update({
-                      status: 'delivered', // Volta ao status de entregue/normal
-                      sector: userProfile.login, // A posse do pedido passa para o novo setor
-                      requester_name: userProfile.name,
-                      requester_badge: userProfile.login
-                    }).eq('id', pedido.id).select();
+                    if (equipError) {
+                        console.error("❌ ERRO DETALHADO DO SUPABASE 400:", {
+                            mensagem: equipError.message,
+                            detalhes: equipError.details,
+                            dica: equipError.hint
+                        });
+                        throw equipError;
+                    }
 
-                    if (error) throw error;
+                    // 2. Atualiza o Pedido (se houver pedido ativo):
+                    let pedidoAtualizado = null;
+                    if (pedido) {
+                        const { data, error } = await supabase.from('pedidos').update({
+                          status: 'delivered', // Volta ao status de entregue/normal
+                          sector: userProfile?.login, // A posse do pedido passa para o novo setor
+                          requester_name: userProfile?.name,
+                          requester_badge: userProfile?.login
+                        }).eq('id', pedido.id).select();
+                        if (error) throw error;
+                        if (data && data[0]) pedidoAtualizado = data[0];
+                    }
 
                     // Atualiza estado local
                     setInventory(prev => prev.map(eq => 
-                        normUpper(eq.tag) === normUpper(pedido.equipmentTag) ? { ...eq, location: userProfile.login, transferStatus: 'completed', transferTo: null, receivedBySector: userProfile.login } : eq
+                        normUpper(eq.tag) === normUpper(item.tag) ? { ...eq, location: userProfile?.login, transferStatus: null, transferTo: null, receivedBySector: userProfile?.login } : eq
                     ));
                     
-                    if (data && data[0]) {
-                        setRequests(prev => prev.map(r => r.id === pedido.id ? mapPedido(data[0]) : r));
+                    if (pedidoAtualizado) {
+                        setRequests(prev => prev.map(r => r.id === pedido.id ? mapPedido(pedidoAtualizado) : r));
                     }
 
                     showNotification('success', 'Recebimento do equipamento confirmado.');
@@ -5934,6 +5979,9 @@ import { supabase } from './supabaseClient';
             const handleRemanejamento = async ({ tag, destination, destinationBed, patientMV, patientName, collaboratorName, collaboratorBadge }) => {
                 const item = inventory.find(i => normUpper(i.tag) === normUpper(tag));
                 if (!item) return;
+
+                // Garante que apenas a sigla limpa seja salva e processada em todo o fluxo
+                destination = destination ? destination.trim().split(' ')[0] : '';
 
                 try {
                     // BLINDAGEM: Atualiza apenas transfer_status e transfer_to, sem mudar a location ainda
@@ -6123,7 +6171,7 @@ import { supabase } from './supabaseClient';
                                 onComplete={handleCompletePreventive} />}
                         {currentView === 'admin_remanejamento' &&
                             <AdminRemanejamento inventory={inventory} onRemanejamento={handleRemanejamento}
-                                showNotification={showNotification} />}
+                                showNotification={showNotification} unidades={unidades} />}
                         {currentView === 'admin_entrega_ativa' && <AdminEntregaWrapper
                             onCreateRequest={handleCreateRequest} showNotification={showNotification}
                             onBack={() => setCurrentView('admin_dashboard')} adminProfile={userProfile} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} transportCatalog={transportCatalog}
