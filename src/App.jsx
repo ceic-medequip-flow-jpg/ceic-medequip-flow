@@ -135,7 +135,7 @@ import { supabase } from './supabaseClient';
                 sector: trimText(raw.sector || raw.Sector || raw.setor || raw.unit || raw.Unit || raw.unidade || ''),
                 unit: trimText(raw.unit || raw.Unit || raw.unidade || raw.sector || raw.Sector || raw.setor || ''),
                 patientName: trimText(raw.patient_name || raw.patientName || raw.patientname || raw.nome_paciente || 'NÃO INFORMADO'),
-                patientMV: trimText(raw.patient_mv || raw.patientMV || raw.patientmv || raw.mv || raw.registro_mv || '000000'),
+                patient_mv: trimText(raw.patient_mv || raw.patient_mv || raw.patientmv || raw.mv || raw.registro_mv || '000000'),
                 patientBed: trimText(raw.patient_bed || raw.patientBed || raw.patientbed || raw.leito || '00'),
                 requesterName: trimText(raw.requester_name || raw.requesterName || raw.requestername || raw.solicitante || 'ANÔNIMO'),
                 requesterBadge: trimText(raw.requester_badge || raw.requesterBadge || raw.requesterbadge || raw.matricula || '00000'),
@@ -170,7 +170,7 @@ import { supabase } from './supabaseClient';
                 location,
                 model,
                 specificLocation: specificLocation || null,
-                patientMV: trimText(raw.patientMV || raw.patientmv || ''),
+                patient_mv: trimText(raw.patient_mv || raw.patient_mv || raw.patientmv || ''),
                 patientName: trimText(raw.patientName || raw.patientname || ''),
                 transferStatus: normLower(raw.transfer_status || raw.transferStatus || raw.transferstatus || raw.TransferStatus || '') || null,
                 transferTo: transferTo || null,
@@ -178,7 +178,7 @@ import { supabase } from './supabaseClient';
                 transferRejected: raw.transferRejected ?? raw.transferrejected ?? false,
                 receivedBySector: raw.received_by_sector ?? raw.receivedBySector ?? raw.receivedbysector ?? null,
                 previousLocation: previousLocation || null,
-                inUseSince: raw.inUseSince || raw.inusesince || null,
+                in_use_since: raw.in_use_since || raw.inUseSince || raw.in_use_since || raw.inusesince || null,
                 returnDate: raw.returnDate || raw.returndate || null,
                 lastCleaned: raw.lastCleaned || raw.lastcleaned || null,
                 notificationNumber: raw.notificationNumber || raw.notificationnumber || null,
@@ -509,7 +509,7 @@ import { supabase } from './supabaseClient';
                         const isPendingReceive = invItem && invItem.receivedBySector === false;
                         const isTransferRejected = invItem && invItem.transferRejected;
 
-                        const searchStr = normLower(`${tag} ${req.equipmentType || ''} ${invItem?.type || ''} ${invItem?.location || ''} ${req.sector || ''} ${req.patientBed || ''} ${req.patientName || ''} ${req.patientMV || ''} ${req.requesterName || ''} ${req.requesterBadge || ''} ${invItem?.transferTo || ''}`);
+                        const searchStr = normLower(`${tag} ${req.equipmentType || ''} ${invItem?.type || ''} ${invItem?.location || ''} ${req.sector || ''} ${req.patientBed || ''} ${req.patientName || ''} ${req.patient_mv || ''} ${req.requesterName || ''} ${req.requesterBadge || ''} ${invItem?.transferTo || ''}`);
 
                         list.push({ tag, req, invItem, pendingReturn, isTransferring, isPendingReceive, isTransferRejected, searchStr });
                     });
@@ -556,7 +556,7 @@ import { supabase } from './supabaseClient';
                                     const { tag, req, invItem, pendingReturn, isTransferring, isPendingReceive, isTransferRejected } = item;
                                     const typeName = req.equipmentType || invItem?.type || "Desconhecido";
                                     const locName = invItem?.location || req.sector || "Desconhecido";
-                                    const displayTime = req.fulfilledAt ? formatElapsedVerbose(req.fulfilledAt) : (invItem?.inUseSince ? formatElapsedVerbose(invItem.inUseSince) : "N/A");
+                                    const displayTime = req.fulfilledAt ? formatElapsedVerbose(req.fulfilledAt) : (invItem?.in_use_since ? formatElapsedVerbose(invItem.in_use_since) : "N/A");
 
                                     return (
                                         <div key={`${tag}-${idx}`} className="p-4 hover:bg-gray-50 transition-colors">
@@ -581,7 +581,7 @@ import { supabase } from './supabaseClient';
                                                             <User size={16} className="text-gray-400 shrink-0 mt-0.5" />
                                                             <div>
                                                                 <span className="font-medium text-gray-700">{req.patientName || "Não informado"}</span>
-                                                                <span className="text-xs text-gray-500 font-mono whitespace-nowrap self-center">{req.patientMV ? `MV: ${req.patientMV}` : 'MV: -'}</span>
+                                                                <span className="text-xs text-gray-500 font-mono whitespace-nowrap self-center">{req.patient_mv ? `MV: ${req.patient_mv}` : 'MV: -'}</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1023,8 +1023,8 @@ import { supabase } from './supabaseClient';
                             {req.patientBed && <p><span className="font-semibold">Leito:</span> <span
                                 className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">{req.patientBed}</span>
                             </p>}
-                            {req.patientMV && <p><span className="font-semibold">MV:</span> <span
-                                className="font-mono bg-gray-100 px-1 rounded">{req.patientMV}</span></p>}
+                            {req.patient_mv && <p><span className="font-semibold">MV:</span> <span
+                                className="font-mono bg-gray-100 px-1 rounded">{req.patient_mv}</span></p>}
                             {req.accessories && req.accessories.length > 0 && <p className="col-span-2"><span
                                 className="font-semibold">Detalhes:</span> {req.accessories.join(', ')}</p>}
                         </div>
@@ -1246,17 +1246,21 @@ import { supabase } from './supabaseClient';
                                                 </td>
                                                 <td className="p-4 text-sm font-bold text-gray-700">{item.model}</td>
                                                 <td className="p-4">
-                                                    <StatusBadge status={item.status} />
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${item.status === 'allocated' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
+                                                        {item.status === 'allocated' ? 'Em Uso' : 'Disponível'}
+                                                    </span>
                                                 </td>
                                                 <td className="p-4 text-sm font-bold">
-                                                    {item.location && item.location !== 'CEIC' ? (
-                                                        <span className="text-blue-700">Alocado: {item.location}</span>
-                                                    ) : (
-                                                        <span className="text-blue-700">{formatItemLocation(item)}</span>
-                                                    )}
+                                                    {item.status === 'allocated' ? item.location : 'CEIC'}
                                                 </td>
-                                                <td className="p-4 text-sm font-mono text-gray-500">{item.patientMV || '-'}</td>
-                                                <td className="p-4 text-sm text-gray-600">{formatElapsed(item.inUseSince)}</td>
+                                                <td className="p-4 text-sm font-mono text-gray-500">
+                                                    {item.status === 'allocated' ? (item.patient_mv || '-') : '-'}
+                                                </td>
+                                                <td className="p-4 text-sm text-gray-600">
+                                                    {item.status === 'allocated' && item.in_use_since ? (
+                                                        `${Math.floor((new Date() - new Date(item.in_use_since)) / (1000 * 60 * 60 * 24))} dias`
+                                                    ) : '-'}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -1301,10 +1305,12 @@ import { supabase } from './supabaseClient';
                     TAG: item.tag || '-',
                     TIPO: item.type || '-',
                     MODELO: item.model || '-',
-                    STATUS: normUpper(item.status || '-'),
-                    LOCAL: formatItemLocation(item),
-                    MV_ATUAL: item.patientMV || '-',
-                    TEMPO: formatElapsed(item.inUseSince)
+                    STATUS: item.status === 'allocated' ? 'EM USO' : 'DISPONÍVEL',
+                    LOCAL: item.status === 'allocated' ? item.location : 'CEIC',
+                    MV_ATUAL: item.status === 'allocated' ? (item.patient_mv || '-') : '-',
+                    TEMPO: item.status === 'allocated' && item.in_use_since 
+                        ? `${Math.floor((new Date() - new Date(item.in_use_since)) / (1000 * 60 * 60 * 24))} dias` 
+                        : '-'
                 }));
             }, [filteredItems]);
 
@@ -1340,13 +1346,20 @@ import { supabase } from './supabaseClient';
                 let tableRows = '';
                 filteredItems.forEach(item => {
                     const isScheduled = (item.preventiveScheduled && item.status !== 'preventive') ? 'Sim' : 'Não';
+                    const statusLabel = item.status === 'allocated' ? 'Em Uso' : 'Disponível';
+                    const locationLabel = item.status === 'allocated' ? item.location : 'CEIC';
+                    const mvLabel = item.status === 'allocated' ? (item.patient_mv || '-') : '-';
+                    const timeLabel = item.status === 'allocated' && item.in_use_since 
+                        ? `${Math.floor((new Date() - new Date(item.in_use_since)) / (1000 * 60 * 60 * 24))} dias` 
+                        : '-';
+
                     tableRows += "<tr>";
                     tableRows += "<td>" + (item.tag || '') + "</td>";
                     tableRows += "<td>" + (item.type || '-') + "</td>";
                     tableRows += "<td>" + (item.model || '-') + "</td>";
-                    tableRows += "<td>" + formatItemLocation(item) + "</td>";
-                    tableRows += "<td>" + (item.patientMV || '-') + "</td>";
-                    tableRows += "<td>" + formatElapsed(item.inUseSince) + "</td>";
+                    tableRows += "<td>" + statusLabel + " / " + locationLabel + "</td>";
+                    tableRows += "<td>" + mvLabel + "</td>";
+                    tableRows += "<td>" + timeLabel + "</td>";
                     tableRows += "<td>" + isScheduled + "</td>";
                     tableRows += "</tr>";
                 });
@@ -1435,17 +1448,21 @@ import { supabase } from './supabaseClient';
                                                 <td className="p-4 text-sm font-bold text-gray-700">{item.type || '-'}</td>
                                                 <td className="p-4 text-sm font-bold text-gray-700">{item.model || '-'}</td>
                                                 <td className="p-4">
-                                                    <StatusBadge status={item.status} />
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${item.status === 'allocated' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
+                                                        {item.status === 'allocated' ? 'Em Uso' : 'Disponível'}
+                                                    </span>
                                                 </td>
                                                 <td className="p-4 text-sm font-bold">
-                                                    {item.location && item.location !== 'CEIC' ? (
-                                                        <span className="text-blue-700">Alocado: {item.location}</span>
-                                                    ) : (
-                                                        <span className="text-blue-700">{formatItemLocation(item)}</span>
-                                                    )}
+                                                    {item.status === 'allocated' ? item.location : 'CEIC'}
                                                 </td>
-                                                <td className="p-4 text-sm font-mono text-gray-500">{item.patientMV || '-'}</td>
-                                                <td className="p-4 text-sm text-gray-600">{formatElapsed(item.inUseSince)}</td>
+                                                <td className="p-4 text-sm font-mono text-gray-500">
+                                                    {item.status === 'allocated' ? (item.patient_mv || '-') : '-'}
+                                                </td>
+                                                <td className="p-4 text-sm text-gray-600">
+                                                    {item.status === 'allocated' && item.in_use_since ? (
+                                                        `${Math.floor((new Date() - new Date(item.in_use_since)) / (1000 * 60 * 60 * 24))} dias`
+                                                    ) : '-'}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -1585,7 +1602,7 @@ import { supabase } from './supabaseClient';
                                                         <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                                                             <span className="flex items-center gap-1">
                                                                 <User size={12} /> <span data-testid="request-patient-name">{req.patientName}</span>
-                                                                {req.patientMV && <span data-testid="request-patient-mv" className="ml-2 font-mono bg-gray-100 px-1 rounded text-[10px]">MV: {req.patientMV}</span>}
+                                                                {req.patient_mv && <span data-testid="request-patient-mv" className="ml-2 font-mono bg-gray-100 px-1 rounded text-[10px]">MV: {req.patient_mv}</span>}
                                                             </span>
                                                             <span className="flex items-center gap-1">
                                                                 <Clock size={12} /> {new Date(req.timestamp).toLocaleTimeString()}
@@ -1806,7 +1823,7 @@ import { supabase } from './supabaseClient';
             const [requesterBadge, setRequesterBadge] = useState(adminProfile ? adminProfile.badge : '');
             const [ramal, setRamal] = useState(adminProfile ? 'Admin' : '');
             const [isEmergency, setIsEmergency] = useState(false);
-            const [patientMV, setPatientMV] = useState('');
+            const [patient_mv, setPatient_mv] = useState('');
             const [patientName, setPatientName] = useState('');
             const [patientBed, setPatientBed] = useState('');
             const [checklistModel, setChecklistModel] = useState('');
@@ -1851,7 +1868,7 @@ import { supabase } from './supabaseClient';
             const TRANSPORT_MONITOR_OPTIONS = ["Apenas Monitor", "Módulo completo (ECG, Oxímetro e manguito Adulto)", "Manguito Extra Grande", "Manguito infantil"];
 
             const handleMVChange = (e) => {
-                const val = e.target.value; setPatientMV(val);
+                const val = e.target.value; setPatient_mv(val);
             };
 
             const handleCategoryChange = (newCat) => {
@@ -1993,7 +2010,7 @@ import { supabase } from './supabaseClient';
 
             const handleAddAnother = (e) => {
                 e.preventDefault();
-                if (!requesterBadge.trim() || !patientMV.trim() || !patientName.trim() || !patientBed.trim()) {
+                if (!requesterBadge.trim() || !patient_mv.trim() || !patientName.trim() || !patientBed.trim()) {
                     showNotification('error', 'Preencha os dados básicos do paciente primeiro.'); return;
                 }
                 const equipData = getEquipmentPayload();
@@ -2005,7 +2022,7 @@ import { supabase } from './supabaseClient';
 
             const handleSubmitAll = (e) => {
                 e.preventDefault();
-                if (!requesterBadge.trim() || !patientMV.trim() || !patientName.trim() || !patientBed.trim()) {
+                if (!requesterBadge.trim() || !patient_mv.trim() || !patientName.trim() || !patientBed.trim()) {
                     showNotification('error', 'Preencha os dados do paciente.'); return;
                 }
                 const finalCart = [...equipmentList];
@@ -2018,12 +2035,12 @@ import { supabase } from './supabaseClient';
 
                 finalCart.forEach(item => {
                     onCreateRequest({
-                        ...item, patientName, patientMV, patientBed, requesterName, requesterBadge, extension:
+                        ...item, patientName, patient_mv, patientBed, requesterName, requesterBadge, extension:
                             ramal, sector: sectorSelo, isUrgent: isEmergency, kind: 'equipment_request'
                     });
                 });
 
-                setEquipmentList([]); setIsEmergency(false); setPatientName(''); setPatientMV(''); setPatientBed('');
+                setEquipmentList([]); setIsEmergency(false); setPatientName(''); setPatient_mv(''); setPatientBed('');
                 handleCategoryChange('');
             };
 
@@ -2070,7 +2087,7 @@ import { supabase } from './supabaseClient';
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div><label className="label">Registro MV*</label><input data-testid="request-patient-mv" required type="text" className="input"
-                                value={patientMV} onChange={handleMVChange} placeholder="Ex: MV458512" /></div>
+                                value={patient_mv} onChange={handleMVChange} placeholder="Ex: MV458512" /></div>
                             <div><label className="label">Nome do Paciente *</label><input data-testid="request-patient-name" required type="text"
                                 className="input" value={patientName} onChange={e => setPatientName(e.target.value)} />
                             </div>
@@ -2988,7 +3005,7 @@ import { supabase } from './supabaseClient';
                                     <div>
                                         <label className="label text-gray-700">Paciente Vinculado</label>
                                         <input className="input bg-gray-100 text-gray-500 cursor-not-allowed"
-                                            value={selectedItem?.patientMV ? `${selectedItem.patientName || 'Desconhecido'} (MV: ${selectedItem.patientMV})` : 'Nenhum paciente vinculado'} disabled />
+                                            value={selectedItem?.patient_mv ? `${selectedItem.patientName || 'Desconhecido'} (MV: ${selectedItem.patient_mv})` : 'Nenhum paciente vinculado'} disabled />
                                         <p className="text-[10px] text-gray-400 mt-1">O paciente não pode ser alterado durante o
                                             remanejamento.</p>
                                     </div>
@@ -3143,13 +3160,13 @@ import { supabase } from './supabaseClient';
                                                                     Recusado!</span>}
                                                             </div>
                                                             <div className="text-sm text-gray-500 mt-2 flex flex-wrap items-center gap-3">
-                                                                {item.patientMV && (
+                                                                {item.patient_mv && (
                                                                     <span
                                                                         className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-md text-gray-700 shadow-sm">
                                                                         <User size={14} className="text-blue-500" />
                                                                         <span className="font-bold">{item.patientName || 'Paciente não identificado'}</span>
                                                                         <span className="text-xs text-gray-400 font-mono">(MV:
-                                                                            {item.patientMV})</span>
+                                                                            {item.patient_mv})</span>
                                                                     </span>
                                                                 )}
                                                                 {item.specificLocation && !isPendingTransferToMe && <span
@@ -3613,7 +3630,7 @@ import { supabase } from './supabaseClient';
             const [selectedTag, setSelectedTag] = useState('');
             const [destinationSector, setDestinationSector] = useState('');
             const [destinationBed, setDestinationBed] = useState('');
-            const [patientMV, setPatientMV] = useState('');
+            const [patient_mv, setPatient_mv] = useState('');
             const [patientName, setPatientName] = useState('');
             const [collaboratorName, setCollaboratorName] = useState('');
             const [collaboratorBadge, setCollaboratorBadge] = useState('');
@@ -3621,7 +3638,7 @@ import { supabase } from './supabaseClient';
             const availableEquipments = inventory.filter(i => i.status === 'available');
 
             const handleMVChange = (e) => {
-                const val = e.target.value; setPatientMV(val);
+                const val = e.target.value; setPatient_mv(val);
             };
 
             const handleSubmit = (e) => {
@@ -3632,11 +3649,11 @@ import { supabase } from './supabaseClient';
                 }
 
                 onRemanejamento({
-                    tag: selectedTag, destination: destinationSector, destinationBed, patientMV,
+                    tag: selectedTag, destination: destinationSector, destinationBed, patient_mv,
                     patientName, collaboratorName, collaboratorBadge
                 });
 
-                setSelectedTag(''); setDestinationSector(''); setDestinationBed(''); setPatientMV('');
+                setSelectedTag(''); setDestinationSector(''); setDestinationBed(''); setPatient_mv('');
                 setPatientName(''); setCollaboratorName(''); setCollaboratorBadge('');
             };
 
@@ -3698,7 +3715,7 @@ import { supabase } from './supabaseClient';
                                     className="text-gray-400 font-normal text-sm">(Opcional)</span></h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div><label className="label">Registro MV</label><input type="text"
-                                        className="input" value={patientMV} onChange={handleMVChange}
+                                        className="input" value={patient_mv} onChange={handleMVChange}
                                         placeholder="Ex: 123456" /></div>
                                     <div><label className="label">Nome do Paciente</label><input type="text"
                                         className="input" value={patientName} onChange={e =>
@@ -4724,7 +4741,7 @@ import { supabase } from './supabaseClient';
                 equipmentTag: String(p.equipmentTag || p.equipmenttag || p["equipmentTag"] || '').trim().toUpperCase(),
                 sector: p.sector || '',
                 patientName: p.patientName || p.patientname || '',
-                patientMV: p.patientMV || p.patientmv || '',
+                patient_mv: p.patient_mv || p.patientmv || '',
                 patientBed: p.patientBed || p.patientbed || '',
                 requesterName: p.requesterName || p.requestername || '',
                 requesterBadge: p.requesterBadge || p.requesterbadge || '',
@@ -4958,8 +4975,16 @@ import { supabase } from './supabaseClient';
                     // Busca equipamentos
                     try {
                         const { data: eqData, error: eqError } = await supabase.from('equipamentos').select('*');
+                        
+                        console.log("🕵️ DEBUG FETCH EQUIPAMENTOS (Amostra):", eqData && eqData.length > 0 ? eqData[0] : "Vazio");
+
                         if (eqData && !eqError) {
-                            setInventory((eqData || []).map(mapEquip).filter(Boolean));
+                            const formatado = (eqData || []).map(item => ({
+                                ...item,
+                                patient_mv: item.patient_mv,
+                                in_use_since: item.in_use_since
+                            }));
+                            setInventory(formatado.map(mapEquip).filter(Boolean));
                         } else if (eqError) {
                             console.error("Erro ao buscar equipamentos:", eqError);
                         }
@@ -5098,8 +5123,8 @@ import { supabase } from './supabaseClient';
                             status: String(newItem.status || 'available').trim().toLowerCase(),
                             location: String(newItem.location || 'CEIC').trim(),
                             specificLocation: null,
-                            patientMV: null,
-                            inUseSince: null
+                            patient_mv: null,
+                            in_use_since: null
                         }])
                         .select();
 
@@ -5172,7 +5197,7 @@ import { supabase } from './supabaseClient';
                         // Força os dados do usuário logado para garantir integridade
                         sector: userProfile?.sector || 'Emergência',
                         patient_name: String(requestData?.patientName || 'Não Informado').trim(),
-                        patient_mv: String(requestData?.patientMV || '000000').trim(),
+                        patient_mv: String(requestData?.patient_mv || '000000').trim(),
                         patient_bed: String(requestData?.patientBed || '00').trim(),
                         requester_name: userProfile?.name || 'Solicitante não identificado',
                         requester_badge: userProfile?.login || '00000',
@@ -5311,7 +5336,9 @@ import { supabase } from './supabaseClient';
                         .from('equipamentos')
                         .update({
                             status: 'allocated',
-                            location: request.requesterBadge || request.sector || request.login
+                            location: request.requesterBadge || request.sector || request.login,
+                            patient_mv: request.patient_mv || null,
+                            in_use_since: new Date().toISOString()
                         })
                         .in('id', equipmentsToAssign.map(eq => eq.id));
 
@@ -5327,7 +5354,7 @@ import { supabase } from './supabaseClient';
                     // Atualiza inventário local
                     setInventory(prev => prev.map(eq =>
                         equipmentsToAssign.some(e => e.id === eq.id)
-                        ? { ...eq, status: 'allocated', location: request.requesterBadge || request.sector || request.login }
+                        ? { ...eq, status: 'allocated', location: request.requesterBadge || request.sector || request.login, patient_mv: request.patient_mv || null, in_use_since: new Date().toISOString() }
                         : eq
                     ));
 
@@ -5505,9 +5532,9 @@ import { supabase } from './supabaseClient';
                     transferToBed: null,
                     transferBy: null,
                     transferRejected: false,
-                    patientMV: null,
+                    patient_mv: null,
                     patientName: null,
-                    inUseSince: null
+                    in_use_since: null
                 };
 
                 if (hasDefect) {
@@ -5549,33 +5576,36 @@ import { supabase } from './supabaseClient';
                 const item = inventory.find(i => i.id === itemId);
                 if (!item) return;
 
-                const updates = item.preventiveScheduled
+                const payloadLiberacao = item.preventiveScheduled
                     ? {
                         status: 'preventive',
                         location: 'Ag. Preventiva',
-                        specificLocation: null,
-                        lastCleaned: new Date().toISOString(),
-                        preventiveSegregatedAt: new Date().toISOString(),
+                        specific_location: null,
+                        preventive_segregated_at: new Date().toISOString()
                     }
                     : {
                         status: 'available',
                         location: 'CEIC',
-                        specificLocation: null,
-                        lastCleaned: new Date().toISOString(),
+                        specific_location: null
                     };
 
                 try {
-                    const { data, error } = await supabase
+                    const { data, error: releaseError } = await supabase
                         .from('equipamentos')
-                        .update(updates)
+                        .update(payloadLiberacao)
                         .eq('id', itemId)
                         .select();
 
-                    if (error || !data || data.length === 0) {
-                        throw new Error('Operação não persistiu no banco');
+                    if (releaseError) {
+                        console.error("❌ ERRO SUPABASE [EXPURGO]:", releaseError.message, releaseError.details, releaseError.hint);
+                        throw new Error(`Operação não persistiu: ${releaseError.message}`);
                     }
 
-                    setInventory(prev => (prev || []).map(it => it.id === itemId ? mapEquip({ ...it, ...updates }) : it));
+                    if (!data || data.length === 0) {
+                        throw new Error('Equipamento não encontrado ou não atualizado.');
+                    }
+
+                    setInventory(prev => (prev || []).map(it => it.id === itemId ? mapEquip(data[0]) : it));
                     showNotification('success', item.preventiveScheduled ? `Item ${item.tag} segregado para preventiva.` : `Equipamento ${item.tag} liberado com sucesso!`);
                 } catch (error) {
                     showNotification('error', `Falha ao liberar equipamento: ${error.message}`);
@@ -5600,9 +5630,9 @@ import { supabase } from './supabaseClient';
                     patientDamage: false,
                     previousLocation: null,
                     returnDate: null,
-                    patientMV: null,
+                    patient_mv: null,
                     patientName: null,
-                    inUseSince: null,
+                    in_use_since: null,
                     serviceRequestNumber: null
                 };
 
@@ -5976,7 +6006,7 @@ import { supabase } from './supabaseClient';
                 }
             };
 
-            const handleRemanejamento = async ({ tag, destination, destinationBed, patientMV, patientName, collaboratorName, collaboratorBadge }) => {
+            const handleRemanejamento = async ({ tag, destination, destinationBed, patient_mv, patientName, collaboratorName, collaboratorBadge }) => {
                 const item = inventory.find(i => normUpper(i.tag) === normUpper(tag));
                 if (!item) return;
 
