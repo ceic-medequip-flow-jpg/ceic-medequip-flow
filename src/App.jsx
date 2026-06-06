@@ -48,14 +48,14 @@ const EQUIPMENT_DATA = {
         accessoryItems: ["Espaçador / Aeropuff", "Célula de Capnografia", "20 Sacos para acondicionamento de circuitos (saco infectante)"]
     },
     VENTILATORIA: {
-        label: "Equipamentos de Assistência Ventilatória",
+        label: "ASSISTÊNCIA VENTILATÓRIA",
         types: {
             VMI: { label: "Ventilador Pulmonar Não Invasivo", accessories: ["Umidificação Passiva", "Umidificação ativa"] },
             VMNI: {
                 label: "VMNI", accessories: ["Circuito", "Circuito BPAP", "Circuito CPAP", "Máscara Orofacial (sem válvula exalatória)", "Máscara Orofacial (com válvula exalatória)", "Máscara Performax (sem válvula exalatória - azul)",
                     "Máscara Performax (com válvula exalatória - branca/laranja)", "Máscara Nasal"]
             },
-            ALTO_FLUXO: { label: "Gerador de Fluxo", accessories: ["Circuito Adulto", "Circuito Infantil"] },
+            ALTO_FLUXO: { label: "ALTO FLUXO", accessories: ["Circuito Adulto", "Circuito Infantil"] },
             OXIDO: { label: "Óxido Nítrico", accessories: [] },
             APENAS_ACESSORIOS: { label: "Apenas Acessórios (Ventilatório)", accessories: ["Umidificação Passiva", "Umidificação ativa"] }
         }
@@ -1910,7 +1910,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
 
         let finalEquip = ''; let finalDetails = ''; let requestTevPriority = null;
 
-        if (category && category !== 'VENTILATORIA' && category !== 'TRANSPORTE') {
+        if (category && !normUpper(category).includes('VENTILATORIA') && !normUpper(category).includes('TRANSPORTE')) {
             const norm = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
 
             finalEquip = String(selectedItem || '').trim().toUpperCase();
@@ -1956,7 +1956,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     requestTevPriority = tevPriorityLevel;
                 } if (extras.length > 0) finalDetails = extras.join(' - ');
             }
-        } else if (category === 'VENTILATORIA') {
+        } else if (category && normUpper(category).includes('VENTILATORIA')) {
             const norm = (s) => String(s ?? '')
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')
@@ -1965,29 +1965,20 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
 
             const selectedCatItem = (ventilatoryCatalog || []).find(i => norm(i.nome_oficial) === norm(subType));
             let catalogo_id = selectedCatItem?.id || null;
-            finalEquip = String(subType || '').trim().toUpperCase(); 
+            finalEquip = String(subType || '').trim().toUpperCase();
 
-            // DEDUZ A SUBCATEGORIA PELO NOME OFICIAL PARA CONTORNAR O 'NULL' DO BANCO
-            let catSubType = norm(selectedCatItem?.subcategoria);
-            if (!catSubType) {
-                const n = norm(subType);
-                if (n.includes('ALTO FLUXO') || n.includes('GERADOR DE FLUXO')) catSubType = 'ALTO_FLUXO';
-                else if (n.includes('NAO INVASIV') || n === 'VMNI') catSubType = 'VMNI';
-                else if (n.includes('INVASIV') || n.includes('VENTILADOR PULMONAR')) catSubType = 'APENAS_ACESSORIOS'; // Ventilador Invasivo
-                else if (n.includes('OXIDO')) catSubType = 'OXIDO';
-                else catSubType = 'VMI'; // Fallback para "Apenas Acessórios"
-            }
+            const normalizedSubType = norm(subType);
+            const ventTypeConfig = equipmentCatalog.VENTILATORIA.types[normalizedSubType];
+            const hasAccessories = ventTypeConfig && ventTypeConfig.accessories && ventTypeConfig.accessories.length > 0;
 
-            if (catSubType === 'OXIDO') {
-                // Sem acessórios extras
-            } else if (['VMNI', 'APENAS_ACESSORIOS', 'VMI', 'ALTO_FLUXO'].includes(catSubType)) {
+            if (hasAccessories) {
                 if (selectedVentAccessories.length === 0) {
                     showNotification('error', 'Selecione pelo menos um acessório ou circuito.');
                     return null;
                 }
                 finalDetails = `Itens/Acessórios: ${selectedVentAccessories.join(', ')}`;
             }
-        } else if (category === 'TRANSPORTE') {
+        } else if (category && normUpper(category).includes('TRANSPORTE')) {
             if (transportItems.length === 0) {
                 showNotification('error', 'Selecione ao menos um item de transporte.');
                 return null;
@@ -2134,61 +2125,52 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                         options={dynamicCategoryOptions} placeholder="Selecione a categoria..." className="border-blue-200 bg-blue-50/30 h-[50px] text-lg font-medium" />
                 </div>
 
-                {category === 'VENTILATORIA' && (() => {
-                    const norm = (s) => String(s ?? '')
-                        .normalize('NFD')
-                        .replace(/[\u0300-\u036f]/g, '')
-                        .trim()
-                        .toUpperCase();
+                {category && normUpper(category).includes('VENTILATORIA') && (() => {
+            const norm = (s) => String(s ?? '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toUpperCase();
 
-                    const selectedCatItem = (ventilatoryCatalog || []).find(i => norm(i.nome_oficial) === norm(subType));
-                    
-                    // DEDUZ A SUBCATEGORIA PARA EXIBIR OS ACESSÓRIOS CORRETOS
-                    let catSubType = norm(selectedCatItem?.subcategoria);
-                    if (!catSubType) {
-                        const n = norm(subType);
-                        if (n.includes('ALTO FLUXO') || n.includes('GERADOR DE FLUXO')) catSubType = 'ALTO_FLUXO';
-                        else if (n.includes('NAO INVASIV') || n === 'VMNI') catSubType = 'VMNI';
-                        else if (n.includes('INVASIV') || n.includes('VENTILADOR PULMONAR')) catSubType = 'APENAS_ACESSORIOS';
-                        else if (n.includes('OXIDO')) catSubType = 'OXIDO';
-                        else catSubType = 'VMI';
-                    }
+            const optionsDropdown = (ventilatoryCatalog || []).map(item => ({ value: item.nome_oficial, label: item.nome_oficial }));
 
-                    const optionsDropdown = (ventilatoryCatalog || []).map(item => ({ value: item.nome_oficial, label: item.nome_oficial }));
+            const normalizedSubType = norm(subType);
+            const ventTypeConfig = equipmentCatalog.VENTILATORIA.types[normalizedSubType];
+            const hasAccessories = ventTypeConfig && ventTypeConfig.accessories && ventTypeConfig.accessories.length > 0;
 
-                    return (
-                        <div className="space-y-4 animate-fade-in">
-                            <div className="grid grid-cols-1 gap-4">
-                                <div>
-                                    <label className="label">Tipo</label>
-                                    <SearchDropdown value={subType} onChange={(val) => {
-                                        setSubType(val);
-                                        setAccessoryItem(''); setHighFlowCategory('Circuito Adulto');
-                                        setSelectedHighFlowItems([]); setSelectedVentAccessories([]);
-                                    }}
-                                        options={optionsDropdown} placeholder="Selecione o tipo..." />
-                                </div>
-
-                                {['VMNI', 'APENAS_ACESSORIOS', 'VMI', 'ALTO_FLUXO'].includes(catSubType) && equipmentCatalog.VENTILATORIA.types[catSubType] && (
-                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 animate-fade-in">
-                                        <label className="label text-blue-800 font-bold mb-3">Selecione os itens desejados:</label>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                            {equipmentCatalog.VENTILATORIA.types[catSubType].accessories.map((item) => (
-                                                <label key={item} className="flex items-center space-x-3 p-2 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50">
-                                                    <input type="checkbox" checked={selectedVentAccessories.includes(item)} onChange={() => toggleVentAccessory(item)} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
-                                                    <span className="text-gray-700 font-medium text-sm">{item}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                        <p className="text-xs text-blue-600 mt-2 font-bold">Selecionados: {selectedVentAccessories.length > 0 ? selectedVentAccessories.join(', ') : 'Nenhum'}</p>
-                                    </div>
-                                )}
-                            </div>
+            return (
+                <div className="space-y-4 animate-fade-in">
+                    <div className="grid grid-cols-1 gap-4">
+                        <div>
+                            <label className="label">Tipo</label>
+                            <SearchDropdown value={subType} onChange={(val) => {
+                                setSubType(val);
+                                setAccessoryItem(''); setHighFlowCategory('Circuito Adulto');
+                                setSelectedHighFlowItems([]); setSelectedVentAccessories([]);
+                            }}
+                                options={optionsDropdown} placeholder="Selecione o tipo..." />
                         </div>
-                    );
-                })()}
 
-                {category && category !== 'VENTILATORIA' && category !== 'TRANSPORTE' && (
+                        {hasAccessories && (
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 animate-fade-in">
+                                <label className="label text-blue-800 font-bold mb-3">Selecione os itens desejados:</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {ventTypeConfig.accessories.map((item) => (
+                                        <label key={item} className="flex items-center space-x-3 p-2 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50">
+                                            <input type="checkbox" checked={selectedVentAccessories.includes(item)} onChange={() => toggleVentAccessory(item)} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
+                                            <span className="text-gray-700 font-medium text-sm">{item}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-blue-600 mt-2 font-bold">Selecionados: {selectedVentAccessories.length > 0 ? selectedVentAccessories.join(', ') : 'Nenhum'}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        })()}
+
+                {category && !normUpper(category).includes('VENTILATORIA') && !normUpper(category).includes('TRANSPORTE') && (
                     <div className="animate-fade-in" data-testid="request-equipment-item">
                         <label className="label">Equipamento</label>
                         <SearchDropdown value={selectedItem} onChange={(val) => {
@@ -2338,7 +2320,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     </div>
                 )}
 
-                {category === 'TRANSPORTE' && (
+                {category && normUpper(category).includes('TRANSPORTE') && (
                     <div className="animate-fade-in bg-orange-50 p-4 rounded-xl border border-orange-200 space-y-4">
                         <select value={transportDest} onChange={e => setTransportDest(e.target.value)} className="input">
                             <option value="">Destino...</option>{equipmentCatalog.TRANSPORTE.destinations.map(i => <option
@@ -4918,25 +4900,22 @@ function App() {
     const equipmentCatalog = useMemo(() => ({
         GERAIS: { label: "Equipamentos Gerais", accessoryItems: ["Espaçador / Aeropuff", "Célula de Capnografia", "20 Sacos para acondicionamento de circuitos (saco infectante)"] },
         VENTILATORIA: {
-            label: "Equipamentos de Assistência Ventilatória",
+            label: "ASSISTÊNCIA VENTILATÓRIA",
             types: {
-                VMI: { 
-                    label: "Apenas Acessórios", 
-                    accessories: ["Umidificação Passiva", "Umidificação ativa"] 
-                },
-                VMNI: {
-                    label: "Ventilador Pulmonar Não Invasivo", 
+                "VENTILADOR PULMONAR NAO INVASIVO": {
                     accessories: ["Circuito", "Circuito BPAP", "Circuito CPAP", "Máscara Orofacial (sem válvula exalatória)", "Máscara Orofacial (com válvula exalatória)", "Máscara Performax (sem válvula exalatória - azul)", "Máscara Performax (com válvula exalatória - branca/laranja)", "Máscara Nasal"]
                 },
-                ALTO_FLUXO: { 
-                    label: "Alto Fluxo", 
-                    accessories: ["Circuito Adulto", "Circuito Infantil", "Cânula nasal Adulto P", "Cânula nasal Adulto M", "Cânula nasal Adulto G", "Cânula de interface para TQT", "Cânula nasal Infantil (Roxa - até 20L/min)", "Cânula nasal Pediátrica (Verde - até 25L/min)"] 
+                "VENTILADOR PULMONAR INVASIVO": {
+                    accessories: ["Umidificação Passiva", "Umidificação ativa"]
                 },
-                OXIDO: { label: "Óxido Nítrico", accessories: [] },
-                APENAS_ACESSORIOS: { 
-                    label: "Ventilador Pulmonar Invasivo", 
-                    accessories: ["Umidificação Passiva", "Umidificação ativa"] 
-                }
+                "ALTO FLUXO": {
+                    accessories: ["Circuito Adulto", "Circuito Infantil", "Cânula nasal Adulto P", "Cânula nasal Adulto M", "Cânula nasal Adulto G", "Cânula de interface para TQT", "Cânula nasal Infantil (Roxa - até 20L/min)", "Cânula nasal Pediátrica (Verde - até 25L/min)"]
+                },
+                "GERADOR DE FLUXO": {
+                    accessories: ["Circuito Adulto", "Circuito Infantil", "Cânula nasal Adulto P", "Cânula nasal Adulto M", "Cânula nasal Adulto G", "Cânula de interface para TQT", "Cânula nasal Infantil (Roxa - até 20L/min)", "Cânula nasal Pediátrica (Verde - até 25L/min)"]
+                },
+                "CASSETE EXPIRATORIO": { accessories: [] },
+                "VENTILOMETRO": { accessories: [] }
             }
         },
         TRANSPORTE: {
@@ -4990,9 +4969,10 @@ function App() {
 
                 if (catData && !catError) {
                     setFullCatalog(catData);
-                    setGeneralCatalog(catData.filter(i => i.categoria === 'GERAIS'));
-                    setVentilatoryCatalog(catData.filter(i => i.categoria === 'VENTILATORIA'));
-                    setTransportCatalog(catData.filter(i => i.categoria === 'TRANSPORTE'));
+                    const normUpper = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+                    setGeneralCatalog(catData.filter(i => !normUpper(i.categoria).includes('VENTILATORIA') && !normUpper(i.categoria).includes('TRANSPORTE')));
+                    setVentilatoryCatalog(catData.filter(i => normUpper(i.categoria).includes('VENTILATORIA')));
+                    setTransportCatalog(catData.filter(i => normUpper(i.categoria).includes('TRANSPORTE')));
                 }
                 else if (catError) console.error("Erro ao buscar catalogo_equipamentos:", catError);
             } catch (err) {
