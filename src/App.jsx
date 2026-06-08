@@ -39,6 +39,8 @@ const SIDEBAR_ITEMS = [
 
 const CHECKLIST_OPTIONS = { "Monitor de Pressão Intracraniana (PIC)": ["Apenas Kit: Módulo + Cabo", "Maleta completa: Monitor + cabo + módulo + cabos + fonte + Suporte"] };
 
+const PATIENT_DB = {}; // Se não existir um banco local de pacientes, inicie vazio para evitar o erro.
+
 const EQUIPMENT_DATA = {
     GERAIS: {
         label: "Equipamentos Gerais",
@@ -134,7 +136,7 @@ const mapPedido = (raw) => {
         equipmentTag: normUpper(raw.equipment_tag || raw.equipmentTag || raw.equipmenttag || raw["equipmentTag"] || raw["equipmenttag"] || ''),
         sector: trimText(raw.sector || raw.Sector || raw.setor || raw.unit || raw.Unit || raw.unidade || ''),
         unit: trimText(raw.unit || raw.Unit || raw.unidade || raw.sector || raw.Sector || raw.setor || ''),
-        patientName: trimText(raw.patient_name || raw.patientName || raw.patientname || raw.nome_paciente || 'NÃO INFORMADO'),
+        patientName: trimText(raw.patient_name || raw.patientName || raw.patientname || raw.nome_paciente || 'Não Informado'),
         patient_mv: trimText(raw.patient_mv || raw.patient_mv || raw.patientmv || raw.mv || raw.registro_mv || '000000'),
         patientBed: trimText(raw.patient_bed || raw.patientBed || raw.patientbed || raw.leito || '00'),
         requesterName: trimText(raw.requester_name || raw.requesterName || raw.requestername || raw.solicitante || 'ANÔNIMO'),
@@ -171,7 +173,7 @@ const mapEquip = (raw) => {
         model,
         specificLocation: specificLocation || null,
         patient_mv: trimText(raw.patient_mv || raw.patient_mv || raw.patientmv || ''),
-        patientName: trimText(raw.patientName || raw.patientname || ''),
+        patientName: trimText(raw.patient_name || raw.patientName || raw.patientname || ''),
         transferStatus: normLower(raw.transfer_status || raw.transferStatus || raw.transferstatus || raw.TransferStatus || '') || null,
         transferTo: transferTo || null,
         transferToBed: transferToBed || null,
@@ -939,8 +941,12 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                 <div className={`p-4 transition-colors ${baseStyle}`} data-testid="pending-request-card">
                     <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center flex-wrap gap-2">
-                            <span className="font-mono text-xs text-gray-400">#{req.id}</span>
                             <span className="text-sm font-bold text-gray-800">{req.equipmentType}</span>
+                            {req.equipmentTag && (
+                                <span className="font-mono font-bold bg-white px-2 py-0.5 text-xs text-gray-700 border border-gray-300 rounded shadow-sm">
+                                    {req.equipmentTag}
+                                </span>
+                            )}
                             <span
                                 className="text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2 py-1 rounded">RETIRADA</span>
                             <span
@@ -958,8 +964,14 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-                        <p><span className="font-semibold">Setor:</span> {req.sector || req.unit}</p>
+                        <p><span className="font-semibold">Setor:</span> {req.sector || req.unit} (R: {req.extension || '-'})</p>
                         <p><span className="font-semibold">Solicitante:</span> {req.requesterName}</p>
+                        <p><span className="font-semibold">Paciente:</span> {req.patientName || 'Não Informado'}</p>
+                        <p><span className="font-semibold">Leito:</span> <span
+                            className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">{req.patientBed || '-'}</span>
+                        </p>
+                        <p><span className="font-semibold">MV:</span> <span
+                            className="font-mono bg-gray-100 px-1 rounded">{req.patient_mv || '-'}</span></p>
                         <div className="col-span-2 mt-1 bg-gray-50 p-2 rounded border border-gray-100">
                             <p><span className="font-semibold">TAG a Recolher:</span> <span
                                 className="font-mono font-bold bg-white px-1 border rounded">{req.equipmentTag}</span></p>
@@ -992,8 +1004,12 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                         {req.tevPriority === 2 && !req.isUrgent && <span
                             className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200">NÍVEL
                             2 (MÉDIO RISCO)</span>}
-                        <span className="font-mono text-xs text-gray-400">#{req.id}</span>
                         <span className="text-sm font-bold text-gray-800">{req.equipmentType}</span>
+                        {req.equipmentTag && (
+                            <span className="font-mono font-bold bg-white px-2 py-0.5 text-xs text-gray-700 border border-gray-300 rounded shadow-sm">
+                                {req.equipmentTag}
+                            </span>
+                        )}
                         <span
                             className="text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200 px-2 py-1 rounded"
                             title="Prazo SLA">{getSlaInfo(req).label}</span>
@@ -1019,12 +1035,12 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                     <p><span className="font-semibold">Setor:</span> {req.sector || req.unit} (R: {req.extension || '-'})
                     </p>
                     <p><span className="font-semibold">Solicitante:</span> {req.requesterName}</p>
-                    {req.patientName && <p><span className="font-semibold">Paciente:</span> {req.patientName}</p>}
-                    {req.patientBed && <p><span className="font-semibold">Leito:</span> <span
-                        className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">{req.patientBed}</span>
-                    </p>}
-                    {req.patient_mv && <p><span className="font-semibold">MV:</span> <span
-                        className="font-mono bg-gray-100 px-1 rounded">{req.patient_mv}</span></p>}
+                    <p><span className="font-semibold">Paciente:</span> {req.patientName || 'Não Informado'}</p>
+                    <p><span className="font-semibold">Leito:</span> <span
+                        className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">{req.patientBed || '-'}</span>
+                    </p>
+                    <p><span className="font-semibold">MV:</span> <span
+                        className="font-mono bg-gray-100 px-1 rounded">{req.patient_mv || '-'}</span></p>
                     {req.accessories && req.accessories.length > 0 && <p className="col-span-2"><span
                         className="font-semibold">Detalhes:</span> {req.accessories.join(', ')}</p>}
                 </div>
@@ -1287,6 +1303,11 @@ const InventoryViewV2 = ({ inventory }) => {
     const [selectedType, setSelectedType] = useState('');
     const [selectedLocation, setSelectedLocation] = useState('');
 
+    const getStatusLabel = (status) => {
+        const config = { available: 'Disponível', in_use: 'Em Uso', allocated: 'Em Uso', maintenance: 'Manutenção', cleaning: 'Higienização', preventive: 'Ag. Preventiva', irregular: 'Irregular' };
+        return config[status] || 'Disponível';
+    };
+
     const types = useMemo(() => Array.from(new Set((inventory || []).map(item => item.type || 'OUTROS'))).sort(), [inventory]);
     const locations = useMemo(() => Array.from(new Set((inventory || []).map(item => trimText(item.location)).filter(Boolean))).sort(), [inventory]);
 
@@ -1305,8 +1326,8 @@ const InventoryViewV2 = ({ inventory }) => {
             TAG: item.tag || '-',
             TIPO: item.type || '-',
             MODELO: item.model || '-',
-            STATUS: item.status === 'allocated' ? 'EM USO' : 'DISPONÍVEL',
-            LOCAL: item.status === 'allocated' ? item.location : 'CEIC',
+            STATUS: getStatusLabel(item.status), // AGORA USA O STATUS REAL
+            LOCAL: item.status !== 'available' ? item.location : 'CEIC',
             MV_ATUAL: item.status === 'allocated' ? (item.patient_mv || '-') : '-',
             TEMPO: item.status === 'allocated' && item.in_use_since
                 ? `${Math.floor((new Date() - new Date(item.in_use_since)) / (1000 * 60 * 60 * 24))} dias`
@@ -1448,12 +1469,10 @@ const InventoryViewV2 = ({ inventory }) => {
                                         <td className="p-4 text-sm font-bold text-gray-700">{item.type || '-'}</td>
                                         <td className="p-4 text-sm font-bold text-gray-700">{item.model || '-'}</td>
                                         <td className="p-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${item.status === 'allocated' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
-                                                {item.status === 'allocated' ? 'Em Uso' : 'Disponível'}
-                                            </span>
+                                            <StatusBadge status={item.status} />
                                         </td>
                                         <td className="p-4 text-sm font-bold">
-                                            {item.status === 'allocated' ? item.location : 'CEIC'}
+                                            {item.status !== 'available' ? item.location : 'CEIC'}
                                         </td>
                                         <td className="p-4 text-sm font-mono text-gray-500">
                                             {item.status === 'allocated' ? (item.patient_mv || '-') : '-'}
@@ -2084,7 +2103,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div><label className="label">Registro MV*</label><input data-testid="request-patient-mv" required type="text" className="input"
-                        value={patientMV} onChange={handleMVChange} placeholder="Ex: MV458512" /></div>
+                        value={patientMV} onChange={handleMVChange} placeholder="Ex: 458512" /></div>
                     <div><label className="label">Nome do Paciente *</label><input data-testid="request-patient-name" required type="text"
                         className="input" value={patientName} onChange={e => setPatientName(e.target.value)} />
                     </div>
@@ -2126,49 +2145,49 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                 </div>
 
                 {category && normUpper(category).includes('VENTILATORIA') && (() => {
-            const norm = (s) => String(s ?? '')
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .trim()
-                .toUpperCase();
+                    const norm = (s) => String(s ?? '')
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .trim()
+                        .toUpperCase();
 
-            const optionsDropdown = (ventilatoryCatalog || []).map(item => ({ value: item.nome_oficial, label: item.nome_oficial }));
+                    const optionsDropdown = (ventilatoryCatalog || []).map(item => ({ value: item.nome_oficial, label: item.nome_oficial }));
 
-            const normalizedSubType = norm(subType);
-            const ventTypeConfig = equipmentCatalog.VENTILATORIA.types[normalizedSubType];
-            const hasAccessories = ventTypeConfig && ventTypeConfig.accessories && ventTypeConfig.accessories.length > 0;
+                    const normalizedSubType = norm(subType);
+                    const ventTypeConfig = equipmentCatalog.VENTILATORIA.types[normalizedSubType];
+                    const hasAccessories = ventTypeConfig && ventTypeConfig.accessories && ventTypeConfig.accessories.length > 0;
 
-            return (
-                <div className="space-y-4 animate-fade-in">
-                    <div className="grid grid-cols-1 gap-4">
-                        <div>
-                            <label className="label">Tipo</label>
-                            <SearchDropdown value={subType} onChange={(val) => {
-                                setSubType(val);
-                                setAccessoryItem(''); setHighFlowCategory('Circuito Adulto');
-                                setSelectedHighFlowItems([]); setSelectedVentAccessories([]);
-                            }}
-                                options={optionsDropdown} placeholder="Selecione o tipo..." />
-                        </div>
-
-                        {hasAccessories && (
-                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 animate-fade-in">
-                                <label className="label text-blue-800 font-bold mb-3">Selecione os itens desejados:</label>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    {ventTypeConfig.accessories.map((item) => (
-                                        <label key={item} className="flex items-center space-x-3 p-2 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50">
-                                            <input type="checkbox" checked={selectedVentAccessories.includes(item)} onChange={() => toggleVentAccessory(item)} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
-                                            <span className="text-gray-700 font-medium text-sm">{item}</span>
-                                        </label>
-                                    ))}
+                    return (
+                        <div className="space-y-4 animate-fade-in">
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label className="label">Tipo</label>
+                                    <SearchDropdown value={subType} onChange={(val) => {
+                                        setSubType(val);
+                                        setAccessoryItem(''); setHighFlowCategory('Circuito Adulto');
+                                        setSelectedHighFlowItems([]); setSelectedVentAccessories([]);
+                                    }}
+                                        options={optionsDropdown} placeholder="Selecione o tipo..." />
                                 </div>
-                                <p className="text-xs text-blue-600 mt-2 font-bold">Selecionados: {selectedVentAccessories.length > 0 ? selectedVentAccessories.join(', ') : 'Nenhum'}</p>
+
+                                {hasAccessories && (
+                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 animate-fade-in">
+                                        <label className="label text-blue-800 font-bold mb-3">Selecione os itens desejados:</label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                            {ventTypeConfig.accessories.map((item) => (
+                                                <label key={item} className="flex items-center space-x-3 p-2 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50">
+                                                    <input type="checkbox" checked={selectedVentAccessories.includes(item)} onChange={() => toggleVentAccessory(item)} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
+                                                    <span className="text-gray-700 font-medium text-sm">{item}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-blue-600 mt-2 font-bold">Selecionados: {selectedVentAccessories.length > 0 ? selectedVentAccessories.join(', ') : 'Nenhum'}</p>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-                </div>
-            );
-        })()}
+                        </div>
+                    );
+                })()}
 
                 {category && !normUpper(category).includes('VENTILATORIA') && !normUpper(category).includes('TRANSPORTE') && (
                     <div className="animate-fade-in" data-testid="request-equipment-item">
@@ -3090,6 +3109,10 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                     const canTransfer = (sameText(item.location, sector) || sameText(item.location, userProfile?.login)) && (!item.transferStatus || item.transferStatus === 'completed');
                                     const needsReceiptConfirmation = false;
 
+                                    // BUSCA O PEDIDO VINCULADO PARA PEGAR O NOME DO PACIENTE
+                                    const pedidoRelacionado = (requests || []).find(r => r.equipmentTag?.includes(normUpper(item.tag)));
+                                    const displayPatientName = item.patientName || pedidoRelacionado?.patientName || 'Paciente não identificado';
+
                                     return (
                                         <div key={item.id} className={`p-4 flex flex-col hover:bg-blue-50/30 transition-colors
                                 ${isPendingTransferToMe ? 'bg-green-50/30' : ''}`}>
@@ -3115,7 +3138,7 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                                             <span
                                                                 className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-md text-gray-700 shadow-sm">
                                                                 <User size={14} className="text-blue-500" />
-                                                                <span className="font-bold">{item.patientName || 'Paciente não identificado'}</span>
+                                                                <span className="font-bold">{displayPatientName}</span>
                                                                 <span className="text-xs text-gray-400 font-mono">(MV:
                                                                     {item.patient_mv})</span>
                                                             </span>
@@ -4892,6 +4915,36 @@ function App() {
     const [transportCatalog, setTransportCatalog] = useState([]);
     const [fullCatalog, setFullCatalog] = useState([]);
 
+    // =========================================================
+    // MOTORES DE LOGS PARA HISTÓRICOS E DASHBOARDS (BI)
+    // =========================================================
+    const registrarLogPedido = async (pedidoId, statusAnterior, statusNovo) => {
+        try {
+            await supabase.from('logs_pedidos').insert([{
+                pedido_id: pedidoId,
+                status_anterior: statusAnterior ? String(statusAnterior).toLowerCase() : null,
+                status_novo: statusNovo ? String(statusNovo).toLowerCase() : null,
+                responsavel_badge: userProfile?.login || 'SISTEMA'
+            }]);
+        } catch (err) {
+            console.error("Falha silenciosa ao gravar log_pedido:", err);
+        }
+    };
+
+    const registrarLogMovimentacao = async (equipamentoId, origem, destino, pacienteMv) => {
+        try {
+            await supabase.from('log_movimentacao_equipamentos').insert([{
+                equipamento_id: equipamentoId,
+                setor_origem: origem || 'CEIC',
+                setor_destino: destino,
+                paciente_mv: pacienteMv || null,
+                responsavel_badge: userProfile?.login || 'SISTEMA'
+            }]);
+        } catch (err) {
+            console.error("Falha silenciosa ao gravar log_movimentacao:", err);
+        }
+    };
+
     const availableLocations = useMemo(() => {
         const locs = Array.from(new Set(inventory.map(i => i.location).filter(Boolean))).sort();
         return locs.length > 0 ? locs : ['CEIC', 'Ag. Preventiva', 'Engenharia Clínica', 'Expurgo CEIC', '03DN', '03DS', '04GN', '04GS', '04CC', '04DN', '04DS', 'Centro Cirúrgico'];
@@ -5155,7 +5208,7 @@ function App() {
                 // Força os dados do usuário logado para garantir integridade
                 sector: userProfile?.sector || 'Emergência',
                 patient_name: String(requestData?.patientName || 'Não Informado').trim(),
-                patient_mv: String(requestData?.patient_mv || '000000').trim(),
+                patient_mv: String(requestData?.patientMV || requestData?.patient_mv || '000000').trim(),
                 patient_bed: String(requestData?.patientBed || '00').trim(),
                 requester_name: userProfile?.name || 'Solicitante não identificado',
                 requester_badge: userProfile?.login || '00000',
@@ -5177,6 +5230,11 @@ function App() {
 
             if (!data) {
                 throw new Error('OPERACAO_NAO_PERSISTIU_PEDIDO: Sem dados de retorno.');
+            }
+
+            // GRAVAÇÃO DO LOG: Entrada do pedido pendente no sistema
+            if (data) {
+                await registrarLogPedido(data.id, null, 'pending');
             }
 
             const pedidoPersistido = mapPedido(data);
@@ -5289,6 +5347,9 @@ function App() {
                 throw new Error('Operação não persistiu no banco de pedidos');
             }
 
+            // LOG DO PEDIDO: Transição de status na fila
+            await registrarLogPedido(request.id, request.status, 'delivered');
+
             // BLINDAGEM: Update na tabela equipamentos com a coluna status e a nova location
             const { error: eqError } = await supabase
                 .from('equipamentos')
@@ -5296,6 +5357,7 @@ function App() {
                     status: 'allocated',
                     location: request.requesterBadge || request.sector || request.login,
                     patient_mv: request.patient_mv || null,
+                    patient_name: request.patientName || null, // <--- ADICIONE ESTA LINHA
                     in_use_since: new Date().toISOString()
                 })
                 .in('id', equipmentsToAssign.map(eq => eq.id));
@@ -5303,6 +5365,16 @@ function App() {
             if (eqError) {
                 console.error('Erro estrito no update de equipamentos:', eqError);
                 throw new Error(`Falha ao atualizar estoque: ${eqError.message}`);
+            }
+
+            // LOG DE MOVIMENTAÇÃO: Grava a saída física de cada equipamento da CEIC para a enfermaria
+            for (const eq of equipmentsToAssign) {
+                await registrarLogMovimentacao(
+                    eq.id,
+                    eq.location, // Origem (Ex: CEIC)
+                    request.requesterBadge || request.sector || 'UNIDADE', // Destino
+                    request.patient_mv
+                );
             }
 
             // Atualiza estado local de pedidos
@@ -5392,6 +5464,10 @@ function App() {
                 throw new Error('Operação não persistiu no banco');
             }
 
+            // LOG DO PEDIDO: Registra a saída forçada do fluxo
+            const pedidoOriginal = requests.find(r => r.id === requestId);
+            await registrarLogPedido(requestId, pedidoOriginal?.status || 'pending', 'cancelled');
+
             const updatedReq = mapPedido(data[0]);
             setRequests(prev => prev.map(r => r.id === requestId ? updatedReq : r));
 
@@ -5431,13 +5507,24 @@ function App() {
     const handleNotifyRequester = async (requestId, message, type) => {
         try {
             const notificationTime = new Date().toISOString();
+            
+            // Prepara as atualizações básicas da notificação
+            const updates = {
+                notification_message: message,
+                notification_type: type,
+                notification_time: notificationTime
+            };
+
+            // A MÁGICA AQUI: Se a CEIC avisa que vai entregar ou que é para buscar,
+            // o sistema entende que a espera acabou e tira o pedido da fila!
+            if (type === 'delivery' || type === 'pickup') {
+                updates.is_waitlisted = false;
+                updates.status = 'pending'; // Retorna ao status normal de pendência
+            }
+
             const { data, error } = await supabase
                 .from('pedidos')
-                .update({
-                    notification_message: message,
-                    notification_type: type,
-                    notification_time: notificationTime
-                })
+                .update(updates)
                 .eq('id', requestId)
                 .select();
 
@@ -5449,7 +5536,7 @@ function App() {
             const updatedReq = mapPedido(data[0]);
             setRequests(prev => prev.map(r => r.id === requestId ? updatedReq : r));
 
-            showNotification('success', 'Notificação enviada!');
+            showNotification('success', 'Notificação enviada com sucesso!');
         } catch (error) {
             console.error('Erro ao enviar notificação:', error);
             showNotification('error', `Erro ao enviar notificação: ${error.message}`);
@@ -5476,7 +5563,11 @@ function App() {
 
         const supabaseUpdates = {
             status: nextStatus,
-            location: nextLocation
+            location: nextLocation,
+            // CORREÇÃO: Limpando o paciente no Supabase ao dar entrada na Triagem
+            patient_mv: null,
+            patient_name: null,
+            in_use_since: null
         };
 
         const localUpdates = {
@@ -5518,6 +5609,14 @@ function App() {
             if (!data || data.length === 0) {
                 throw new Error('Operação não persistiu no banco');
             }
+
+            // LOG DE MOVIMENTAÇÃO: Registra que o equipamento saiu da enfermaria de origem e retornou aos cuidados da CEIC
+            await registrarLogMovimentacao(
+                item.id,
+                item.location, // Setor assistencial onde estava alocado
+                nextLocation,  // Destino (Expurgo CEIC ou Engenharia Clínica)
+                item.patient_mv
+            );
 
             setInventory(prev => prev.map(it => (normUpper(it.tag) === cleanTag ? mapEquip({ ...it, ...localUpdates }) : it)));
             setTriageData(null);
@@ -5571,42 +5670,42 @@ function App() {
         }
     };
     const handleReturnFromMaintenance = async (itemId, dataArgs) => {
-        const item = inventory.find(i => i.id === itemId);
-        if (!item) return;
-
-        const nextStatus = item.preventiveScheduled ? 'preventive' : 'available';
-        const nextLocation = item.preventiveScheduled ? 'Ag. Preventiva' : 'CEIC';
-
-        const updates = {
-            status: nextStatus,
-            location: nextLocation,
-            preventiveSegregatedAt: item.preventiveScheduled ? new Date().toISOString() : null,
-            specificLocation: null,
-            defectDescription: null,
-            unitNotified: false,
-            notificationNumber: null,
-            patientDamage: false,
-            previousLocation: null,
-            returnDate: null,
-            patient_mv: null,
-            patientName: null,
-            in_use_since: null,
-            serviceRequestNumber: null
-        };
-
         try {
-            const { data, error } = await supabase
+            // 1. Atualiza equipamento (o que já estava funcionando)
+            const { error: updateError } = await supabase
                 .from('equipamentos')
-                .update(updates)
-                .eq('id', itemId)
-                .select();
+                .update({
+                    status: 'available',
+                    location: 'CEIC'
+                })
+                .eq('id', itemId);
 
-            if (error || !data || data.length === 0) {
-                throw new Error('Operação não persistiu no banco');
+            if (updateError) throw new Error("Erro ao liberar equipamento: " + updateError.message);
+
+            // 2. Tenta salvar o histórico, mas não trava o sistema se falhar
+            try {
+                const { error: logError } = await supabase
+                    .from('historico_manutencao')
+                    .insert([{
+                        equipamento_id: itemId,
+                        returner: dataArgs.returner,
+                        receiver: dataArgs.receiver,
+                        badge: dataArgs.badge,
+                        maintenance_notes: dataArgs.notes
+                    }]);
+                
+                if (logError) console.error("Erro ao salvar histórico (mas equipamento foi liberado):", logError);
+            } catch (logErr) {
+                console.error("Falha silenciosa ao salvar histórico:", logErr);
             }
-            showNotification('success', 'Equipamento retornado da manutenção com sucesso!');
+
+            // Sucesso
+            showNotification('success', 'Retorno registrado e equipamento liberado!');
+            setInventory(prev => prev.map(it => it.id === itemId ? { ...it, status: 'available', location: 'CEIC' } : it));
+            
         } catch (error) {
-            showNotification('error', `Falha ao retornar da manutenção: ${error.message}`);
+            console.error("Erro crítico na operação de retorno:", error);
+            showNotification('error', `Falha ao processar: ${error.message}`);
         }
     };
 
@@ -5749,7 +5848,13 @@ function App() {
                 sector: userProfile?.sector || item.location || 'CEIC',
                 requester_name: userProfile?.name || collaboratorName,
                 requester_badge: userProfile?.login || collaboratorBadge,
-                accessories: null
+                accessories: null,
+                // COPIANDO OS DADOS DO PACIENTE PARA O CARD DA CEIC
+                patient_name: item.patientName || item.patient_name || null,
+                patient_mv: item.patient_mv || null,
+                patient_bed: item.specificLocation || null,
+                problem_reported: hasIssue || null,
+                problem_description: issueDescription || null
             };
 
             const { data, error } = await supabase.from('pedidos').insert([newReq]).select();
