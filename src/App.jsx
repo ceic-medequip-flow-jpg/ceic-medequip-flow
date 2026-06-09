@@ -138,9 +138,12 @@ const mapPedido = (raw) => {
         unit: trimText(raw.unit || raw.Unit || raw.unidade || raw.sector || raw.Sector || raw.setor || ''),
         patientName: trimText(raw.patient_name || raw.patientName || raw.patientname || raw.nome_paciente || 'Não Informado'),
         patient_mv: trimText(raw.patient_mv || raw.patient_mv || raw.patientmv || raw.mv || raw.registro_mv || '000000'),
-        patientBed: trimText(raw.patient_bed || raw.patientBed || raw.patientbed || raw.leito || '00'),
+        patientBed: trimText(raw.patient_bed || raw.patientBed || raw.patientbed || raw.leito || ''),
         requesterName: trimText(raw.requester_name || raw.requesterName || raw.requestername || raw.solicitante || 'ANÔNIMO'),
         requesterBadge: trimText(raw.requester_badge || raw.requesterBadge || raw.requesterbadge || raw.matricula || '00000'),
+        requester_ramal: raw.requester_ramal || raw.requesterRamal || '',
+        problem_reported: raw.problem_reported || false,
+        problem_description: trimText(raw.problem_description || ''),
         accessories: Array.isArray(raw.accessories) ? raw.accessories : (raw.accessories ? [raw.accessories] : []),
         isUrgent: !!(raw.is_urgent || raw.isUrgent || raw.isurgent),
         isWaitlisted: !!(raw.is_waitlisted || raw.isWaitlisted || raw.iswaitlisted || raw.status === 'waitlisted'),
@@ -299,16 +302,22 @@ const LiveTimer = ({ startTime, variant = 'pending', slaLimitSeconds = 1200 }) =
 
 const StatusBadge = ({ status }) => {
     const config = {
-        available: { color: 'bg-green-100 text-green-700 border-green-200', label: 'Disponível' },
-        in_use: { color: 'bg-blue-100 text-blue-700 border-blue-200', label: 'Em Uso' },
-        maintenance: { color: 'bg-red-100 text-red-700 border-red-200', label: 'Manutenção' },
-        cleaning: { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', label: 'Higienização' },
-        preventive: { color: 'bg-teal-100 text-teal-700 border-teal-200', label: 'Ag. Preventiva' },
-        irregular: { color: 'bg-orange-100 text-orange-700 border-orange-200', label: 'Irregular' },
+        available: { label: 'Disponível', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+        allocated: { label: 'Em Uso', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+        in_use: { label: 'Em Uso', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+        maintenance: { label: 'Manutenção', color: 'bg-red-100 text-red-800 border-red-200' },
+        cleaning: { label: 'Higienização', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+        preventive: { label: 'Ag. Preventiva', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+        irregular: { label: 'Irregular', color: 'bg-orange-100 text-orange-800 border-orange-200' }
     };
+
     const current = config[status] || config.available;
-    return <span className={`px-2 py-1 rounded-full text-xs font-bold border ${current.color}
-        whitespace-nowrap`}>{current.label}</span>;
+
+    return (
+        <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${current.color}`}>
+            {current.label}
+        </span>
+    );
 };
 
 const UrgencyBadge = ({ isUrgent }) => (
@@ -723,8 +732,6 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
                     }
                 </div>
             </div>
-
-            <LoanedEquipmentSection requests={requests} inventory={inventory} />
         </div>
     );
 };
@@ -963,23 +970,39 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                             </span>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-                        <p><span className="font-semibold">Setor:</span> {req.sector || req.unit} (R: {req.extension || '-'})</p>
-                        <p><span className="font-semibold">Solicitante:</span> {req.requesterName}</p>
-                        <p><span className="font-semibold">Paciente:</span> {req.patientName || 'Não Informado'}</p>
-                        <p><span className="font-semibold">Leito:</span> <span
-                            className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">{req.patientBed || '-'}</span>
-                        </p>
-                        <p><span className="font-semibold">MV:</span> <span
-                            className="font-mono bg-gray-100 px-1 rounded">{req.patient_mv || '-'}</span></p>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
+                        <div className="col-span-2">
+                            <span className="font-semibold">Setor:</span> {req.sector || req.unit || '-'} 
+                            <span className="ml-2 font-bold text-blue-700">(R: {req.requester_ramal || req.extension || '-'})</span>
+                        </div>
+                        <div>
+                            <span className="font-semibold">Solicitante:</span> {req.requester_name || req.requesterName || '-'}
+                        </div>
+                        <div>
+                            <span className="font-semibold">Matrícula:</span> {req.requester_badge || req.requesterBadge || '-'}
+                        </div>
+                        <div>
+                            <span className="font-semibold">Paciente:</span> {req.patient_name || req.patientName || '-'}
+                        </div>
+                        <div>
+                            <span className="font-semibold">Leito:</span> {req.patient_bed || req.patientBed || '-'}
+                        </div>
+                        <div className="col-span-2">
+                            <span className="font-semibold">MV:</span> <span className="font-mono bg-gray-100 px-1 py-0.5 rounded text-xs">{req.patient_mv || '000000'}</span>
+                        </div>
                         <div className="col-span-2 mt-1 bg-gray-50 p-2 rounded border border-gray-100">
                             <p><span className="font-semibold">TAG a Recolher:</span> <span
                                 className="font-mono font-bold bg-white px-1 border rounded">{req.equipmentTag}</span></p>
-                            <p className="mt-1"><span className="font-semibold">Defeito Relatado?</span> {req.problemReported ||
-                                'Não'}</p>
-                            {req.problemReported === 'Sim' && <p className="text-red-600 italic">"{req.problemDescription}"</p>}
                         </div>
                     </div>
+                    {(req.problem_reported === true || req.problem_reported === 'true') && (
+                        <div className="mt-2 mb-3 bg-red-50 border border-red-200 text-red-700 p-2 rounded text-sm flex flex-col">
+                            <span className="font-bold flex items-center gap-1">
+                                ⚠️ Atenção: Equipamento com Defeito
+                            </span>
+                            <span className="italic mt-1 text-xs">{req.problem_description || 'Nenhuma descrição fornecida.'}</span>
+                        </div>
+                    )}
                     <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end gap-3">
                         <button data-testid="cancel-request-button" onClick={() => setIsCancelling(true)} className="h-[40px] px-4 rounded-lg text-red-600 font-bold hover:bg-red-50 flex items-center text-sm transition-colors border border-transparent hover:border-red-200">Cancelar</button>
                         <button data-testid="confirm-request-button" onClick={() => onProcessPickup(req)} className="h-[40px] px-4 rounded-lg bg-purple-600 text-white font-bold hover:bg-purple-700 flex items-center text-sm">
@@ -1031,19 +1054,37 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                         </span>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 mb-3 mt-2">
-                    <p><span className="font-semibold">Setor:</span> {req.sector || req.unit} (R: {req.extension || '-'})
-                    </p>
-                    <p><span className="font-semibold">Solicitante:</span> {req.requesterName}</p>
-                    <p><span className="font-semibold">Paciente:</span> {req.patientName || 'Não Informado'}</p>
-                    <p><span className="font-semibold">Leito:</span> <span
-                        className="font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">{req.patientBed || '-'}</span>
-                    </p>
-                    <p><span className="font-semibold">MV:</span> <span
-                        className="font-mono bg-gray-100 px-1 rounded">{req.patient_mv || '-'}</span></p>
-                    {req.accessories && req.accessories.length > 0 && <p className="col-span-2"><span
-                        className="font-semibold">Detalhes:</span> {req.accessories.join(', ')}</p>}
+                <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3 mt-2">
+                    <div className="col-span-2">
+                        <span className="font-semibold">Setor:</span> {req.sector || req.unit || '-'} 
+                        <span className="ml-2 font-bold text-blue-700">(R: {req.requester_ramal || req.extension || '-'})</span>
+                    </div>
+                    <div>
+                        <span className="font-semibold">Solicitante:</span> {req.requester_name || req.requesterName || '-'}
+                    </div>
+                    <div>
+                        <span className="font-semibold">Matrícula:</span> {req.requester_badge || req.requesterBadge || '-'}
+                    </div>
+                    <div>
+                        <span className="font-semibold">Paciente:</span> {req.patient_name || req.patientName || '-'}
+                    </div>
+                    <div>
+                        <span className="font-semibold">Leito:</span> {req.patient_bed || req.patientBed || '-'}
+                    </div>
+                    <div className="col-span-2">
+                        <span className="font-semibold">MV:</span> <span className="font-mono bg-gray-100 px-1 py-0.5 rounded text-xs">{req.patient_mv || '000000'}</span>
+                    </div>
+                    {req.accessories && req.accessories.length > 0 && <div className="col-span-2"><span className="font-semibold">Detalhes:</span> {req.accessories.join(', ')}</div>}
                 </div>
+
+                {(req.kind === 'recolhimento' || req.kind === 'return_pickup') && (req.problem_reported === true || req.problem_reported === 'true') && (
+                    <div className="mt-2 mb-3 bg-red-50 border border-red-200 text-red-700 p-2 rounded text-sm flex flex-col">
+                        <span className="font-bold flex items-center gap-1">
+                            ⚠️ Atenção: Equipamento com Defeito
+                        </span>
+                        <span className="italic mt-1 text-xs">{req.problem_description || 'Nenhuma descrição fornecida.'}</span>
+                    </div>
+                )}
                 <div className="mt-3 pt-3 border-t border-gray-100">
                     {isInTransit ? (
                         <div
@@ -1110,15 +1151,17 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                                     </div>
                                 </div>
                             )}
-                            <div className="flex justify-between items-center mb-2">
-                                <p className="text-xs font-bold text-gray-500 uppercase">Ações Operacionais</p>
-                                <div className="flex items-center gap-4">
-                                    <button onClick={() => setIsNotifying(true)} className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors">
-                                        <Send size={14} /> Notificar
-                                    </button>
-                                    <button data-testid="cancel-request-button" onClick={() => setIsCancelling(true)} className="text-xs font-bold text-red-500 hover:text-red-700 underline underline-offset-2 transition-colors">Cancelar</button>
+                            {req.kind !== 'recolhimento' && (
+                                <div className="flex justify-between items-center mb-2">
+                                    <p className="text-xs font-bold text-gray-500 uppercase">Ações Operacionais</p>
+                                    <div className="flex items-center gap-4">
+                                        <button onClick={() => setIsNotifying(true)} className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors">
+                                            <Send size={14} /> Notificar
+                                        </button>
+                                        <button data-testid="cancel-request-button" onClick={() => setIsCancelling(true)} className="text-xs font-bold text-red-500 hover:text-red-700 underline underline-offset-2 transition-colors">Cancelar</button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                             <div className="flex flex-col gap-2">
                                 <div className="flex-1">
                                     {req.status === 'pickup_requested' ? (
@@ -5196,27 +5239,27 @@ function App() {
 
     const handleCreateRequest = async (requestData) => {
         try {
-            const resolvedSector = requestData?.sector || userProfile?.sector || 'CEIC (Geral)';
-            const selectedEquipmentType = requestData?.equipmentType || 'Não Informado';
-            const normalizedEquipmentType = normalizeEquipmentTypeForDb(selectedEquipmentType);
+            const normalizedEquipmentType = normalizeEquipmentTypeForDb(requestData.equipmentType || 'Não Informado');
 
             const payloadFormatado = {
-                kind: 'solicitacao',
                 status: 'pending',
-                equipment_type: normalizedEquipmentType,
+                kind: requestData.kind || 'rotina',
+                equipment_type: requestData.equipmentType || requestData.equipment_type || normalizedEquipmentType,
                 catalogo_id: requestData?.catalogo_id || null,
-                // Força os dados do usuário logado para garantir integridade
-                sector: userProfile?.sector || 'Emergência',
-                patient_name: String(requestData?.patientName || 'Não Informado').trim(),
-                patient_mv: String(requestData?.patientMV || requestData?.patient_mv || '000000').trim(),
-                patient_bed: String(requestData?.patientBed || '00').trim(),
-                requester_name: userProfile?.name || 'Solicitante não identificado',
-                requester_badge: userProfile?.login || '00000',
-                extension: String(requestData?.extension || '-').trim(),
-                is_urgent: !!requestData?.isUrgent,
-                accessories: Array.isArray(requestData?.accessories) && requestData.accessories.length > 0
-                    ? requestData.accessories
-                    : null
+                
+                // O SETOR DEVE INCLUIR O CÓDIGO DO LOGIN (Ex: 04CC - ENF. RETAG...)
+                sector: (userProfile?.login && userProfile?.name ? `${userProfile.login} - ${userProfile.name}` : userProfile?.name) || userProfile?.sector || 'Não Informado',
+                
+                // AQUI PEGAMOS EXATAMENTE O QUE FOI DIGITADO NO FORMULÁRIO (Sem usar userProfile)
+                requester_name: requestData.requesterName || requestData.solicitante || requestData.collaboratorName || requestData.nomeSolicitante || 'Não Informado',
+                requester_badge: requestData.requesterBadge || requestData.matricula || requestData.badge || requestData.collaboratorBadge || 'Não Informado',
+                extension: requestData.extension || requestData.ramal || '-',
+                
+                accessories: requestData.accessories || null,
+                patient_name: requestData.patientName || requestData.nomePaciente || null,
+                patient_mv: requestData.patientMV || requestData.patientMv || requestData.mv || null,
+                patient_bed: requestData.patientBed || requestData.leito || null,
+                is_urgent: !!requestData?.isUrgent
             };
 
             console.log('Enviando payload formatado para pedidos:', payloadFormatado);
@@ -5845,16 +5888,21 @@ function App() {
                 kind: 'recolhimento',
                 equipment_tag: item.tag,
                 equipment_type: item.type,
-                sector: userProfile?.sector || item.location || 'CEIC',
-                requester_name: userProfile?.name || collaboratorName,
-                requester_badge: userProfile?.login || collaboratorBadge,
+                
+                // 1. INVERSÃO DE PRIORIDADE: O local atual do equipamento manda!
+                sector: item.location || userProfile?.sector || 'CEIC',
+                
+                // 2. O QUE FOI DIGITADO NO MODAL MANDA MAIS QUE O LOGIN
+                requester_name: collaboratorName || userProfile?.name || 'Não Informado',
+                requester_badge: collaboratorBadge || userProfile?.login || '',
+                extension: userProfile?.senha || '',
+                
                 accessories: null,
-                // COPIANDO OS DADOS DO PACIENTE PARA O CARD DA CEIC
                 patient_name: item.patientName || item.patient_name || null,
                 patient_mv: item.patient_mv || null,
-                patient_bed: item.specificLocation || null,
-                problem_reported: hasIssue || null,
-                problem_description: issueDescription || null
+                patient_bed: item.specificLocation ? String(item.specificLocation) : null,
+                problem_reported: hasIssue === 'Sim',
+                problem_description: issueDescription ? String(issueDescription) : null
             };
 
             const { data, error } = await supabase.from('pedidos').insert([newReq]).select();
