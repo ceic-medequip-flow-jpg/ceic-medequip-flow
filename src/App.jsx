@@ -644,16 +644,62 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
         return false;
     });
 
-    const prevPendingCount = useRef(pending.length);
-    const audioRef = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"));
+    const isFirstRender = useRef(true);
+    const prevSeenIds = useRef(new Set());
+
+    const playNotificationSound = () => {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            
+            // Toca um beep duplo rápido
+            const playBeep = (freq, startTime, duration) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
+                
+                gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
+                gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + startTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + startTime + duration);
+                
+                osc.start(ctx.currentTime + startTime);
+                osc.stop(ctx.currentTime + startTime + duration);
+            };
+
+            playBeep(880, 0, 0.2); // Nota A5
+            playBeep(1046.50, 0.2, 0.4); // Nota C6
+        } catch (err) {
+            if (DEBUG_LOGS) console.log("Áudio bloqueado ou falhou", err);
+        }
+    };
 
     useEffect(() => {
-        if (pending.length > prevPendingCount.current && soundEnabled) {
-            // Correção: Adicionamos as chaves {} em volta do if para a sintaxe ficar válida
-            audioRef.current.play().catch(err => { if (DEBUG_LOGS) console.log("Áudio bloqueado pelo navegador", err); });
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            prevSeenIds.current = new Set(pending.map(p => p.id));
+            return;
         }
-        prevPendingCount.current = pending.length;
-    }, [pending.length, soundEnabled]);
+
+        const currentIds = new Set(pending.map(p => p.id));
+        let hasNew = false;
+
+        for (const id of currentIds) {
+            if (!prevSeenIds.current.has(id)) {
+                hasNew = true;
+                break;
+            }
+        }
+
+        if (hasNew && soundEnabled) {
+            playNotificationSound();
+        }
+
+        prevSeenIds.current = currentIds;
+    }, [pending, soundEnabled]);
 
     const urgentCount = pending.filter(r => r.isUrgent).length;
     const cleaningCount = inventory.filter(i => i.status === 'cleaning').length;
@@ -6175,7 +6221,7 @@ function App() {
     const mySectorPendingRequests = useMemo(() => {
         return requests.filter(p =>
             ['pending', 'acknowledged', 'preparing', 'in_transit', 'waitlisted', 'in_transfer', 'pickup_requested'].includes(p.status) &&
-            (p.sector === userProfile?.login || p.requesterBadge === userProfile?.login || p.transfer_to === userProfile?.login)
+            (p.sector === userProfile?.login || (p.sector && p.sector.startsWith(userProfile?.login + ' - ')) || p.requesterBadge === userProfile?.login || p.transfer_to === userProfile?.login)
         );
     }, [requests, userProfile]);
 
