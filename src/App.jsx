@@ -637,7 +637,7 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
     const [filter, setFilter] = useState('all');
     // (fix) soundEnabled vem do App via props
     const pending = requests.filter(r => {
-        if (r.status === 'pending' || r.status === 'waitlisted' || r.status === 'pickup_requested') return true;
+        if (r.status === 'pending' || r.status === 'waitlisted' || r.status === 'pickup_requested' || r.status === 'in_transfer') return true;
         if (r.status === 'approved' && isTransportRequest(r.equipmentType)) {
             return !r.returnToCeicTime;
         }
@@ -1197,7 +1197,7 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                                     </div>
                                 </div>
                             )}
-                            {req.kind !== 'recolhimento' && (
+                            {req.kind !== 'recolhimento' && req.status !== 'in_transfer' && (
                                 <div className="flex justify-between items-center mb-2">
                                     <p className="text-xs font-bold text-gray-500 uppercase">Ações Operacionais</p>
                                     <div className="flex items-center gap-4">
@@ -1210,7 +1210,15 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                             )}
                             <div className="flex flex-col gap-2">
                                 <div className="flex-1">
-                                    {req.status === 'pickup_requested' ? (
+                                    {req.status === 'in_transfer' ? (
+                                        <div className="bg-green-50 border border-green-200 text-green-900 p-4 rounded-xl text-sm shadow-sm flex items-center gap-3">
+                                            <Send size={18} className="animate-pulse text-green-600" />
+                                            <div>
+                                                <p className="font-bold">Equipamento Alocado</p>
+                                                <p className="text-xs opacity-80">Aguardando confirmação de recebimento na unidade destino.</p>
+                                            </div>
+                                        </div>
+                                    ) : req.status === 'pickup_requested' ? (
                                         <button onClick={() => onProcessPickup(req)} className="w-full h-[44px] px-4 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 flex items-center justify-center shadow-sm">
                                             <ClipboardList size={18} className="mr-2" /> Devolução/Triagem
                                         </button>
@@ -5422,10 +5430,11 @@ function App() {
 
         try {
             const arrivalTime = new Date().toISOString();
+            const destinationSector = request.requesterBadge || request.sector || request.login;
             const { data, error } = await supabase
                 .from('pedidos')
                 .update({
-                    status: 'delivered',
+                    status: 'in_transfer',
                     equipment_tag: cleanedTagsForDb.join(', '),
                     arrival_time: arrivalTime
                 })
@@ -5437,7 +5446,7 @@ function App() {
             }
 
             // LOG DO PEDIDO: Transição de status na fila
-            await registrarLogPedido(request.id, request.status, 'delivered');
+            await registrarLogPedido(request.id, request.status, 'in_transfer');
 
             // BLINDAGEM: Update na tabela equipamentos com a coluna status e a nova location
             const { error: eqError } = await supabase
@@ -6008,8 +6017,7 @@ function App() {
                 await supabase
                     .from('pedidos')
                     .update({
-                        status: 'in_transfer',
-                        transfer_to: destination
+                        status: 'in_transfer'
                     })
                     .eq('id', activeReq.id);
             }
@@ -6030,18 +6038,37 @@ function App() {
         }
     };
 
-    const handleConfirmTransfer = async (item, pedido) => {
+    const handleConfirmTransfer = async (itemOrReq, optPedido) => {
         try {
+            let tagsToConfirm = [];
+            let pedidoId = null;
+            let pedidoObj = null;
+
+            if (itemOrReq && itemOrReq.id && itemOrReq.equipmentTag) {
+                // called from MyRequestsView with (req)
+                tagsToConfirm = splitTagList(itemOrReq.equipmentTag);
+                pedidoId = itemOrReq.id;
+                pedidoObj = itemOrReq;
+            } else if (itemOrReq && itemOrReq.tag) {
+                // called from MyAreaEquipmentView with (item, pedido)
+                tagsToConfirm = splitTagList(itemOrReq.tag);
+                pedidoId = optPedido?.id;
+                pedidoObj = optPedido;
+            } else {
+                throw new Error("Parâmetros inválidos para confirmação.");
+            }
+
             // 1. Atualiza o Equipamento (Payload Limpo e Sanitizado):
             const payloadAtualizacao = {
                 location: userProfile?.login, // Envia estritamente a sigla do login
                 transfer_status: null,        // Limpa usando null nativo
-                transfer_to: null             // Limpa usando null nativo
+                transfer_to: null,            // Limpa usando null nativo
+                received_by_sector: true
             };
 
             const { error: equipError } = await supabase.from('equipamentos')
                 .update(payloadAtualizacao)
-                .eq('tag', item.tag);
+                .in('tag', tagsToConfirm);
 
             if (equipError) {
                 console.error("❌ ERRO DETALHADO DO SUPABASE 400:", {
@@ -6054,24 +6081,24 @@ function App() {
 
             // 2. Atualiza o Pedido (se houver pedido ativo):
             let pedidoAtualizado = null;
-            if (pedido) {
+            if (pedidoId) {
                 const { data, error } = await supabase.from('pedidos').update({
                     status: 'delivered', // Volta ao status de entregue/normal
                     sector: userProfile?.login, // A posse do pedido passa para o novo setor
                     requester_name: userProfile?.name,
                     requester_badge: userProfile?.login
-                }).eq('id', pedido.id).select();
+                }).eq('id', pedidoId).select();
                 if (error) throw error;
                 if (data && data[0]) pedidoAtualizado = data[0];
             }
 
             // Atualiza estado local
             setInventory(prev => prev.map(eq =>
-                normUpper(eq.tag) === normUpper(item.tag) ? { ...eq, location: userProfile?.login, transferStatus: null, transferTo: null, receivedBySector: userProfile?.login } : eq
+                tagsToConfirm.includes(normUpper(eq.tag)) ? { ...eq, location: userProfile?.login, transferStatus: null, transferTo: null, receivedBySector: true } : eq
             ));
 
             if (pedidoAtualizado) {
-                setRequests(prev => prev.map(r => r.id === pedido.id ? mapPedido(pedidoAtualizado) : r));
+                setRequests(prev => prev.map(r => r.id === pedidoId ? mapPedido(pedidoAtualizado) : r));
             }
 
             showNotification('success', 'Recebimento do equipamento confirmado.');
