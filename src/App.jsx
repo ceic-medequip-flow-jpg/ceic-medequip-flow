@@ -7,7 +7,7 @@ import {
     ArrowDownLeft, User, Clock, LogOut, SprayCan, ClipboardList, Siren, CheckCircle,
     AlertCircle, Search, BadgeCheck, PlusCircle, List, MapPin, X, Send, ChevronDown,
     ChevronUp, XCircle, Menu, Wrench, BarChart3, Database, Edit, Trash2, LineChart,
-    Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff
+    Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // =========================================================
@@ -19,22 +19,22 @@ const ROLES = { OPERATOR: 'Equipe Operacional', REQUESTER: 'Equipe Assistencial'
 const LOCATIONS = ['03DN', '03DS', '04GN', '04GS', '04CC', '04DN', '04DS', 'Centro Cirúrgico'];
 
 const SIDEBAR_ITEMS = [
-    { id: 'admin_dashboard', label: 'Painel Gerencial', icon: BarChart3, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE'], testId: 'nav-gestao' },
-    { id: 'admin_indicadores', label: 'Indicadores', icon: LineChart, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE'], testId: 'nav-relatorios' },
-    { id: 'admin_transporte', label: 'Indicadores de Transporte', icon: Activity, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE'] },
-    { id: 'admin_frota', label: 'Gestão da Frota', icon: Database, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE'], testId: 'nav-equipamentos' },
-    { id: 'admin_ocorrencias', label: 'Gestão de Ocorrências', icon: AlertTriangle, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE'] },
-    { id: 'admin_preventiva', label: 'Plano de Preventivas', icon: CalendarClock, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE'] },
-    { id: 'admin_remanejamento', label: 'Remanejamento', icon: Send, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE'] },
-    { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE'] },
-    { id: 'admin_users', label: 'Gestão de Utilizadores', icon: User, roles: ['ADMIN'] },
-    { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE'], testId: 'nav-dashboard-operacional' },
-    { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE'] },
-    { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE'], testId: 'nav-triagem' },
-    { id: 'manutencao', label: 'Expurgo / Limpeza', icon: SprayCan, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE'], testId: 'nav-expurgo' },
-    { id: 'nova_solicitacao', label: 'Nova Solicitação', icon: PlusCircle, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE'], testId: 'nav-nova-solicitacao' },
-    { id: 'meus_pedidos', label: 'Meus Pedidos', icon: List, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE'], testId: 'nav-meus-pedidos' },
-    { id: 'equipamentos_area', label: 'Equipamentos na Minha Área', icon: MapPin, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE'] },
+    { id: 'admin_dashboard', label: 'Painel Gerencial', icon: BarChart3, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-gestao' },
+    { id: 'admin_indicadores', label: 'Indicadores', icon: LineChart, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-relatorios' },
+    { id: 'admin_transporte', label: 'Indicadores de Transporte', icon: Activity, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'admin_frota', label: 'Gestão da Frota', icon: Database, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-equipamentos' },
+    { id: 'admin_ocorrencias', label: 'Gestão de Ocorrências', icon: AlertTriangle, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'admin_preventiva', label: 'Plano de Preventivas', icon: CalendarClock, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'admin_remanejamento', label: 'Remanejamento', icon: Send, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'admin_users', label: 'Gestão de Utilizadores', icon: User, roles: ['ADMIN', 'GERENCIAL'] },
+    { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-dashboard-operacional' },
+    { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-triagem' },
+    { id: 'manutencao', label: 'Expurgo / Limpeza', icon: SprayCan, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-expurgo' },
+    { id: 'nova_solicitacao', label: 'Nova Solicitação', icon: PlusCircle, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-nova-solicitacao' },
+    { id: 'meus_pedidos', label: 'Meus Pedidos', icon: List, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-meus-pedidos' },
+    { id: 'equipamentos_area', label: 'Equipamentos na Minha Área', icon: MapPin, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
 ];
 
 const CHECKLIST_OPTIONS = { "Monitor de Pressão Intracraniana (PIC)": ["Apenas Kit: Módulo + Cabo", "Maleta completa: Monitor + cabo + módulo + cabos + fonte + Suporte"] };
@@ -334,6 +334,7 @@ const SearchDropdown = ({ value, onChange, options = [], placeholder, className 
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [focusedIndex, setFocusedIndex] = useState(-1);
+    const [dropDirection, setDropDirection] = useState('down');
     const ref = useRef(null);
 
     useEffect(() => {
@@ -341,6 +342,18 @@ const SearchDropdown = ({ value, onChange, options = [], placeholder, className 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    useEffect(() => {
+        if (isOpen && ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            // If less than 260px space below AND enough space above, open upwards
+            if (window.innerHeight - rect.bottom < 260 && rect.top > 260) {
+                setDropDirection('up');
+            } else {
+                setDropDirection('down');
+            }
+        }
+    }, [isOpen]);
 
     const selectedOption = options.find(opt => opt.value === value);
     const filteredOptions = options.filter(opt => {
@@ -381,7 +394,7 @@ const SearchDropdown = ({ value, onChange, options = [], placeholder, className 
             </div>
             {isOpen && (
                 <div
-                    className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-fade-in">
+                    className={`absolute z-[9999] w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-fade-in ${dropDirection === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
                     <div className="p-2 border-b border-gray-100 bg-gray-50 flex items-center">
                         <Search size={16} className="text-gray-400 ml-2 shrink-0" />
                         <input autoFocus type="text" className="w-full p-2 bg-transparent outline-none text-sm text-gray-800"
@@ -801,16 +814,22 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
     const [availableTags, setAvailableTags] = useState([]);
 
     const isTransport = isTransportRequest(req.equipmentType);
-    const transportItemsList = isTransport ? normUpper(req.equipmentType).replace('TRANSPORTE: ', '').split(' + ') : [];
+    const isCapnografia = normUpper(req.equipmentType) === 'MODULO DE CAPNOGRAFIA + CABO' || normUpper(req.equipmentType) === 'MODULO DE CAPNOGRAFIA';
+    const isMultiTag = isTransport || isCapnografia;
+    
+    const multiTagItemsList = isTransport 
+        ? normUpper(req.equipmentType).replace('TRANSPORTE: ', '').split(' + ') 
+        : (isCapnografia ? ['MÓDULO DE CAPNOGRAFIA', 'CABO DE CAPNOGRAFIA', 'CÉLULA DE CAPNOGRAFIA'] : []);
+    
     const isInTransit = req.status === 'approved' && isTransport;
 
     useEffect(() => {
         if (!req.equipmentType || req.kind === 'return_pickup') return;
 
-        const equipmentsToSearch = isTransport ? transportItemsList : [normUpper(req.equipmentType)];
+        const equipmentsToSearch = isMultiTag ? multiTagItemsList.map(normUpper) : [normUpper(req.equipmentType)];
         const matchingInventory = (inventory || []).filter(item => item.status === 'available' && equipmentsToSearch.includes(normUpper(item.type)));
 
-        if (isTransport) {
+        if (isMultiTag) {
             const grouped = {};
             matchingInventory.forEach(item => {
                 const itemType = normUpper(item.type);
@@ -824,9 +843,9 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
     }, [req.equipmentType, req.kind, inventory]);
 
     const handleConfirm = () => {
-        if (isTransport) {
+        if (isMultiTag) {
             const enteredTags = [];
-            for (const item of transportItemsList) {
+            for (const item of multiTagItemsList) {
                 const t = (multiTags[item] || '').trim().toUpperCase();
                 if (!TAG_REGEX.test(t)) {
                     showNotification('error', `TAG inválida para "${item}". Use 4 letras + 4 números.`);
@@ -1222,9 +1241,9 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                                         <button onClick={() => onProcessPickup(req)} className="w-full h-[44px] px-4 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 flex items-center justify-center shadow-sm">
                                             <ClipboardList size={18} className="mr-2" /> Devolução/Triagem
                                         </button>
-                                    ) : isTransport ? (
+                                    ) : isMultiTag ? (
                                         <div className="flex flex-col gap-3">
-                                            {transportItemsList.map((item, idx) => (
+                                            {multiTagItemsList.map((item, idx) => (
                                                 <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2">
                                                     <span className="text-xs font-bold text-gray-700 min-w-[160px] truncate"
                                                         title={item}>{item}:</span>
@@ -1236,7 +1255,7 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                                                                 ...multiTags,
                                                                 [item]: val.toUpperCase()
                                                             })}
-                                                            options={(availableTags[item] || []).filter(Boolean).map(t => ({ value: t, label: t }))}
+                                                            options={(availableTags[normUpper(item)] || []).filter(Boolean).map(t => ({ value: t, label: t }))}
                                                             placeholder={`Buscar e selecionar TAG p/ ${item}...`}
                                                             className="w-full text-sm font-mono pl-[38px] py-[10px]"
                                                         />
@@ -1945,6 +1964,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
     const [checklistModel, setChecklistModel] = useState('');
     const [selectedUltrasoundAccessories, setSelectedUltrasoundAccessories] = useState([]);
     const [selectedVentAccessories, setSelectedVentAccessories] = useState([]);
+    const [ventObservation, setVentObservation] = useState('');
     const [highFlowCategory, setHighFlowCategory] = useState('Circuito Adulto');
     const [selectedHighFlowItems, setSelectedHighFlowItems] = useState([]);
     const [selectedMonitorAccessories, setSelectedMonitorAccessories] = useState([]);
@@ -2000,7 +2020,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
     };
 
     const handleCategoryChange = (newCat) => {
-        setCategory(newCat); setSubType(''); setSelectedItem(''); setAccessoryItem(''); setHighFlowCategory('Circuito Adulto'); setSelectedHighFlowItems([]); setSelectedVentAccessories([]); setSelectedMonitorAccessories([]);
+        setCategory(newCat); setSubType(''); setSelectedItem(''); setAccessoryItem(''); setHighFlowCategory('Circuito Adulto'); setSelectedHighFlowItems([]); setSelectedVentAccessories([]); setSelectedMonitorAccessories([]); setVentObservation('');
         setSelectedTransportMonitorAccessories([]); setSelectedUltrasoundAccessories([]); setTransportItems([]);
         setTransportDest(''); setIsolation(''); setIsolationType(''); setChecklistModel(''); setDestinyUnitBed('');
         setTevScoreType(''); setTevScoreValue(''); setPatientType('');
@@ -2093,6 +2113,9 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     return null;
                 }
                 finalDetails = `Itens/Acessórios: ${selectedVentAccessories.join(', ')}`;
+                if (ventObservation && ventObservation.trim() !== '') {
+                    finalDetails += ` | Obs: ${ventObservation.trim()}`;
+                }
             }
         } else if (category && normUpper(category).includes('TRANSPORTE')) {
             if (transportItems.length === 0) {
@@ -2262,7 +2285,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                                     <SearchDropdown value={subType} onChange={(val) => {
                                         setSubType(val);
                                         setAccessoryItem(''); setHighFlowCategory('Circuito Adulto');
-                                        setSelectedHighFlowItems([]); setSelectedVentAccessories([]);
+                                        setSelectedHighFlowItems([]); setSelectedVentAccessories([]); setVentObservation('');
                                     }}
                                         options={optionsDropdown} placeholder="Selecione o tipo..." />
                                 </div>
@@ -2279,6 +2302,19 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                                             ))}
                                         </div>
                                         <p className="text-xs text-blue-600 mt-2 font-bold">Selecionados: {selectedVentAccessories.length > 0 ? selectedVentAccessories.join(', ') : 'Nenhum'}</p>
+                                        
+                                        {normUpper(subType).includes('VENTILADOR PULMONAR INVASIVO') && selectedVentAccessories.length > 0 && (
+                                            <div className="mt-4">
+                                                <label className="label text-blue-800 font-bold mb-2">Observações Adicionais (Opcional):</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={ventObservation}
+                                                    onChange={(e) => setVentObservation(e.target.value)}
+                                                    className="input w-full border-blue-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                                    placeholder="Digite informações adicionais sobre a umidificação..."
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -2928,8 +2964,9 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
     });
 
     const groupedEquipments = myEquipments.reduce((acc, item) => {
-        if (!acc[item.model]) { acc[item.model] = []; }
-        acc[item.model].push(item);
+        const groupKey = item.type || item.model || 'Desconhecido';
+        if (!acc[groupKey]) { acc[groupKey] = []; }
+        acc[groupKey].push(item);
         return acc;
     }, {});
     const equipmentNames = Object.keys(groupedEquipments).sort();
@@ -4970,6 +5007,7 @@ function App() {
     const [userProfile, setUserProfile] = useState(null);
     const [currentView, setCurrentView] = useState('login');
     const [isLoading, setIsLoading] = useState(true);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     // =============================================================
     // MELHORIA (Relatório): Alerta sonoro no Operacional quando chega nova solicitação
@@ -6278,16 +6316,16 @@ function App() {
             {notification && (
                 <div data-testid={notification.type === 'success' ? "request-success-message" : "notification-message"} className={`fixed top-4 md:top-8 left-1/2 transform -translate-x-1/2 z-[100] px-4
                                     py-3 md:px-8 md:py-5 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.3)] flex
-                                    items-center justify-between w-[90%] max-w-lg md:w-auto md:min-w-[350px]
+                                    items-center justify-between w-[90%] max-w-md md:w-auto md:min-w-[350px]
                                     animate-fade-in border-2 ${notification.type === 'error'
                         ? 'bg-red-600 border-red-400 ring-4 ring-red-600/30'
                         : 'bg-green-600 border-green-400 ring-4 ring-green-600/30'}`}>
-                    <div className="flex items-center text-white min-w-0">
+                    <div className="flex items-center text-white min-w-0 flex-1 mr-2">
                         {notification.type === 'error' ?
                             <AlertCircle className="mr-3 md:mr-4 flex-shrink-0" size={24} /> :
                             <CheckCircle className="mr-3 md:mr-4 flex-shrink-0" size={24} />}
                         <span
-                            className="font-bold text-sm md:text-lg shadow-sm truncate">{notification.message}</span>
+                            className="font-bold text-sm md:text-base shadow-sm break-words whitespace-normal leading-snug">{notification.message}</span>
                     </div>
                     <button onClick={() => setNotification(null)} className="ml-4 text-white/80 hover:text-white transition-colors bg-black/10 hover:bg-black/20 p-1.5 rounded-full flex-shrink-0">
                         <X size={18} />
@@ -6311,12 +6349,12 @@ function App() {
                     setIsMobileMenuOpen(false)} />
             )}
 
-            <aside className={`fixed inset-y-0 left-0 bg-white border-r border-gray-200 w-64
-                                        z-50 flex flex-col transform transition-transform duration-300 ease-in-out
-                                        md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl'
-                    : '-translate-x-full'}`}>
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                    <div>
+            <aside className={`fixed inset-y-0 left-0 bg-white border-r border-gray-200 
+                                        z-50 flex flex-col transform transition-all duration-300 ease-in-out
+                                        md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+                                        ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center relative">
+                    <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
                         <h1 className="text-2xl font-bold text-blue-700 tracking-tight">CEIC
                             <span className="text-gray-400 font-light">v2.0</span></h1>
                         <p
@@ -6334,36 +6372,49 @@ function App() {
                             </div>
                         )}
                     </div>
-                    <button className="md:hidden p-2 text-gray-400 hover:bg-gray-100 rounded-lg"
+                    
+                    <button className="hidden md:flex absolute -right-4 top-6 bg-white border border-gray-200 shadow-sm p-1.5 rounded-full text-gray-500 hover:text-blue-600 transition-colors z-50"
+                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                        title={isSidebarCollapsed ? "Expandir menu" : "Recolher menu"}>
+                        {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                    </button>
+
+                    <button className={`md:hidden p-2 text-gray-400 hover:bg-gray-100 rounded-lg ${isSidebarCollapsed ? 'ml-0' : 'ml-auto'}`}
                         onClick={() => setIsMobileMenuOpen(false)}>
                         <X size={20} />
                     </button>
                 </div>
 
-                <nav className="flex-1 p-4 overflow-y-auto space-y-1">
+                <nav className="flex-1 p-4 overflow-y-auto space-y-1 overflow-x-hidden">
                     {SIDEBAR_ITEMS.filter(item =>
                         item.roles.includes(userProfile.role)).map(item => {
                             const IconComponent = item.icon;
                             return (
                                 <button key={item.id} data-testid={item.testId} onClick={() => handleNavClick(item.id)}
-                                    className={`flex items-center w-full p-3 rounded-xl mb-1 transition-all
-                                                duration-200 group ${currentView === item.id ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'}`}>
-                                    <IconComponent size={22} className={currentView === item.id ? ''
-                                        : 'opacity-70 group-hover:opacity-100'} />
-                                    <span className="ml-3 font-medium">{item.label}</span>
+                                    title={isSidebarCollapsed ? item.label : undefined}
+                                    className={`flex items-center p-3 rounded-xl mb-1 transition-all
+                                                duration-200 group ${currentView === item.id ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'}
+                                                ${isSidebarCollapsed ? 'justify-center w-full' : 'w-full'}`}>
+                                    <IconComponent size={22} className={`shrink-0 ${currentView === item.id ? '' : 'opacity-70 group-hover:opacity-100'}`} />
+                                    <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 ml-0 overflow-hidden' : 'w-auto opacity-100 ml-3'}`}>{item.label}</span>
                                 </button>
                             )
                         })}
                 </nav>
 
-                <div className="p-4 border-t border-gray-100"><button data-testid="logout-button" onClick={handleLogout}
-                    className="flex items-center w-full p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
-                    <LogOut size={20} className="mr-3" /> Sair
-                </button></div>
+                <div className="p-4 border-t border-gray-100 overflow-hidden">
+                    <button data-testid="logout-button" onClick={handleLogout}
+                        title={isSidebarCollapsed ? "Sair" : undefined}
+                        className={`flex items-center p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors
+                            ${isSidebarCollapsed ? 'justify-center w-full' : 'w-full'}`}>
+                        <LogOut size={20} className={`shrink-0 ${isSidebarCollapsed ? '' : 'mr-3'}`} />
+                        <span className={`transition-all duration-300 whitespace-nowrap ${isSidebarCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Sair</span>
+                    </button>
+                </div>
             </aside >
 
             <main
-                className="md:ml-64 p-4 sm:p-6 md:p-8 min-h-[calc(100vh-64px)] md:min-h-screen flex-1 min-w-0 w-full md:w-auto overflow-x-hidden">
+                className={`transition-all duration-300 ease-in-out p-4 sm:p-6 md:p-8 min-h-[calc(100vh-64px)] md:min-h-screen flex-1 min-w-0 w-full md:w-auto overflow-x-hidden ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
                 {currentView === 'admin_dashboard' &&
                     <AdminDashboard inventory={inventory} requests={requests} />}
                 {currentView === 'admin_indicadores' &&
