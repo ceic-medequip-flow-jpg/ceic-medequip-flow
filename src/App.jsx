@@ -70,6 +70,18 @@ const EQUIPMENT_DATA = {
     }
 };
 
+const TEV_INDICATIONS = {
+    'Perioperatório': [
+        { group: 'Indicação Absoluta', items: ['Neurocirurgia (NCR)', 'Politrauma'] },
+        { group: 'Alto Risco (Requer Caprini > 4)', items: ['Cirurgia ortopédica de grande porte', 'Cirurgia oncológica', 'Contraindicação à profilaxia farmacológica', 'Mobilidade reduzida ou imobilidade prolongada', 'Cirurgia com tempo de duração ≥ 120 minutos'] }
+    ],
+    'Obstétrico': [
+        { group: 'Critério Fixo', items: ['Gestação Múltipla'] },
+        { group: 'Intraoperatório (Centro Obstétrico)', items: ['Cirurgia fetal intraútero', 'Cirurgia com previsão de duração > 2 horas', 'Placenta prévia / acretismo', 'Alto risco de perda sanguínea / politransfusão', 'Instabilidade hemodinâmica'] },
+        { group: 'Internação / Puerpério', items: ['Escore ≥ 3 associado a contraindicação farmacológica, pausa cirúrgica, ou janela de 12h pré-medicação', 'Escore 2 + Restrição ao leito', 'Escore 2 + Aguardando deambulação (até 8h)'] }
+    ]
+};
+
 const HIGH_FLOW_OPTIONS = {
     "Circuito Adulto": ["Circuito Adulto", "Cânula nasal Adulto P", "Cânula nasal Adulto M", "Cânula nasal Adulto G",
         "Cânula de interface para TQT"],
@@ -154,7 +166,9 @@ const mapPedido = (raw) => {
         fulfilledAt: raw.fulfilled_at || raw.fulfilledAt || raw.fulfilledat || null,
         transfer_to: raw.transfer_to || raw.transferTo || raw.transferto || null,
         timestamp: raw.timestamp || raw.created_at || raw.createdAt || raw.createdat || null,
-        catalogo_equipamentos: raw.catalogo_equipamentos || null
+        catalogo_equipamentos: raw.catalogo_equipamentos || null,
+        tevPriority: raw.tev_priority != null ? Number(raw.tev_priority) : (raw.tevPriority != null ? Number(raw.tevPriority) : null),
+        tevGroup: raw.tev_group || raw.tevGroup || null
     };
 };
 
@@ -253,8 +267,6 @@ const getSlaInfo = (req) => {
             : { ms: 1200000, secs: 1200, label: '20min (Rotina)' };
     }
 };
-
-const TAG_REGEX = /^[A-Z]{4}\d{4}$/;
 
 // =========================================================
 // COMPONENTES VISUAIS REUTILIZÁVEIS
@@ -720,6 +732,67 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
 
     const filteredPending = pending.filter(r => filter === 'all' || (filter === 'urgent' && r.isUrgent));
 
+    const sortedFilteredPending = useMemo(() => {
+        let items = [...filteredPending];
+        const nonTevItems = [];
+        const tevItemsByPriority = { 1: [], 2: [], 3: [], 4: [] };
+        
+        items.forEach(req => {
+            if (req.tevPriority != null) {
+                const p = req.tevPriority;
+                if (!tevItemsByPriority[p]) tevItemsByPriority[p] = [];
+                tevItemsByPriority[p].push(req);
+            } else {
+                nonTevItems.push(req);
+            }
+        });
+        
+        const sortedTevItems = [];
+        [1, 2, 3, 4].forEach(p => {
+            let pItems = tevItemsByPriority[p];
+            if (pItems && pItems.length > 0) {
+                const groups = { 'Clínico': [], 'Cirúrgico': [], 'Perioperatório': [], 'Obstétrico': [], 'Outros': [] };
+                pItems.forEach(r => {
+                    const g = r.tevGroup || 'Outros';
+                    if (groups[g]) groups[g].push(r);
+                    else groups['Outros'].push(r);
+                });
+                Object.keys(groups).forEach(g => {
+                    groups[g].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                });
+                const order = ['Clínico', 'Cirúrgico', 'Perioperatório', 'Obstétrico', 'Outros'];
+                let added = true;
+                while (added) {
+                    added = false;
+                    order.forEach(g => {
+                        if (groups[g].length > 0) {
+                            sortedTevItems.push(groups[g].shift());
+                            added = true;
+                        }
+                    });
+                }
+            }
+        });
+        
+        return items.sort((a, b) => {
+             const getWeight = (req) => {
+                 if (req.isUrgent) return 100;
+                 if (req.tevPriority === 1) return 90;
+                 if (req.tevPriority === 2) return 80;
+                 if (req.tevPriority === 3) return 70;
+                 if (req.tevPriority === 4) return 60;
+                 return 50;
+             };
+             const wA = getWeight(a);
+             const wB = getWeight(b);
+             if (wA !== wB) return wB - wA;
+             if (a.tevPriority != null && b.tevPriority != null && a.tevPriority === b.tevPriority) {
+                 return sortedTevItems.indexOf(a) - sortedTevItems.indexOf(b);
+             }
+             return new Date(a.timestamp) - new Date(b.timestamp);
+        });
+    }, [filteredPending]);
+
     return (
         <div className="space-y-6 pb-20 animate-fade-in" data-testid="operational-dashboard">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
@@ -772,18 +845,7 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
                 <div className="divide-y divide-gray-100">
                     {filteredPending.length === 0 ? <div className="p-8 text-center text-gray-400">Nenhuma solicitação
                         encontrada no filtro atual.</div> :
-                        filteredPending.slice().sort((a, b) => {
-                            const getWeight = (req) => {
-                                if (req.isUrgent) return 100;
-                                if (req.tevPriority === 1) return 90;
-                                if (req.tevPriority === 2) return 80;
-                                return 50;
-                            };
-                            const weightA = getWeight(a);
-                            const weightB = getWeight(b);
-                            if (weightA !== weightB) return weightB - weightA;
-                            return new Date(a.timestamp) - new Date(b.timestamp);
-                        }).map(req => (
+                        sortedFilteredPending.map(req => (
                             <PendingRequestCard key={req.id} req={req} inventory={inventory} onFulfill={onFulfill}
                                 showNotification={showNotification} onProcessPickup={onProcessPickup} onCancel={onCancelRequest}
                                 onNotifyRequester={onNotifyRequester} onUpdateTransportTimes={onUpdateTransportTimes} />
@@ -847,8 +909,8 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
             const enteredTags = [];
             for (const item of multiTagItemsList) {
                 const t = (multiTags[item] || '').trim().toUpperCase();
-                if (!TAG_REGEX.test(t)) {
-                    showNotification('error', `TAG inválida para "${item}". Use 4 letras + 4 números.`);
+                if (!t) {
+                    showNotification('error', `Por favor, informe a TAG para "${item}".`);
                     return;
                 }
                 enteredTags.push(t);
@@ -862,7 +924,7 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
             setMultiTags({});
         } else {
             const tag = typedTag.trim().toUpperCase();
-            if (!TAG_REGEX.test(tag)) { showNotification('error', 'TAG inválida. Use 4 letras + 4 números.'); return; }
+            if (!tag) { showNotification('error', 'Por favor, informe a TAG.'); return; }
             onFulfill(req, tag);
             setTypedTag('');
         }
@@ -1973,6 +2035,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
     const [tevScoreType, setTevScoreType] = useState('');
     const [tevScoreValue, setTevScoreValue] = useState('');
     const [patientType, setPatientType] = useState('');
+    const [tevIndications, setTevIndications] = useState([]);
     const [transportDest, setTransportDest] = useState('');
     const [isolation, setIsolation] = useState('');
     const [isolationType, setIsolationType] = useState('');
@@ -2023,7 +2086,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
         setCategory(newCat); setSubType(''); setSelectedItem(''); setAccessoryItem(''); setHighFlowCategory('Circuito Adulto'); setSelectedHighFlowItems([]); setSelectedVentAccessories([]); setSelectedMonitorAccessories([]); setVentObservation('');
         setSelectedTransportMonitorAccessories([]); setSelectedUltrasoundAccessories([]); setTransportItems([]);
         setTransportDest(''); setIsolation(''); setIsolationType(''); setChecklistModel(''); setDestinyUnitBed('');
-        setTevScoreType(''); setTevScoreValue(''); setPatientType('');
+        setTevScoreType(''); setTevScoreValue(''); setPatientType(''); setTevIndications([]);
     };
 
     const toggleHighFlowItem = (item) => { setSelectedHighFlowItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]); };
@@ -2044,7 +2107,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
             return null;
         }
 
-        let finalEquip = ''; let finalDetails = ''; let requestTevPriority = null;
+        let finalEquip = ''; let finalDetails = ''; let requestTevPriority = null; let requestTevGroup = null;
 
         if (category && !normUpper(category).includes('VENTILATORIA') && !normUpper(category).includes('TRANSPORTE')) {
             const norm = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
@@ -2064,32 +2127,48 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                 if (accessoryItem) extras.push(`Acessórios Gerais: ${accessoryItem}`);
 
                 if (isTevCompressorType(selectedItem)) {
-                    const scoreNum = parseInt(tevScoreValue, 10);
-                    let tevPriorityLevel = null;
-                    if (tevScoreType === 'Pádua') {
-                        if (scoreNum <= 4) {
-                            showNotification('error', 'Score Pádua de baixo risco. O uso do Compressor Vascular não está indicado!');
-                            return null;
-                        } tevPriorityLevel = 1;
-                    } else if (tevScoreType === 'Caprini') {
-                        if (scoreNum < 3) {
-                            showNotification('error', 'Score Caprini de baixo risco. O uso do Compressor Vascular não está indicado!');
-                            return null;
-                        } else if (scoreNum >= 3 && scoreNum <= 4) tevPriorityLevel = 2; else tevPriorityLevel = 1;
-                    } if
-                        (sameText(sectorSelo, 'Centro Cirúrgico')) {
-                        if (!destinyUnitBed || !tevScoreType || !tevScoreValue) {
-                            showNotification('error', 'Preencha todos os campos do Score TEV e Destino.'); return null;
-                        }
-                        extras.push(`Destino: ${destinyUnitBed} | Score TEV (${tevScoreType}): ${tevScoreValue}`);
-                    } else {
-                        if
-                            (!patientType || !tevScoreType || !tevScoreValue) {
-                            showNotification('error', 'Preencha os campos de Tipo de Paciente e Score TEV.'); return null;
-                        }
-                        extras.push(`Paciente ${patientType} | TEV (${tevScoreType}): ${tevScoreValue}`);
+                    if (!patientType) { showNotification('error', 'Preencha o Tipo de Paciente.'); return null; }
+                    if (!tevScoreType) { showNotification('error', 'Selecione o Protocolo TEV ou "Nenhum / Não se aplica".'); return null; }
+                    if (tevScoreType !== 'Nenhum / Não se aplica' && !tevScoreValue) { showNotification('error', 'Preencha o valor do Score TEV.'); return null; }
+                    
+                    const scoreNum = tevScoreValue ? parseInt(tevScoreValue, 10) : 0;
+                    let tevPriorityLevel = 4;
+                    
+                    const hasIndication = (keyword) => tevIndications.some(i => normUpper(i).includes(normUpper(keyword)));
+                    
+                    if (patientType === 'Perioperatório' && (hasIndication('Neurocirurgia') || hasIndication('Politrauma'))) {
+                        tevPriorityLevel = 1;
+                    } else if (patientType === 'Obstétrico' && (hasIndication('Cirurgia fetal') || hasIndication('duração > 2 horas') || hasIndication('risco de perda sanguínea') || hasIndication('Instabilidade hemodinâmica'))) {
+                        tevPriorityLevel = 1;
+                    } else if (patientType === 'Obstétrico' && hasIndication('Gestação Múltipla')) {
+                        tevPriorityLevel = 2;
+                    } else if ((patientType === 'Clínico' || patientType === 'Cirúrgico') && ((tevScoreType === 'Caprini' && scoreNum > 4) || (tevScoreType === 'Pádua' && scoreNum === 5))) {
+                        tevPriorityLevel = 2;
+                    } else if (patientType === 'Perioperatório' && tevScoreType === 'Caprini' && scoreNum > 4 && (hasIndication('ortopédica de grande porte') || hasIndication('oncológica') || hasIndication('Contraindicação') || hasIndication('Mobilidade reduzida') || hasIndication('tempo de duração ≥ 120 minutos'))) {
+                        tevPriorityLevel = 2;
+                    } else if (patientType === 'Obstétrico' && scoreNum >= 3 && (hasIndication('contraindicação farmacológica') || hasIndication('pausa cirúrgica') || hasIndication('janela de 12h'))) {
+                        tevPriorityLevel = 2;
+                    } else if (patientType === 'Obstétrico' && scoreNum === 2 && hasIndication('Restrição ao leito')) {
+                        tevPriorityLevel = 3;
+                    } else if (patientType === 'Obstétrico' && scoreNum === 2 && hasIndication('Aguardando deambulação')) {
+                        tevPriorityLevel = 3;
                     }
+
+                    requestTevGroup = patientType;
                     requestTevPriority = tevPriorityLevel;
+                    
+                    extras.push(`Paciente: ${patientType}`);
+                    if (tevScoreType !== 'Nenhum / Não se aplica') {
+                        extras.push(`Score TEV: ${tevScoreType} (${tevScoreValue})`);
+                    } else {
+                        extras.push(`Score TEV: Não se aplica`);
+                    }
+                    if (tevIndications.length > 0) {
+                        extras.push(`Indicações: ${tevIndications.join(', ')}`);
+                    }
+                    if (sameText(sectorSelo, 'Centro Cirúrgico') && destinyUnitBed) {
+                        extras.push(`Destino: ${destinyUnitBed}`);
+                    }
                 } if (extras.length > 0) finalDetails = extras.join(' - ');
             }
         } else if (category && normUpper(category).includes('VENTILATORIA')) {
@@ -2139,7 +2218,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
         const allAccessories = []; if (finalDetails) allAccessories.push(finalDetails);
 
         return {
-            equipmentType: String(finalEquip).trim().toUpperCase(), accessories: allAccessories, tevPriority: requestTevPriority,
+            equipmentType: String(finalEquip).trim().toUpperCase(), accessories: allAccessories, tevPriority: requestTevPriority, tevGroup: requestTevGroup,
             destinyUnitBed: destinyUnitBed
         };
     };
@@ -2329,8 +2408,8 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                             setSelectedItem(val);
                             setAccessoryItem(''); setChecklistModel(''); setSelectedMonitorAccessories([]);
                             setSelectedTransportMonitorAccessories([]); setSelectedUltrasoundAccessories([]);
-                            setDestinyUnitBed(''); setPatientType(''); setTevScoreType(normUpper(val) === 'COMPRESSOR PARA TERAPIA VASCULAR' &&
-                                sameText(sectorSelo, 'Centro Cirúrgico') ? 'Caprini' : ''); setTevScoreValue('');
+                            setDestinyUnitBed(''); setPatientType(''); setTevIndications([]);
+                            setTevScoreType(''); setTevScoreValue('');
                         }}
                             options={dynamicEquipmentOptions} placeholder="Buscar e selecionar equipamento..." />
 
@@ -2417,53 +2496,79 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                                             placeholder="Ex: UTI 3 - Leito 12" /></div>
                                     )}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {sameText(sectorSelo, 'Centro Cirúrgico') ? (
-                                            <div>
-                                                <label className="label text-red-900">Protocolo TEV *</label>
-                                                <div
-                                                    className="input bg-red-100 border-red-200 text-red-800 font-bold flex items-center opacity-90 cursor-not-allowed">
-                                                    Caprini (Fixo)</div>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div>
-                                                    <label className="label text-blue-900">Tipo de Paciente *</label>
-                                                    <select className="input bg-white border-blue-200" value={patientType}
+                                        <div>
+                                            <label className="label text-blue-900">Tipo de Paciente *</label>
+                                            <select className="input bg-white border-blue-200" value={patientType}
+                                                onChange={e => {
+                                                    const val = e.target.value;
+                                                    setPatientType(val);
+                                                    if (val === 'Clínico') setTevScoreType('Pádua');
+                                                    else if (val === 'Cirúrgico') setTevScoreType('Caprini');
+                                                    else setTevScoreType('');
+                                                    setTevScoreValue('');
+                                                    setTevIndications([]);
+                                                }}>
+                                                <option value="">Selecione...</option>
+                                                <option value="Clínico">Clínico</option>
+                                                <option value="Cirúrgico">Cirúrgico</option>
+                                                <option value="Perioperatório">Perioperatório (Centro Cirúrgico)</option>
+                                                <option value="Obstétrico">Paciente Obstétrico</option>
+                                            </select>
+                                        </div>
+
+                                        {patientType && (
+                                            <div className="animate-fade-in">
+                                                <label className="label text-blue-900">Score TEV *</label>
+                                                {(patientType === 'Clínico' || patientType === 'Cirúrgico') ? (
+                                                    <div className="input bg-blue-100 border-blue-200 text-blue-800 font-bold flex items-center opacity-90 cursor-not-allowed">
+                                                        {tevScoreType}
+                                                    </div>
+                                                ) : (
+                                                    <select className="input bg-white border-blue-200" value={tevScoreType}
                                                         onChange={e => {
-                                                            const val = e.target.value;
-                                                            setPatientType(val);
-                                                            if (val === 'Clínico') setTevScoreType('Pádua');
-                                                            else if (val === 'Cirúrgico') setTevScoreType('Caprini');
-                                                            else setTevScoreType('');
+                                                            setTevScoreType(e.target.value);
                                                             setTevScoreValue('');
                                                         }}>
                                                         <option value="">Selecione...</option>
-                                                        <option value="Clínico">Clínico</option>
-                                                        <option value="Cirúrgico">Cirúrgico</option>
+                                                        <option value="Caprini">Caprini</option>
+                                                        <option value="Pádua">Pádua</option>
+                                                        <option value="Nenhum / Não se aplica">Nenhum / Não se aplica</option>
                                                     </select>
-                                                </div>
-                                                {patientType && (
-                                                    <div className="animate-fade-in">
-                                                        <label className="label text-blue-900">Protocolo TEV *</label>
-                                                        <div
-                                                            className="input bg-blue-100 border-blue-200 text-blue-800 font-bold flex items-center opacity-90 cursor-not-allowed">
-                                                            {tevScoreType}</div>
-                                                    </div>
                                                 )}
-                                            </>
+                                            </div>
                                         )}
-                                        {(tevScoreType || sameText(sectorSelo, 'Centro Cirúrgico')) && (
-                                            <div className="animate-fade-in md:col-span-2 lg:col-span-1"><label
-                                                className={`label ${sameText(sectorSelo, 'Centro Cirúrgico') ? 'text-red-900'
-                                                    : 'text-blue-900'}`}>Valor do Score ({sameText(sectorSelo, 'Centro Cirúrgico')
-                                                        ? 'Caprini' : tevScoreType}) *</label><input type="number"
-                                                            className={`input font-bold ${sameText(sectorSelo, 'Centro Cirúrgico')
-                                                                ? 'border-red-200 focus:border-red-500 focus:ring-red-500 text-red-800'
-                                                                : 'border-blue-200 focus:border-blue-500 focus:ring-blue-500 text-blue-800'
-                                                                }`} value={tevScoreValue} onChange={e => {
-                                                                    setTevScoreValue(e.target.value); if (sameText(sectorSelo, 'Centro Cirúrgico'))
-                                                                        setTevScoreType('Caprini');
-                                                                }} placeholder="Ex: 4" /></div>
+
+                                        {tevScoreType && tevScoreType !== 'Nenhum / Não se aplica' && (
+                                            <div className="animate-fade-in md:col-span-2 lg:col-span-1">
+                                                <label className="label text-blue-900">Valor do Score ({tevScoreType}) *</label>
+                                                <input type="number"
+                                                    className="input font-bold border-blue-200 focus:border-blue-500 focus:ring-blue-500 text-blue-800"
+                                                    value={tevScoreValue} onChange={e => setTevScoreValue(e.target.value)} placeholder="Ex: 4" />
+                                            </div>
+                                        )}
+
+                                        {patientType && TEV_INDICATIONS[patientType] && (
+                                            <div className="md:col-span-2 mt-4 space-y-4 animate-fade-in">
+                                                <label className="label text-blue-900">Indicações e Agravantes</label>
+                                                <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm space-y-3">
+                                                    {TEV_INDICATIONS[patientType].flatMap(g => g.items).map(item => (
+                                                        <label key={item} className="flex items-start gap-2 cursor-pointer group">
+                                                            <input type="checkbox"
+                                                                className="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                                checked={tevIndications.includes(item)}
+                                                                onChange={(e) => {
+                                                                    if (e.target.checked) {
+                                                                        setTevIndications(prev => [...prev, item]);
+                                                                    } else {
+                                                                        setTevIndications(prev => prev.filter(i => i !== item));
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <span className="text-sm text-gray-700 group-hover:text-blue-900 transition-colors">{item}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -5351,7 +5456,9 @@ function App() {
                 patient_name: requestData.patientName || requestData.nomePaciente || null,
                 patient_mv: requestData.patientMV || requestData.patientMv || requestData.mv || null,
                 patient_bed: requestData.patientBed || requestData.leito || null,
-                is_urgent: !!requestData?.isUrgent
+                is_urgent: !!requestData?.isUrgent,
+                tev_priority: requestData.tevPriority || null,
+                tev_group: requestData.tevGroup || null
             };
 
             console.log('Enviando payload formatado para pedidos:', payloadFormatado);
