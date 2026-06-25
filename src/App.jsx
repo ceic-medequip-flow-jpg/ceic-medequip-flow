@@ -21,7 +21,6 @@ const LOCATIONS = ['03DN', '03DS', '04GN', '04GS', '04CC', '04DN', '04DS', 'Cent
 const SIDEBAR_ITEMS = [
     { id: 'admin_dashboard', label: 'Painel Gerencial', icon: BarChart3, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-gestao' },
     { id: 'admin_indicadores', label: 'Indicadores', icon: LineChart, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-relatorios' },
-    { id: 'admin_transporte', label: 'Indicadores de Transporte', icon: Activity, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
     { id: 'admin_frota', label: 'Gestão da Frota', icon: Database, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-equipamentos' },
     { id: 'admin_ocorrencias', label: 'Gestão de Ocorrências', icon: AlertTriangle, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
     { id: 'admin_preventiva', label: 'Plano de Preventivas', icon: CalendarClock, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
@@ -62,12 +61,7 @@ const EQUIPMENT_DATA = {
             APENAS_ACESSORIOS: { label: "Apenas Acessórios (Ventilatório)", accessories: ["Umidificação Passiva", "Umidificação ativa"] }
         }
     },
-    TRANSPORTE: {
-        label: "Equipamentos para Transporte de Paciente",
-        destinations: ["Centro cirúrgico 9º PAMB", "ICESP", "INCOR", "IOT", "Ressonância magnética", "Tomografia 3o andar",
-            "Tomografia 4o andar", "Radiologia intervencionista", "11DN", "11DS", "11EE", "11FF", "11GN", "09UAN/UAC - PAMB 9",
-            "07AA - UTI", "04GN", "04GS", "PS - Sala de emergência cirúrgica", "PS -Sala de emergência clínica"]
-    }
+
 };
 
 const TEV_INDICATIONS = {
@@ -75,7 +69,7 @@ const TEV_INDICATIONS = {
         { group: 'Indicação Absoluta', items: ['Neurocirurgia (NCR)', 'Politrauma'] },
         { group: 'Alto Risco (Requer Caprini > 4)', items: ['Cirurgia ortopédica de grande porte', 'Cirurgia oncológica', 'Contraindicação à profilaxia farmacológica', 'Mobilidade reduzida ou imobilidade prolongada', 'Cirurgia com tempo de duração ≥ 120 minutos'] }
     ],
-    'Obstétrico': [
+    'Obstétrica': [
         { group: 'Critério Fixo', items: ['Gestação Múltipla'] },
         { group: 'Intraoperatório (Centro Obstétrico)', items: ['Cirurgia fetal intraútero', 'Cirurgia com previsão de duração > 2 horas', 'Placenta prévia / acretismo', 'Alto risco de perda sanguínea / politransfusão', 'Instabilidade hemodinâmica'] },
         { group: 'Internação / Puerpério', items: ['Escore ≥ 3 associado a contraindicação farmacológica, pausa cirúrgica, ou janela de 12h pré-medicação', 'Escore 2 + Restrição ao leito', 'Escore 2 + Aguardando deambulação (até 8h)'] }
@@ -103,7 +97,6 @@ const normUpper = (s) => normText(s).toUpperCase();
 const normLower = (s) => normText(s).toLowerCase();
 const sameText = (a, b) => normUpper(a) === normUpper(b);
 const splitTagList = (value) => String(value ?? '').split(',').map(normUpper).filter(Boolean);
-const isTransportRequest = (type) => normUpper(type).startsWith('TRANSPORTE:');
 const isTevCompressorType = (type) => ['COMPRESSOR PARA TERAPIA VASCULAR', 'COMPRESSOR VASCULAR'].includes(normUpper(type));
 const EQUIPMENT_ALIASES = {
     'EQUIPAMENTO DE TERAPIA A VACUO': [
@@ -656,16 +649,12 @@ const LoanedEquipmentSection = ({ requests, inventory }) => {
     );
 };
 
-// View: Dashboard da Equipe Operacional (Fila e Atendimento).
 const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showNotification, onProcessPickup,
-    onCancelRequest, onNotifyRequester, onUpdateTransportTimes, soundEnabled, setSoundEnabled }) => {
+    onCancelRequest, onNotifyRequester, soundEnabled, setSoundEnabled }) => {
     const [filter, setFilter] = useState('all');
     // (fix) soundEnabled vem do App via props
     const pending = requests.filter(r => {
         if (r.status === 'pending' || r.status === 'waitlisted' || r.status === 'pickup_requested' || r.status === 'in_transfer') return true;
-        if (r.status === 'approved' && isTransportRequest(r.equipmentType)) {
-            return !r.returnToCeicTime;
-        }
         return false;
     });
 
@@ -751,7 +740,7 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
         [1, 2, 3, 4].forEach(p => {
             let pItems = tevItemsByPriority[p];
             if (pItems && pItems.length > 0) {
-                const groups = { 'Clínico': [], 'Cirúrgico': [], 'Perioperatório': [], 'Obstétrico': [], 'Outros': [] };
+                const groups = { 'Clínico': [], 'Cirúrgico': [], 'Perioperatório': [], 'Obstétrica': [], 'Outros': [] };
                 pItems.forEach(r => {
                     const g = r.tevGroup || 'Outros';
                     if (groups[g]) groups[g].push(r);
@@ -760,7 +749,7 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
                 Object.keys(groups).forEach(g => {
                     groups[g].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
                 });
-                const order = ['Clínico', 'Cirúrgico', 'Perioperatório', 'Obstétrico', 'Outros'];
+                const order = ['Clínico', 'Cirúrgico', 'Perioperatório', 'Obstétrica', 'Outros'];
                 let added = true;
                 while (added) {
                     added = false;
@@ -848,7 +837,7 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
                         sortedFilteredPending.map(req => (
                             <PendingRequestCard key={req.id} req={req} inventory={inventory} onFulfill={onFulfill}
                                 showNotification={showNotification} onProcessPickup={onProcessPickup} onCancel={onCancelRequest}
-                                onNotifyRequester={onNotifyRequester} onUpdateTransportTimes={onUpdateTransportTimes} />
+                                onNotifyRequester={onNotifyRequester} />
                         ))
                     }
                 </div>
@@ -859,7 +848,7 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
 
 // Componente: Card de Pedido da fila operacional.
 const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onProcessPickup, onCancel,
-    onNotifyRequester, onUpdateTransportTimes }) => {
+    onNotifyRequester }) => {
     const [typedTag, setTypedTag] = useState('');
     const [multiTags, setMultiTags] = useState({});
     const [isCancelling, setIsCancelling] = useState(false);
@@ -868,22 +857,15 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
     const [cancelName, setCancelName] = useState('');
     const [cancelBadge, setCancelBadge] = useState('');
 
-    const [arrivalTime, setArrivalTime] = useState(req.arrivalTime || '');
-    const [departureTime, setDepartureTime] = useState(req.departureTime || '');
-    const [returnToUnitTime, setReturnToUnitTime] = useState(req.returnToUnitTime || '');
-    const [returnToCeicTime, setReturnToCeicTime] = useState(req.returnToCeicTime || '');
+
 
     const [availableTags, setAvailableTags] = useState([]);
 
-    const isTransport = isTransportRequest(req.equipmentType);
     const isCapnografia = normUpper(req.equipmentType) === 'MODULO DE CAPNOGRAFIA + CABO' || normUpper(req.equipmentType) === 'MODULO DE CAPNOGRAFIA';
-    const isMultiTag = isTransport || isCapnografia;
+    const isMultiTag = isCapnografia;
     
-    const multiTagItemsList = isTransport 
-        ? normUpper(req.equipmentType).replace('TRANSPORTE: ', '').split(' + ') 
-        : (isCapnografia ? ['MÓDULO DE CAPNOGRAFIA', 'CABO DE CAPNOGRAFIA', 'CÉLULA DE CAPNOGRAFIA'] : []);
+    const multiTagItemsList = isCapnografia ? ['MÓDULO DE CAPNOGRAFIA', 'CABO DE CAPNOGRAFIA', 'CÉLULA DE CAPNOGRAFIA'] : [];
     
-    const isInTransit = req.status === 'approved' && isTransport;
 
     useEffect(() => {
         if (!req.equipmentType || req.kind === 'return_pickup') return;
@@ -1213,60 +1195,7 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                     </div>
                 )}
                 <div className="mt-3 pt-3 border-t border-gray-100">
-                    {isInTransit ? (
-                        <div
-                            className="bg-green-50 border border-green-200 text-green-900 p-4 rounded-xl text-sm shadow-sm space-y-4 animate-fade-in">
-                            <div
-                                className="flex flex-col sm:flex-row items-center justify-between gap-2 border-b border-green-200 pb-3">
-                                <div className="flex items-center font-bold text-green-800">
-                                    <Send size={18} className="animate-pulse mr-2" /> TRANSPORTE EM ATENDIMENTO
-                                </div>
-                                <span className="text-xs font-normal opacity-80">(Aguardando aceite da unidade de
-                                    destino)</span>
-                            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                                <div>
-                                    <label className="text-[11px] font-bold text-green-800 mb-1 block uppercase">Chegada na
-                                        Unidade</label>
-                                    <input type="time"
-                                        className="input bg-white border-green-200 focus:border-green-500 focus:ring-green-500 text-sm py-1.5"
-                                        value={arrivalTime} onChange={e => setArrivalTime(e.target.value)} />
-                                </div>
-                                <div>
-                                    <label className="text-[11px] font-bold text-green-800 mb-1 block uppercase">Saída da
-                                        Unidade</label>
-                                    <input type="time"
-                                        className="input bg-white border-green-200 focus:border-green-500 focus:ring-green-500 text-sm py-1.5"
-                                        value={departureTime} onChange={e => setDepartureTime(e.target.value)} />
-                                </div>
-                                <div>
-                                    <label className="text-[11px] font-bold text-green-800 mb-1 block uppercase">Retorno p/
-                                        Unidade (Opc.)</label>
-                                    <input type="time"
-                                        className="input bg-white border-green-200 focus:border-green-500 focus:ring-green-500 text-sm py-1.5"
-                                        value={returnToUnitTime} onChange={e => setReturnToUnitTime(e.target.value)} />
-                                </div>
-                                <div>
-                                    <label className="text-[11px] font-bold text-green-800 mb-1 block uppercase">Retorno p/
-                                        CEIC</label>
-                                    <input type="time"
-                                        className="input bg-white border-green-200 focus:border-green-500 focus:ring-green-500 text-sm py-1.5"
-                                        value={returnToCeicTime} onChange={e => setReturnToCeicTime(e.target.value)} />
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end pt-2">
-                                <button onClick={() => onUpdateTransportTimes(req.id, {
-                                    arrivalTime, departureTime,
-                                    returnToUnitTime, returnToCeicTime
-                                })} className="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-sm text-xs flex items-center gap-2">
-                                    <CheckCircle size={14} /> Gravar Tempos
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <>
                             {req.notificationMessage && (
                                 <div className={`mb-3 border p-3 rounded-lg text-sm flex items-start gap-2 animate-fade-in shadow-sm ${req.notificationType === 'unavailable'
                                     ? 'bg-red-50 border-red-200 text-red-800'
@@ -1358,9 +1287,7 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                                     )}
                                 </div>
                             </div>
-                        </>
-                    )}
-                </div>
+                        </div>
             </div>
             {renderCancelModal()}
             {renderNotifyModal()}
@@ -1887,28 +1814,7 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                                                     </div>
                                                 )}
 
-                                                {req.status === 'approved' && isTransportRequest(req.equipmentType) && (
-                                                    <div
-                                                        className="mt-3 border p-3 rounded-lg text-sm flex flex-col gap-2 animate-fade-in shadow-sm bg-blue-50 border-blue-200 text-blue-800">
-                                                        <div className="flex items-start gap-2">
-                                                            <div className="mt-0.5">
-                                                                <Activity size={16} />
-                                                            </div>
-                                                            <div>
-                                                                <span
-                                                                    className="font-bold block text-xs uppercase mb-0.5 opacity-80">Transporte
-                                                                    em Curso</span>
-                                                                Os equipamentos foram vinculados e o transporte está em atendimento. Não é
-                                                                necessário confirmar o recebimento.
-                                                                <div
-                                                                    className="mt-2 text-xs font-mono bg-white p-2 border border-blue-100 rounded text-gray-700 shadow-sm">
-                                                                    <span className="font-bold text-blue-800">TAGs Vinculadas:</span>
-                                                                    {req.equipmentTag}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
+
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-2 ml-4 shrink-0">
@@ -2003,14 +1909,14 @@ const AdminEntregaWrapper = ({ onCreateRequest, showNotification, onBack, adminP
             </div>
             <NewRequestForm onCreateRequest={onCreateRequest} showNotification={showNotification}
                 sectorSelo={selectedSector} onBack={() => setSelectedSector('')}
-                adminProfile={adminProfile} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} transportCatalog={transportCatalog} fullCatalog={fullCatalog}
+                adminProfile={adminProfile} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} fullCatalog={fullCatalog}
             />
         </div>
     );
 };
 
 // View: Nova Solicitação (Formulário de requisição de equipamentos).
-const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack, adminProfile, equipmentCatalog, ventilatoryCatalog, generalCatalog, transportCatalog, fullCatalog }) => {
+const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack, adminProfile, equipmentCatalog, ventilatoryCatalog, generalCatalog, fullCatalog }) => {
     const [equipmentList, setEquipmentList] = useState([]);
     const [category, setCategory] = useState('');
     const [subType, setSubType] = useState('');
@@ -2036,10 +1942,6 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
     const [tevScoreValue, setTevScoreValue] = useState('');
     const [patientType, setPatientType] = useState('');
     const [tevIndications, setTevIndications] = useState([]);
-    const [transportDest, setTransportDest] = useState('');
-    const [isolation, setIsolation] = useState('');
-    const [isolationType, setIsolationType] = useState('');
-    const [transportItems, setTransportItems] = useState([]);
 
     const dynamicCategoryOptions = useMemo(() => {
         const categories = new Set();
@@ -2085,7 +1987,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
     const handleCategoryChange = (newCat) => {
         setCategory(newCat); setSubType(''); setSelectedItem(''); setAccessoryItem(''); setHighFlowCategory('Circuito Adulto'); setSelectedHighFlowItems([]); setSelectedVentAccessories([]); setSelectedMonitorAccessories([]); setVentObservation('');
         setSelectedTransportMonitorAccessories([]); setSelectedUltrasoundAccessories([]); setTransportItems([]);
-        setTransportDest(''); setIsolation(''); setIsolationType(''); setChecklistModel(''); setDestinyUnitBed('');
+        setIsolation(''); setIsolationType(''); setChecklistModel(''); setDestinyUnitBed('');
         setTevScoreType(''); setTevScoreValue(''); setPatientType(''); setTevIndications([]);
     };
 
@@ -2128,29 +2030,28 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
 
                 if (isTevCompressorType(selectedItem)) {
                     if (!patientType) { showNotification('error', 'Preencha o Tipo de Paciente.'); return null; }
-                    if (!tevScoreType) { showNotification('error', 'Selecione o Protocolo TEV ou "Nenhum / Não se aplica".'); return null; }
-                    if (tevScoreType !== 'Nenhum / Não se aplica' && !tevScoreValue) { showNotification('error', 'Preencha o valor do Score TEV.'); return null; }
+                    if (!tevScoreValue) { showNotification('error', 'Preencha o valor do Score TEV.'); return null; }
                     
-                    const scoreNum = tevScoreValue ? parseInt(tevScoreValue, 10) : 0;
+                    const scoreNum = parseInt(tevScoreValue, 10);
                     let tevPriorityLevel = 4;
                     
+                    if (tevScoreType === 'Caprini' && (scoreNum < 1 || scoreNum > 5)) { showNotification('error', 'Score Caprini inválido (deve ser entre 1 e 5).'); return null; }
+                    if (tevScoreType === 'Pádua' && (scoreNum < 1 || scoreNum > 4)) { showNotification('error', 'Score Pádua inválido (deve ser entre 1 e 4).'); return null; }
+                    if (tevScoreType === 'Obst.' && (scoreNum < 1 || scoreNum > 3)) { showNotification('error', 'Score Obstétrico inválido (deve ser entre 1 e 3).'); return null; }
+
                     const hasIndication = (keyword) => tevIndications.some(i => normUpper(i).includes(normUpper(keyword)));
                     
                     if (patientType === 'Perioperatório' && (hasIndication('Neurocirurgia') || hasIndication('Politrauma'))) {
                         tevPriorityLevel = 1;
-                    } else if (patientType === 'Obstétrico' && (hasIndication('Cirurgia fetal') || hasIndication('duração > 2 horas') || hasIndication('risco de perda sanguínea') || hasIndication('Instabilidade hemodinâmica'))) {
+                    } else if (patientType === 'Obstétrica' && (hasIndication('Cirurgia fetal') || hasIndication('duração > 2 horas') || hasIndication('risco de perda sanguínea') || hasIndication('Instabilidade hemodinâmica'))) {
                         tevPriorityLevel = 1;
-                    } else if (patientType === 'Obstétrico' && hasIndication('Gestação Múltipla')) {
+                    } else if (patientType === 'Obstétrica' && hasIndication('Gestação Múltipla')) {
                         tevPriorityLevel = 2;
-                    } else if ((patientType === 'Clínico' || patientType === 'Cirúrgico') && ((tevScoreType === 'Caprini' && scoreNum > 4) || (tevScoreType === 'Pádua' && scoreNum === 5))) {
+                    } else if ((patientType === 'Clínico' || patientType === 'Cirúrgico' || patientType === 'Perioperatório') && ((tevScoreType === 'Caprini' && scoreNum >= 4) || (tevScoreType === 'Pádua' && scoreNum === 4))) {
                         tevPriorityLevel = 2;
-                    } else if (patientType === 'Perioperatório' && tevScoreType === 'Caprini' && scoreNum > 4 && (hasIndication('ortopédica de grande porte') || hasIndication('oncológica') || hasIndication('Contraindicação') || hasIndication('Mobilidade reduzida') || hasIndication('tempo de duração ≥ 120 minutos'))) {
+                    } else if (patientType === 'Obstétrica' && scoreNum === 3) {
                         tevPriorityLevel = 2;
-                    } else if (patientType === 'Obstétrico' && scoreNum >= 3 && (hasIndication('contraindicação farmacológica') || hasIndication('pausa cirúrgica') || hasIndication('janela de 12h'))) {
-                        tevPriorityLevel = 2;
-                    } else if (patientType === 'Obstétrico' && scoreNum === 2 && hasIndication('Restrição ao leito')) {
-                        tevPriorityLevel = 3;
-                    } else if (patientType === 'Obstétrico' && scoreNum === 2 && hasIndication('Aguardando deambulação')) {
+                    } else if (patientType === 'Obstétrica' && scoreNum === 2) {
                         tevPriorityLevel = 3;
                     }
 
@@ -2158,11 +2059,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     requestTevPriority = tevPriorityLevel;
                     
                     extras.push(`Paciente: ${patientType}`);
-                    if (tevScoreType !== 'Nenhum / Não se aplica') {
-                        extras.push(`Score TEV: ${tevScoreType} (${tevScoreValue})`);
-                    } else {
-                        extras.push(`Score TEV: Não se aplica`);
-                    }
+                    extras.push(`Score TEV: ${tevScoreType} (${tevScoreValue})`);
                     if (tevIndications.length > 0) {
                         extras.push(`Indicações: ${tevIndications.join(', ')}`);
                     }
@@ -2195,23 +2092,6 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                 if (ventObservation && ventObservation.trim() !== '') {
                     finalDetails += ` | Obs: ${ventObservation.trim()}`;
                 }
-            }
-        } else if (category && normUpper(category).includes('TRANSPORTE')) {
-            if (transportItems.length === 0) {
-                showNotification('error', 'Selecione ao menos um item de transporte.');
-                return null;
-            }
-            finalEquip = `Transporte: ${transportItems.join(' + ')}`;
-            const isolInfo = isolation === 'Sim' ? `Isolamento: ${isolationType}` : 'Sem Isolamento';
-            const emergInfo = isEmergency ? ' | EMERGÊNCIA' : '';
-            finalDetails = `Destino: ${transportDest} | ${isolInfo}${emergInfo}`;
-            if (!transportDest || !isolation) {
-                showNotification('error', 'Preencha todos os campos de transporte.');
-                return null;
-            }
-            if (isolation === 'Sim' && !isolationType) {
-                showNotification('error', 'Informe o tipo de isolamento.');
-                return null;
             }
         }
 
@@ -2503,7 +2383,8 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                                                     const val = e.target.value;
                                                     setPatientType(val);
                                                     if (val === 'Clínico') setTevScoreType('Pádua');
-                                                    else if (val === 'Cirúrgico') setTevScoreType('Caprini');
+                                                    else if (val === 'Cirúrgico' || val === 'Perioperatório') setTevScoreType('Caprini');
+                                                    else if (val === 'Obstétrica') setTevScoreType('Obst.');
                                                     else setTevScoreType('');
                                                     setTevScoreValue('');
                                                     setTevIndications([]);
@@ -2512,36 +2393,24 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                                                 <option value="Clínico">Clínico</option>
                                                 <option value="Cirúrgico">Cirúrgico</option>
                                                 <option value="Perioperatório">Perioperatório (Centro Cirúrgico)</option>
-                                                <option value="Obstétrico">Paciente Obstétrico</option>
+                                                <option value="Obstétrica">Paciente Obstétrica</option>
                                             </select>
                                         </div>
 
                                         {patientType && (
                                             <div className="animate-fade-in">
                                                 <label className="label text-blue-900">Score TEV *</label>
-                                                {(patientType === 'Clínico' || patientType === 'Cirúrgico') ? (
-                                                    <div className="input bg-blue-100 border-blue-200 text-blue-800 font-bold flex items-center opacity-90 cursor-not-allowed">
-                                                        {tevScoreType}
-                                                    </div>
-                                                ) : (
-                                                    <select className="input bg-white border-blue-200" value={tevScoreType}
-                                                        onChange={e => {
-                                                            setTevScoreType(e.target.value);
-                                                            setTevScoreValue('');
-                                                        }}>
-                                                        <option value="">Selecione...</option>
-                                                        <option value="Caprini">Caprini</option>
-                                                        <option value="Pádua">Pádua</option>
-                                                        <option value="Nenhum / Não se aplica">Nenhum / Não se aplica</option>
-                                                    </select>
-                                                )}
+                                                <div className="input bg-blue-100 border-blue-200 text-blue-800 font-bold flex items-center opacity-90 cursor-not-allowed">
+                                                    {tevScoreType}
+                                                </div>
                                             </div>
                                         )}
 
-                                        {tevScoreType && tevScoreType !== 'Nenhum / Não se aplica' && (
+                                        {tevScoreType && (
                                             <div className="animate-fade-in md:col-span-2 lg:col-span-1">
                                                 <label className="label text-blue-900">Valor do Score ({tevScoreType}) *</label>
                                                 <input type="number"
+                                                    min="1" max={tevScoreType === 'Caprini' ? 5 : tevScoreType === 'Pádua' ? 4 : 3}
                                                     className="input font-bold border-blue-200 focus:border-blue-500 focus:ring-blue-500 text-blue-800"
                                                     value={tevScoreValue} onChange={e => setTevScoreValue(e.target.value)} placeholder="Ex: 4" />
                                             </div>
@@ -2577,42 +2446,6 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     </div>
                 )}
 
-                {category && normUpper(category).includes('TRANSPORTE') && (
-                    <div className="animate-fade-in bg-orange-50 p-4 rounded-xl border border-orange-200 space-y-4">
-                        <select value={transportDest} onChange={e => setTransportDest(e.target.value)} className="input">
-                            <option value="">Destino...</option>{equipmentCatalog.TRANSPORTE.destinations.map(i => <option
-                                key={i} value={i}>{i}</option>)}</select>
-                        <div className="bg-white p-3 rounded-lg border border-orange-100">
-                            <label className="label font-bold text-orange-800 mb-2">Itens para Transporte:</label>
-                            <div className="space-y-2">
-                                {(transportCatalog || []).map(item => item.nome_oficial).map(item => (
-                                    <label key={item}
-                                        className="flex items-center space-x-3 cursor-pointer hover:bg-orange-50 p-1 rounded transition-colors"><input
-                                            type="checkbox" checked={transportItems.includes(item)} onChange={() =>
-                                                toggleTransportItem(item)} className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500" /><span
-                                                    className="text-gray-700 font-medium">{item}</span></label>
-                                ))}
-                            </div>
-                            <p className="text-xs text-orange-600 mt-2 font-bold">Selecionados: {transportItems.length >
-                                0 ? transportItems.join(', ') : 'Nenhum'}</p>
-                        </div>
-                        <div className="p-3 bg-white rounded-lg border border-orange-100">
-                            <div className="grid grid-cols-2 gap-4">
-                                <select value={isolation} onChange={e => setIsolation(e.target.value)} className="input bg-white"><option value="">Isolamento?</option>
-                                    <option value="Não">Não</option>
-                                    <option value="Sim">Sim</option>
-                                </select>
-                                {isolation === 'Sim' && <select value={isolationType}
-                                    onChange={e => setIsolationType(e.target.value)} className="input"><option value="">
-                                        Tipo?</option>
-                                    <option value="CONTATO">CONTATO</option>
-                                    <option value="RESPIRATÓRIO">RESPIRATÓRIO</option>
-                                    <option value="CONTATO + RESPIRATÓRIO">AMBOS</option>
-                                </select>}
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 <div className="flex flex-col md:flex-row gap-4 pt-4 border-t border-gray-100">
                     <button data-testid="create-request-button" type="button" onClick={handleAddAnother} disabled={!category}
@@ -3611,234 +3444,6 @@ const AdminOcorrencias = ({ inventory, onUpdateNotification, onUpdateServiceRequ
     );
 };
 
-const AdminTransportIndicators = ({ requests }) => {
-    const transportRequests = requests.filter(r => r.status === 'approved' &&
-        isTransportRequest(r.equipmentType));
-
-    const todayStr = new Date().toISOString().substring(0, 10);
-    const [startDate, setStartDate] = useState(`${todayStr}T00:00`);
-    const [endDate, setEndDate] = useState(`${todayStr}T23:59`);
-
-    const isWithinRange = (timestamp) => {
-        if (!timestamp) return false;
-        const t = new Date(timestamp).getTime();
-        const s = startDate ? new Date(startDate).getTime() : 0;
-        const e = endDate ? new Date(endDate).getTime() : Infinity;
-        return t >= s && t <= e;
-    }; const filteredTransports = transportRequests.filter(r =>
-        isWithinRange(r.timestamp));
-
-    const parseTimeStr = (reqTimestamp, timeStr) => {
-        if (!timeStr) return null;
-        const baseDate = new Date(reqTimestamp);
-        const [hours, minutes] = timeStr.split(':');
-        const t = new Date(baseDate);
-        t.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-
-        if (t.getTime() < baseDate.getTime()) { t.setDate(t.getDate() + 1); } return t.getTime();
-    }; const
-        totalTransports = filteredTransports.length; let completedTransports = 0; let totalTransitToUnitMs = 0;
-    let countTransitToUnit = 0; let totalInUnitMs = 0; let countInUnit = 0; let totalReturnMs = 0; let
-        countReturn = 0; let totalDurationMs = 0; let countTotalDuration = 0; filteredTransports.forEach(r => {
-            if (r.returnToCeicTime) completedTransports++;
-
-            const approvedTime = new Date(r.fulfilledAt || r.timestamp).getTime();
-            const arrTime = parseTimeStr(r.fulfilledAt || r.timestamp, r.arrivalTime);
-            const depTime = parseTimeStr(r.fulfilledAt || r.timestamp, r.departureTime);
-            const retCeicTime = parseTimeStr(r.fulfilledAt || r.timestamp, r.returnToCeicTime);
-
-            if (arrTime && approvedTime) {
-                const diff = Math.max(0, arrTime - approvedTime);
-                totalTransitToUnitMs += diff;
-                countTransitToUnit++;
-            }
-
-            if (depTime && arrTime) {
-                const diff = Math.max(0, depTime - arrTime);
-                totalInUnitMs += diff;
-                countInUnit++;
-            }
-
-            if (retCeicTime && depTime) {
-                const diff = Math.max(0, retCeicTime - depTime);
-                totalReturnMs += diff;
-                countReturn++;
-            }
-
-            if (retCeicTime && approvedTime) {
-                const diff = Math.max(0, retCeicTime - approvedTime);
-                totalDurationMs += diff;
-                countTotalDuration++;
-            }
-        });
-
-    const avgFormat = (totalMs, count) => {
-        if (count === 0) return '--';
-        const avgMs = totalMs / count;
-        const m = Math.floor(avgMs / 60000);
-        return `${m}m`;
-    };
-
-    return (
-        <div className="space-y-6 pb-20 animate-fade-in max-w-6xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                    <Activity className="text-orange-500" /> Indicadores de Transporte
-                </h2>
-                <div
-                    className="flex items-center gap-2 bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex flex-col">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase">Início</label>
-                        <input type="datetime-local"
-                            className="bg-gray-50 border border-gray-300 rounded text-xs px-2 py-1 outline-none"
-                            value={startDate} onChange={e => setStartDate(e.target.value)} />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase">Fim</label>
-                        <input type="datetime-local"
-                            className="bg-gray-50 border border-gray-300 rounded text-xs px-2 py-1 outline-none"
-                            value={endDate} onChange={e => setEndDate(e.target.value)} />
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div
-                    className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 border-l-4 border-blue-500">
-                    <p className="text-xs font-bold text-gray-500 uppercase">Total de Transportes Iniciados
-                    </p>
-                    <p className="text-3xl font-black text-gray-800 mt-1">{totalTransports}</p>
-                    <p className="text-xs text-gray-400 mt-2">No período filtrado</p>
-                </div>
-                <div
-                    className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 border-l-4 border-green-500">
-                    <p className="text-xs font-bold text-gray-500 uppercase">Transportes Finalizados</p>
-                    <p className="text-3xl font-black text-gray-800 mt-1">{completedTransports} <span
-                        className="text-sm text-gray-400">({totalTransports > 0 ?
-                            Math.round((completedTransports / totalTransports) * 100) : 0}%)</span></p>
-                    <p className="text-xs text-green-600 mt-2">Retorno para CEIC Registrado</p>
-                </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-6">
-                <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center">
-                    <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                        <Clock size={18} /> Tempos Médios de Operação (TMA de Transporte)
-                    </h3>
-                </div>
-                <div
-                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
-                    <div className="p-6 text-center hover:bg-gray-50 transition-colors">
-                        <p
-                            className="text-xs font-bold text-gray-500 uppercase mb-2 h-8 flex items-center justify-center">
-                            Transito (Saída CEIC &rarr; Unidade)</p>
-                        <p className="text-3xl font-black text-blue-600">{avgFormat(totalTransitToUnitMs,
-                            countTransitToUnit)}</p>
-                        <p className="text-xs text-gray-400 mt-2">{countTransitToUnit} registros avaliados
-                        </p>
-                    </div>
-                    <div className="p-6 text-center hover:bg-gray-50 transition-colors">
-                        <p
-                            className="text-xs font-bold text-gray-500 uppercase mb-2 h-8 flex items-center justify-center">
-                            Duração do Procedimento na Unidade</p>
-                        <p className="text-3xl font-black text-purple-600">{avgFormat(totalInUnitMs,
-                            countInUnit)}</p>
-                        <p className="text-xs text-gray-400 mt-2">{countInUnit} registros avaliados</p>
-                    </div>
-                    <div className="p-6 text-center hover:bg-gray-50 transition-colors">
-                        <p
-                            className="text-xs font-bold text-gray-500 uppercase mb-2 h-8 flex items-center justify-center">
-                            Retorno (Saída Unidade &rarr; CEIC)</p>
-                        <p className="text-3xl font-black text-orange-600">{avgFormat(totalReturnMs,
-                            countReturn)}</p>
-                        <p className="text-xs text-gray-400 mt-2">{countReturn} registros avaliados</p>
-                    </div>
-                    <div className="p-6 text-center bg-green-50/50 hover:bg-green-50 transition-colors">
-                        <p
-                            className="text-xs font-bold text-green-800 uppercase mb-2 h-8 flex items-center justify-center">
-                            Tempo Total (Ciclo Completo)</p>
-                        <p className="text-3xl font-black text-green-700">{avgFormat(totalDurationMs,
-                            countTotalDuration)}</p>
-                        <p className="text-xs text-green-600 mt-2 opacity-80">{countTotalDuration} ciclos
-                            completos avaliados</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-6">
-                <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                    <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                        <List size={18} /> Detalhamento Operacional de Transportes
-                    </h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-white border-b border-gray-200">
-                            <tr>
-                                <th className="p-3 text-xs font-bold text-gray-500 uppercase">ID / Setor
-                                    Destino</th>
-                                <th className="p-3 text-xs font-bold text-gray-500 uppercase">Data Liberação
-                                </th>
-                                <th
-                                    className="p-3 text-xs font-bold text-gray-500 uppercase text-center border-l">
-                                    Chegou Unidade</th>
-                                <th className="p-3 text-xs font-bold text-gray-500 uppercase text-center">
-                                    Saiu Unidade</th>
-                                <th className="p-3 text-xs font-bold text-gray-500 uppercase text-center">
-                                    Retornou Unidade</th>
-                                <th className="p-3 text-xs font-bold text-gray-500 uppercase text-center">
-                                    Retornou CEIC</th>
-                                <th
-                                    className="p-3 text-xs font-bold text-gray-500 uppercase text-center border-l bg-gray-50">
-                                    Ciclo Completo?</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 bg-white">
-                            {filteredTransports.length > 0 ? filteredTransports.map(item => (
-                                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="p-3">
-                                        <div className="font-mono text-gray-800 font-bold">{item.id}</div>
-                                        <div className="text-xs text-blue-600 mt-0.5">{item.accessories?.[0] ?
-                                            item.accessories[0].split('|')[0] : 'Destino Desconhecido'}</div>
-                                    </td>
-                                    <td className="p-3 text-gray-600">
-                                        {item.fulfilledAt ? new Date(item.fulfilledAt).toLocaleDateString() :
-                                            ''}
-                                        <span className="block text-xs">{item.fulfilledAt ? new
-                                            Date(item.fulfilledAt).toLocaleTimeString([], {
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            }) : ''}</span>
-                                    </td>
-                                    <td className="p-3 text-center border-l font-mono text-gray-700">
-                                        {item.arrivalTime || '-'}</td>
-                                    <td className="p-3 text-center font-mono text-gray-700">{item.departureTime
-                                        || '-'}</td>
-                                    <td className="p-3 text-center font-mono text-gray-700">
-                                        {item.returnToUnitTime || '-'}</td>
-                                    <td className="p-3 text-center font-mono font-bold text-green-700">
-                                        {item.returnToCeicTime || '-'}</td>
-                                    <td className="p-3 text-center border-l bg-gray-50">
-                                        {item.returnToCeicTime ?
-                                            <CheckCircle size={16} className="text-green-500 mx-auto" /> :
-                                            <Clock size={16} className="text-orange-500 mx-auto"
-                                                title="Em andamento" />}
-                                    </td>
-                                </tr>
-                            )) : (
-                                <tr>
-                                    <td colSpan="7" className="p-8 text-center text-gray-500">Nenhum registro de
-                                        transporte encontrado no período.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 const AdminRemanejamento = ({ inventory, onRemanejamento, showNotification, unidades }) => {
     const [selectedTag, setSelectedTag] = useState('');
     const [destinationSector, setDestinationSector] = useState('');
@@ -4360,8 +3965,8 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }
 const AdminIndicators = ({ inventory, requests }) => {
     const [selectedCategory, setSelectedCategory] = useState('ALL');
 
-    const baseInventory = inventory.filter(i => getCategoryForType(i.type) !== 'TRANSPORTE');
-    const baseRequests = requests.filter(r => getCategoryForType(r.equipmentType) !== 'TRANSPORTE');
+    const baseInventory = inventory;
+    const baseRequests = requests;
 
     const filteredInventory = selectedCategory === 'ALL'
         ? baseInventory
@@ -5152,7 +4757,6 @@ function App() {
     const [requests, setRequests] = useState([]);
     const [ventilatoryCatalog, setVentilatoryCatalog] = useState([]);
     const [generalCatalog, setGeneralCatalog] = useState([]);
-    const [transportCatalog, setTransportCatalog] = useState([]);
     const [fullCatalog, setFullCatalog] = useState([]);
 
     // =========================================================
@@ -5210,11 +4814,6 @@ function App() {
                 "CASSETE EXPIRATORIO": { accessories: [] },
                 "VENTILOMETRO": { accessories: [] }
             }
-        },
-        TRANSPORTE: {
-            label: "Equipamentos para Transporte de Paciente", destinations: ["Centro cirúrgico 9º PAMB", "ICESP", "INCOR", "IOT", "Ressonância magnética", "Tomografia 3o andar",
-                "Tomografia 4o andar", "Radiologia intervencionista", "11DN", "11DS", "11EE", "11FF", "11GN", "09UAN/UAC - PAMB 9",
-                "07AA - UTI", "04GN", "04GS", "PS - Sala de emergência cirúrgica", "PS -Sala de emergência clínica"]
         }
     }), []);
 
@@ -5263,9 +4862,8 @@ function App() {
                 if (catData && !catError) {
                     setFullCatalog(catData);
                     const normUpper = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
-                    setGeneralCatalog(catData.filter(i => !normUpper(i.categoria).includes('VENTILATORIA') && !normUpper(i.categoria).includes('TRANSPORTE')));
+                    setGeneralCatalog(catData.filter(i => !normUpper(i.categoria).includes('VENTILATORIA')));
                     setVentilatoryCatalog(catData.filter(i => normUpper(i.categoria).includes('VENTILATORIA')));
-                    setTransportCatalog(catData.filter(i => normUpper(i.categoria).includes('TRANSPORTE')));
                 }
                 else if (catError) console.error("Erro ao buscar catalogo_equipamentos:", catError);
             } catch (err) {
@@ -5508,11 +5106,7 @@ function App() {
 
         // Extrai e normaliza os tipos de equipamento requeridos para validação estrutural.
         let expectedTypes = [];
-        if (isTransportRequest(request.equipmentType)) {
-            expectedTypes = normUpper(request.equipmentType).replace('TRANSPORTE: ', '').split(' + ').map(normUpper);
-        } else {
-            expectedTypes = [normUpper(request.equipmentType)];
-        }
+        expectedTypes = [normUpper(request.equipmentType)];
 
         for (let i = 0; i < tagsArray.length; i++) {
             const cleanTag = normUpper(tagsArray[i]);
@@ -5571,7 +5165,6 @@ function App() {
             specLoc = request.destinyUnitBed || null;
         }
 
-        const isTransport = isTransportRequest(request.equipmentType);
 
         try {
             const arrivalTime = new Date().toISOString();
@@ -5640,12 +5233,7 @@ function App() {
 
     const handleUpdateTransportTimes = async (requestId, times) => {
         try {
-            const dbTimes = {
-                arrival_time: times.arrivalTime,
-                departure_time: times.departureTime,
-                return_to_unit_time: times.returnToUnitTime,
-                return_to_ceic_time: times.returnToCeicTime
-            };
+            const dbTimes = {};
             const { data, error } = await supabase
                 .from('pedidos')
                 .update(dbTimes)
@@ -6526,8 +6114,6 @@ function App() {
                     <AdminDashboard inventory={inventory} requests={requests} />}
                 {currentView === 'admin_indicadores' &&
                     <AdminIndicators inventory={inventory} requests={requests} />}
-                {currentView === 'admin_transporte' &&
-                    <AdminTransportIndicators requests={requests} />}
                 {currentView === 'admin_frota' &&
                     <AdminFleetCRUD inventory={inventory} onAdd={handleAddEquipment}
                         onEdit={handleEditEquipment} onDelete={handleDeleteEquipment}
@@ -6546,7 +6132,7 @@ function App() {
                         showNotification={showNotification} unidades={unidades} />}
                 {currentView === 'admin_entrega_ativa' && <AdminEntregaWrapper
                     onCreateRequest={handleCreateRequest} showNotification={showNotification}
-                    onBack={() => setCurrentView('admin_dashboard')} adminProfile={userProfile} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} transportCatalog={transportCatalog} fullCatalog={fullCatalog}
+                    onBack={() => setCurrentView('admin_dashboard')} adminProfile={userProfile} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} fullCatalog={fullCatalog}
                 />}
 
                 {currentView === 'dashboard' &&
@@ -6556,7 +6142,7 @@ function App() {
                         onProcessPickup={handleProcessPickup}
                         onCancelRequest={handleCancelRequest}
                         onNotifyRequester={handleNotifyRequester}
-                        onUpdateTransportTimes={handleUpdateTransportTimes} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} />}
+                        soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} />}
                 {currentView === 'triagem' &&
                     <ReturnView inventory={inventory} onReturnByTag={handleReturnByTag}
                         showNotification={showNotification} initialData={triageData} />}
@@ -6572,7 +6158,7 @@ function App() {
                 {currentView === 'nova_solicitacao' && <NewRequestForm
                     onCreateRequest={handleCreateRequest}
                     showNotification={showNotification} sectorSelo={userProfile.sector}
-                    onBack={() => setCurrentView('meus_pedidos')} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} transportCatalog={transportCatalog} fullCatalog={fullCatalog} />}
+                    onBack={() => setCurrentView('meus_pedidos')} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} fullCatalog={fullCatalog} />}
                 {currentView === 'meus_pedidos' && <MyRequestsView
                     requests={mySectorPendingRequests} sector={userProfile.sector}
                     inventory={inventory} userProfile={userProfile}
