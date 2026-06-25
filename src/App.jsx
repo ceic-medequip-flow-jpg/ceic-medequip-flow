@@ -1038,15 +1038,12 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
 
     const baseStyle = req.kind === 'return_pickup'
         ? 'border-l-4 border-purple-500 hover:bg-purple-50'
-        : isInTransit
-            ? 'bg-green-50/30 border-l-4 border-green-500'
-            : req.isWaitlisted
-                ? 'bg-orange-50 border-l-4 border-orange-500'
-                : 'hover:bg-blue-50 border-b border-gray-100';
+        : req.isWaitlisted
+            ? 'bg-orange-50 border-l-4 border-orange-500'
+            : 'hover:bg-blue-50 border-b border-gray-100';
 
     let timerVariantOp = 'pending';
-    if (isInTransit) timerVariantOp = 'notified_op';
-    else if (req.isWaitlisted) timerVariantOp = 'waitlist_op';
+    if (req.isWaitlisted) timerVariantOp = 'waitlist_op';
     else if (req.notificationTime) timerVariantOp = 'notified_op';
 
     if (DEBUG_LOGS) console.log('Filtro Estoque -> Pedido:', req.equipmentType, 'Total no Inventory:', inventory?.length);
@@ -1145,12 +1142,9 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                         <span
                             className="text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200 px-2 py-1 rounded"
                             title="Prazo SLA">{getSlaInfo(req).label}</span>
-                        {req.isWaitlisted && !isInTransit && <span
+                        {req.isWaitlisted && <span
                             className="text-xs font-bold bg-orange-200 text-orange-800 border border-orange-300 px-2 py-1 rounded">FILA
                             DE ESPERA</span>}
-                        {isInTransit && <span
-                            className="text-xs font-bold bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded">EM
-                            TRÂNSITO</span>}
                     </div>
                     <div className="flex flex-col items-end gap-1">
                         <LiveTimer startTime={req.timestamp} variant={timerVariantOp}
