@@ -9,6 +9,7 @@ import {
     ChevronUp, XCircle, Menu, Wrench, BarChart3, Database, Edit, Trash2, LineChart,
     Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import logoCeic from './assets/logo-ceic.png';
 
 // =========================================================
 // BANCO DE DADOS FIXO E CONSTANTES GERAIS
@@ -33,7 +34,7 @@ const SIDEBAR_ITEMS = [
     { id: 'manutencao', label: 'Expurgo / Limpeza', icon: SprayCan, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-expurgo' },
     { id: 'nova_solicitacao', label: 'Nova Solicitação', icon: PlusCircle, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-nova-solicitacao' },
     { id: 'meus_pedidos', label: 'Meus Pedidos', icon: List, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-meus-pedidos' },
-    { id: 'equipamentos_area', label: 'Equipamentos na Minha Área', icon: MapPin, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'equipamentos_area', label: 'Equipamentos do Setor', icon: MapPin, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
 ];
 
 const CHECKLIST_OPTIONS = { "Monitor de Pressão Intracraniana (PIC)": ["Apenas Kit: Módulo + Cabo", "Maleta completa: Monitor + cabo + módulo + cabos + fonte + Suporte"] };
@@ -483,14 +484,16 @@ const LoginScreen = ({ onLogin, showNotification }) => {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
             <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
-                <div
-                    className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-200">
-                    <Activity className="text-white" size={32} />
+                {/* CABEÇALHO DO LOGIN ATUALIZADO */}
+                <div className="flex flex-col items-center mb-8 text-center">
+                    <img 
+                        src={logoCeic} 
+                        alt="Logo CEIC Instituto Central" 
+                        className="h-28 w-auto object-contain mb-4 drop-shadow-sm" 
+                    />
+                    {/* Opcional: Você pode manter ou remover o texto abaixo, já que o logo já diz CEIC */}
+                    <h2 className="text-xl font-bold text-gray-800">Acesso ao Sistema</h2>
                 </div>
-
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">CEIC <span
-                    className="text-gray-400 font-light">v2.0</span></h1>
-                <p className="text-gray-500 mb-6">Acesso ao Sistema</p>
 
                 <form onSubmit={doLogin} className="space-y-4 text-left">
                     <div>
@@ -1967,6 +1970,33 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
         return entry ? entry[1] : [];
     }, [selectedItem]);
 
+    const currentTevPriorityLevel = useMemo(() => {
+        let level = 4;
+        const scoreNum = parseInt(tevScoreValue, 10);
+        const hasIndication = (keyword) => tevIndications.some(i => normUpper(i).includes(normUpper(keyword)));
+        
+        if (patientType === 'Perioperatório' && (hasIndication('Neurocirurgia') || hasIndication('Politrauma'))) {
+            level = 1;
+        } else if (patientType === 'Obstétrica' && (hasIndication('Cirurgia fetal') || hasIndication('duração > 2 horas') || hasIndication('risco de perda sanguínea') || hasIndication('Instabilidade hemodinâmica'))) {
+            level = 1;
+        } else if (patientType === 'Obstétrica' && hasIndication('Gestação Múltipla')) {
+            level = 2;
+        } else if ((patientType === 'Clínico' || patientType === 'Cirúrgico' || patientType === 'Perioperatório') && ((tevScoreType === 'Caprini' && scoreNum >= 4) || (tevScoreType === 'Pádua' && scoreNum === 4))) {
+            level = 2;
+        } else if (patientType === 'Obstétrica' && scoreNum === 3) {
+            level = 2;
+        } else if (patientType === 'Obstétrica' && scoreNum === 2) {
+            level = 3;
+        }
+        return level;
+    }, [tevScoreValue, patientType, tevIndications, tevScoreType]);
+
+    useEffect(() => {
+        if (isTevCompressorType(selectedItem) && currentTevPriorityLevel !== 1 && isEmergency) {
+            setIsEmergency(false);
+        }
+    }, [selectedItem, currentTevPriorityLevel, isEmergency]);
+
     const MONITOR_ACCESSORIES = ["Manguito Adulto", "Manguito Extra Grande", "Manguito Infantil", "Cabo ECG", "Oxímetro Adulto", "Oxímetro Infantil"];
     const TRANSPORT_MONITOR_OPTIONS = ["Apenas Monitor", "Módulo completo (ECG, Oxímetro e manguito Adulto)", "Manguito Extra Grande", "Manguito infantil"];
 
@@ -2162,8 +2192,9 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     <div className="flex items-center"><label
                         className="flex items-center space-x-3 cursor-pointer"><input type="checkbox"
                             data-testid="request-urgent" checked={isEmergency} onChange={(e) => setIsEmergency(e.target.checked)}
-                            className="w-5 h-5 text-red-600 rounded" /><span className={`font-bold ${isEmergency
-                                ? 'text-red-600' : 'text-gray-700'}`}>Pedido Emergencial?</span></label></div>
+                            disabled={isTevCompressorType(selectedItem) && currentTevPriorityLevel !== 1}
+                            className="w-5 h-5 text-red-600 rounded disabled:opacity-50 disabled:cursor-not-allowed" /><span className={`font-bold ${isEmergency
+                                ? 'text-red-600' : 'text-gray-700'} ${isTevCompressorType(selectedItem) && currentTevPriorityLevel !== 1 ? 'opacity-50' : ''}`}>Pedido Emergencial?</span></label></div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="md:col-span-1"><label className="label">Nome Solicitante *</label><input
@@ -2403,10 +2434,36 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                                         {tevScoreType && (
                                             <div className="animate-fade-in md:col-span-2 lg:col-span-1">
                                                 <label className="label text-blue-900">Valor do Score ({tevScoreType}) *</label>
-                                                <input type="number"
-                                                    min="1" max={tevScoreType === 'Caprini' ? 5 : tevScoreType === 'Pádua' ? 4 : 3}
-                                                    className="input font-bold border-blue-200 focus:border-blue-500 focus:ring-blue-500 text-blue-800"
-                                                    value={tevScoreValue} onChange={e => setTevScoreValue(e.target.value)} placeholder="Ex: 4" />
+                                                <select
+                                                    className="input font-bold border-blue-200 focus:border-blue-500 focus:ring-blue-500 text-blue-800 bg-white"
+                                                    value={tevScoreValue} onChange={e => setTevScoreValue(e.target.value)}
+                                                >
+                                                    <option value="" disabled>Selecione...</option>
+                                                    {tevScoreType === 'Pádua' && (
+                                                        <>
+                                                            <option value="1">1</option>
+                                                            <option value="2">2</option>
+                                                            <option value="3">3</option>
+                                                            <option value="4">&ge; 4</option>
+                                                        </>
+                                                    )}
+                                                    {tevScoreType === 'Caprini' && (
+                                                        <>
+                                                            <option value="1">1</option>
+                                                            <option value="2">2</option>
+                                                            <option value="3">3</option>
+                                                            <option value="4">4</option>
+                                                            <option value="5">&ge; 5</option>
+                                                        </>
+                                                    )}
+                                                    {tevScoreType === 'Obst.' && (
+                                                        <>
+                                                            <option value="1">1</option>
+                                                            <option value="2">2</option>
+                                                            <option value="3">3</option>
+                                                        </>
+                                                    )}
+                                                </select>
                                             </div>
                                         )}
 
@@ -3140,7 +3197,7 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
 
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                    <MapPin className="text-blue-600" /> Equipamentos na Área: {sector}
+                    <MapPin className="text-blue-600" /> Equipamentos do Setor: {sector}
                 </h2>
                 <button onClick={onBack}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg shadow-sm transition-colors">
@@ -6025,8 +6082,7 @@ function App() {
             <header
                 className="md:hidden bg-white border-b border-gray-200 p-4 sticky top-0 z-40 flex justify-between items-center shadow-sm">
                 <div className="flex items-center gap-2">
-                    <Activity className="text-blue-600" size={24} />
-                    <h1 className="text-xl font-bold text-blue-700 tracking-tight">CEIC</h1>
+                    <img src={logoCeic} alt="Logo CEIC" className="h-10 w-auto object-contain" />
                 </div>
                 <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                     <Menu size={24} />
@@ -6044,8 +6100,14 @@ function App() {
                                         ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center relative">
                     <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
-                        <h1 className="text-2xl font-bold text-blue-700 tracking-tight">CEIC
-                            <span className="text-gray-400 font-light">v2.0</span></h1>
+                        {/* LOGO NO CABEÇALHO DO SISTEMA */}
+                        <div className="flex flex-col items-start justify-center">
+                            <img 
+                                src={logoCeic} 
+                                alt="Logo CEIC" 
+                                className="h-16 w-auto object-contain" 
+                            />
+                        </div>
                         <p
                             className="text-xs text-gray-400 mt-1 uppercase tracking-wider font-bold">
                             {userProfile.role}</p>
