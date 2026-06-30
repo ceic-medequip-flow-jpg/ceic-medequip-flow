@@ -7,7 +7,7 @@ import {
     ArrowDownLeft, User, Clock, LogOut, SprayCan, ClipboardList, Siren, CheckCircle,
     AlertCircle, Search, BadgeCheck, PlusCircle, List, MapPin, X, Send, ChevronDown,
     ChevronUp, XCircle, Menu, Wrench, BarChart3, Database, Edit, Trash2, LineChart,
-    Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight
+    Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight, ArrowRight
 } from 'lucide-react';
 import logoCeic from './assets/logo-ceic.png';
 
@@ -31,7 +31,7 @@ const SIDEBAR_ITEMS = [
     { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-dashboard-operacional' },
     { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
     { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-triagem' },
-    { id: 'manutencao', label: 'Expurgo / Limpeza', icon: SprayCan, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-expurgo' },
+    { id: 'manutencao', label: 'Higienização / Limpeza', icon: SprayCan, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-expurgo' },
     { id: 'nova_solicitacao', label: 'Nova Solicitação', icon: PlusCircle, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-nova-solicitacao' },
     { id: 'meus_pedidos', label: 'Meus Pedidos', icon: List, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-meus-pedidos' },
     { id: 'equipamentos_area', label: 'Equipamentos do Setor', icon: MapPin, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
@@ -314,7 +314,8 @@ const StatusBadge = ({ status }) => {
         maintenance: { label: 'Manutenção', color: 'bg-red-100 text-red-800 border-red-200' },
         cleaning: { label: 'Higienização', color: 'bg-amber-100 text-amber-800 border-amber-200' },
         preventive: { label: 'Ag. Preventiva', color: 'bg-purple-100 text-purple-800 border-purple-200' },
-        irregular: { label: 'Irregular', color: 'bg-orange-100 text-orange-800 border-orange-200' }
+        irregular: { label: 'Irregular', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+        inactive: { label: 'Inativo', color: 'bg-slate-100 text-slate-500 border-slate-200' }
     };
 
     const current = config[status] || config.available;
@@ -666,6 +667,18 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
 
     const playNotificationSound = () => {
         try {
+            // Disparar popup do sistema operacional (Browser Notification)
+            if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    new Notification("Novo Pedido na CEIC", { 
+                        body: "Há um novo pedido pendente no dashboard.",
+                        icon: logoCeic 
+                    });
+                } catch (e) {
+                    if (DEBUG_LOGS) console.log("Erro ao emitir Notification", e);
+                }
+            }
+
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             if (!AudioCtx) return;
             const ctx = new AudioCtx();
@@ -785,6 +798,8 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
         });
     }, [filteredPending]);
 
+    const inTransitEquipments = inventory.filter(i => i.transferStatus === 'in_transit');
+
     return (
         <div className="space-y-6 pb-20 animate-fade-in" data-testid="operational-dashboard">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
@@ -843,6 +858,30 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
                                 onNotifyRequester={onNotifyRequester} />
                         ))
                     }
+                </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-visible">
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 className="font-bold text-gray-700 flex items-center">
+                        <Truck className="mr-2" size={20} /> Equipamentos em Trânsito
+                    </h3>
+                    <span className="text-xs text-gray-500">{inTransitEquipments.length} em trânsito</span>
+                </div>
+                <div className="divide-y divide-gray-100 p-4 space-y-3">
+                    {inTransitEquipments.length === 0 ? (
+                        <div className="p-8 text-center text-gray-400">Nenhum equipamento em trânsito no momento.</div>
+                    ) : (
+                        inTransitEquipments.map(item => (
+                            <div key={item.id} className="p-3 bg-blue-50/50 border border-blue-100 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-blue-800">{item.type || item.model || 'Equipamento'} - {item.tag}</span>
+                                    <span className="text-xs text-gray-600 mt-1">De: <strong>{item.location}</strong> ➔ Para: <strong>{item.transferTo}{item.transferToBed ? ` (${item.transferToBed})` : ''}</strong></span>
+                                </div>
+                                <span className="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-1 rounded w-fit">Aguardando Recebimento</span>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>
@@ -1406,15 +1445,16 @@ const InventoryViewV2 = ({ inventory }) => {
     const [selectedLocation, setSelectedLocation] = useState('');
 
     const getStatusLabel = (status) => {
-        const config = { available: 'Disponível', in_use: 'Em Uso', allocated: 'Em Uso', maintenance: 'Manutenção', cleaning: 'Higienização', preventive: 'Ag. Preventiva', irregular: 'Irregular' };
+        const config = { available: 'Disponível', in_use: 'Em Uso', allocated: 'Em Uso', maintenance: 'Manutenção', cleaning: 'Higienização', preventive: 'Ag. Preventiva', irregular: 'Irregular', inactive: 'Inativo' };
         return config[status] || 'Disponível';
     };
 
-    const types = useMemo(() => Array.from(new Set((inventory || []).map(item => item.type || 'OUTROS'))).sort(), [inventory]);
-    const locations = useMemo(() => Array.from(new Set((inventory || []).map(item => trimText(item.location)).filter(Boolean))).sort(), [inventory]);
+    const types = useMemo(() => Array.from(new Set((inventory || []).filter(item => item.status !== 'inactive').map(item => item.type || 'OUTROS'))).sort(), [inventory]);
+    const locations = useMemo(() => Array.from(new Set((inventory || []).filter(item => item.status !== 'inactive').map(item => trimText(item.location)).filter(Boolean))).sort(), [inventory]);
 
     const filteredItems = useMemo(() => {
         return (inventory || [])
+            .filter(item => item.status !== 'inactive')
             .filter(item => !selectedType || item.type === selectedType)
             .filter(item => !selectedLocation || sameText(item.location, selectedLocation))
             .slice()
@@ -1815,32 +1855,39 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-2 ml-4 shrink-0">
-                                            {req.status === 'in_transfer' ? (
-                                                (() => {
-                                                    const equip = inventory?.find(i => normUpper(i.tag) === normUpper(req.equipmentTag));
-                                                    const isReceiver = sameText(req.transfer_to, userProfile?.login) || sameText(req.transfer_to, userProfile?.sector) || sameText(equip?.transferTo, userProfile?.login) || sameText(equip?.transferTo, userProfile?.sector);
-                                                    if (isReceiver) {
-                                                        return (
-                                                            <span className="text-xs font-bold px-2 py-1 rounded bg-purple-100 text-purple-800 border border-purple-200">
-                                                                RECEBIMENTO PENDENTE
-                                                            </span>
-                                                        );
-                                                    } else {
-                                                        return (
-                                                            <span className="text-xs font-bold px-2 py-1 rounded bg-orange-100 text-orange-800 border border-orange-200 animate-pulse">
-                                                                EQUIPAMENTO EM TRANSFERÊNCIA
-                                                            </span>
-                                                        );
-                                                    }
-                                                })()
-                                            ) : (
-                                                <span data-testid="request-status" className={`text-xs font-bold px-2 py-1 rounded ${req.isWaitlisted
-                                                    ? 'bg-orange-100 text-orange-800' : (req.status === 'approved'
-                                                        ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800')}`}>
-                                                    {req.isWaitlisted ? 'FILA DE ESPERA' : (req.status === 'approved' ? 'EM CURSO' :
-                                                        'PENDENTE')}
-                                                </span>
-                                            )}
+                                            <div className="flex items-center gap-2">
+                                                {req.status !== 'approved' && req.status !== 'in_transfer' && (
+                                                    <button onClick={() => openCancelModal(req, false)} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-bold transition-colors border border-red-100 flex items-center gap-1" title="Cancelar Pedido">
+                                                        <XCircle size={14} /> Cancelar
+                                                    </button>
+                                                )}
+                                                {req.status === 'in_transfer' ? (
+                                                    (() => {
+                                                        const equip = inventory?.find(i => normUpper(i.tag) === normUpper(req.equipmentTag));
+                                                        const isReceiver = sameText(req.transfer_to, userProfile?.login) || sameText(req.transfer_to, userProfile?.sector) || sameText(equip?.transferTo, userProfile?.login) || sameText(equip?.transferTo, userProfile?.sector);
+                                                        if (isReceiver) {
+                                                            return (
+                                                                <span className="text-xs font-bold px-2 py-1 rounded bg-purple-100 text-purple-800 border border-purple-200">
+                                                                    RECEBIMENTO PENDENTE
+                                                                </span>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <span className="text-xs font-bold px-2 py-1 rounded bg-orange-100 text-orange-800 border border-orange-200 animate-pulse">
+                                                                    EQUIPAMENTO EM TRANSFERÊNCIA
+                                                                </span>
+                                                            );
+                                                        }
+                                                    })()
+                                                ) : (
+                                                    <span data-testid="request-status" className={`text-xs font-bold px-2 py-1 rounded ${req.isWaitlisted
+                                                        ? 'bg-orange-100 text-orange-800' : (req.status === 'approved'
+                                                            ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800')}`}>
+                                                        {req.isWaitlisted ? 'FILA DE ESPERA' : (req.status === 'approved' ? 'EM CURSO' :
+                                                            'PENDENTE')}
+                                                    </span>
+                                                )}
+                                            </div>
                                             {(req.status === 'pending' || req.isWaitlisted || req.status === 'waitlisted') &&
                                                 <LiveTimer startTime={timerStartAst} variant={timerVariantAst}
                                                     slaLimitSeconds={getSlaInfo(req).secs} />}
@@ -2692,7 +2739,7 @@ const ReturnView = ({ inventory, onReturnByTag, showNotification, initialData })
     );
 };
 
-// View: Limpeza e Expurgo (Fila de higienização).
+// View: Limpeza e Higienização (Fila de higienização).
 const CleaningView = ({ inventory, onRelease }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [releasingId, setReleasingId] = useState(null);
@@ -2712,7 +2759,7 @@ const CleaningView = ({ inventory, onRelease }) => {
     return (
         <div className="pb-20 animate-fade-in">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-2xl font-bold text-gray-800 flex items-center"><SprayCan className="mr-2 text-yellow-600" /> Sala de Expurgo / Higienização</h2>
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center"><SprayCan className="mr-2 text-yellow-600" /> Sala de Higienização</h2>
                 <div className="relative w-full md:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
@@ -3225,6 +3272,7 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                 {groupedEquipments[modelName].sort((a, b) => (a.tag || '').localeCompare(b.tag || '')).map(item => {
                                     const pickupRequest = requests.find(r => r.status === 'pickup_requested' && splitTagList(r.equipmentTag).includes(normUpper(item.tag)));
                                     const isPendingPickup = !!pickupRequest;
+                                    const isBeingTriaged = item.status === 'pickup_requested' && !isPendingPickup;
 
                                     const isPendingTransferToMe = (sameText(item.transferTo, sector) || sameText(item.transferTo, userProfile?.login)) && item.transferStatus === 'in_transit';
                                     const isMyItemTransferring = (sameText(item.location, sector) || sameText(item.location, userProfile?.login)) && item.transferStatus === 'in_transit';
@@ -3279,6 +3327,10 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                                 {isPendingPickup ? (
                                                     <div className="mt-2 p-2 bg-blue-50 text-blue-800 text-sm rounded border border-blue-200">
                                                         <strong>Instrução de Devolução:</strong> {pickupRequest?.catalogo_equipamentos?.instrucao_devolucao || "O equipamento deverá ser entregue na CEIC o mais breve possível, em até 2h."}
+                                                    </div>
+                                                ) : isBeingTriaged ? (
+                                                    <div className="mt-2 p-3 bg-purple-50 text-purple-800 text-sm rounded border border-purple-200 font-medium">
+                                                        Equipamento recepcionado na CEIC
                                                     </div>
                                                 ) : (
                                                     <div className="flex items-center gap-2">
@@ -3390,8 +3442,8 @@ const AdminOcorrencias = ({ inventory, onUpdateNotification, onUpdateServiceRequ
                                             }) : ''}</span>
                                     </td>
                                     <td className="p-4">
-                                        <span className="font-bold font-mono text-gray-800 block">{item.tag}</span>
-                                        <span className="text-xs text-gray-500">{item.model}</span>
+                                        <div className="font-mono font-bold text-gray-800 text-sm">{item.tag}</div>
+                                        <div className="text-xs font-bold text-gray-500">{item.type}</div>
                                     </td>
                                     <td className="p-4 font-bold text-blue-700">{item.previousLocation || 'Não informada'}</td>
                                     <td className="p-4 text-gray-600 italic max-w-xs" title={item.defectDescription}>
@@ -3426,7 +3478,7 @@ const AdminOcorrencias = ({ inventory, onUpdateNotification, onUpdateServiceRequ
                                                 <button onClick={() => {
                                                     setEditingId(item.id);
                                                     setNotifNumber(item.notificationNumber || '');
-                                                }} className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                }} className="p-1.5 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors border border-purple-100"
                                                     title="Editar/Adicionar Notificação">
                                                     <Edit size={16} />
                                                 </button>
@@ -3462,7 +3514,7 @@ const AdminOcorrencias = ({ inventory, onUpdateNotification, onUpdateServiceRequ
                                                 <button onClick={() => {
                                                     setEditingReqId(item.id);
                                                     setReqNum(item.serviceRequestNumber || '');
-                                                }} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                }} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"
                                                     title="Editar/Adicionar Requisição">
                                                     <Edit size={16} />
                                                 </button>
@@ -3622,6 +3674,8 @@ const AdminDashboard = ({ inventory, requests }) => {
     const todayStr = new Date().toISOString().substring(0, 10);
     const [startDate, setStartDate] = useState(`${todayStr}T00:00`);
     const [endDate, setEndDate] = useState(`${todayStr}T23:59`);
+    const [appliedStart, setAppliedStart] = useState(`${todayStr}T00:00`);
+    const [appliedEnd, setAppliedEnd] = useState(`${todayStr}T23:59`);
 
     const totalItems = inventory.length;
     const availableItems = inventory.filter(i => i.status === 'available').length;
@@ -3633,20 +3687,23 @@ const AdminDashboard = ({ inventory, requests }) => {
 
     const isWithinRange = (timestamp) => {
         if (!timestamp) return false;
-        const t = new Date(timestamp).getTime();
-        const s = startDate ? new Date(startDate).getTime() : 0;
-        const e = endDate ? new Date(endDate).getTime() : Infinity;
-        return t >= s && t <= e;
+        let ts = String(timestamp);
+        if (ts.includes(' ') && !ts.includes('T')) {
+            ts = ts.replace(' ', 'T');
+        }
+        const t = new Date(ts).getTime();
+        const s = appliedStart ? new Date(appliedStart).getTime() : 0;
+        const e = appliedEnd ? new Date(appliedEnd).getTime() : Infinity;
+        return !isNaN(t) && t >= s && t <= e;
     }; const filteredRequests = requests.filter(r => isWithinRange(r.timestamp));
 
-    const approvedRequests = filteredRequests.filter(r => r.status === 'approved');
-    const completedReturns = filteredRequests.filter(r => r.kind === 'return_pickup' && r.status ===
-        'completed').length;
+    const approvedRequests = filteredRequests.filter(r => ['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(r.status));
+    const completedReturns = filteredRequests.filter(r => r.kind === 'return_pickup' && ['completed', 'concluido'].includes(r.status)).length;
     let countGerais = 0; let countVent = 0; let countTransp = 0;
 
     approvedRequests.forEach(r => {
         const type = r.equipmentType || '';
-        if (isTransportRequest(type)) {
+        if (normUpper(type).includes('TRANSPORTE')) {
             countTransp++;
         } else if (['VENTILADOR PULMONAR', 'GERADOR DE FLUXO', 'OXIDO NITRICO', 'APENAS ACESSORIOS'].some(vb => normUpper(type).startsWith(vb))) {
             countVent++;
@@ -3707,22 +3764,25 @@ const AdminDashboard = ({ inventory, requests }) => {
                         <h3 className="font-bold text-gray-800 flex items-center gap-2">
                             <Settings size={18} className="text-gray-500" /> Visão Operacional Diária
                         </h3>
-                        <div
-                            className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <div className="flex flex-col">
-                                <label
-                                    className="text-[10px] font-bold text-gray-500 uppercase">Início</label>
+                        <div className="flex flex-wrap items-end gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <div className="flex flex-col w-full sm:w-auto">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase">Início</label>
                                 <input type="datetime-local" data-testid="report-filter-start"
-                                    className="bg-white border border-gray-300 rounded text-xs px-2 py-1 outline-none focus:border-blue-500"
+                                    className="bg-white border border-gray-300 rounded text-xs px-2 py-1.5 outline-none focus:border-blue-500 w-full"
                                     value={startDate} onChange={e => setStartDate(e.target.value)} />
                             </div>
-                            <div className="flex flex-col">
-                                <label
-                                    className="text-[10px] font-bold text-gray-500 uppercase">Fim</label>
+                            <div className="flex flex-col w-full sm:w-auto">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase">Fim</label>
                                 <input type="datetime-local" data-testid="report-filter"
-                                    className="bg-white border border-gray-300 rounded text-xs px-2 py-1 outline-none focus:border-blue-500"
+                                    className="bg-white border border-gray-300 rounded text-xs px-2 py-1.5 outline-none focus:border-blue-500 w-full"
                                     value={endDate} onChange={e => setEndDate(e.target.value)} />
                             </div>
+                            <button
+                                onClick={() => { setAppliedStart(startDate); setAppliedEnd(endDate); }}
+                                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded text-xs shadow-sm transition-colors flex items-center justify-center gap-1"
+                            >
+                                <Search size={14} /> Atualizar
+                            </button>
                         </div>
                     </div>
                     <div className="space-y-4">
@@ -3786,7 +3846,7 @@ const AdminDashboard = ({ inventory, requests }) => {
                             className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-red-400">
                             <span className="text-gray-600 font-medium">Solicitações Canceladas</span>
                             <span className="font-bold text-red-600">{filteredRequests.filter(r =>
-                                r.status === 'cancelled').length}</span>
+                                ['cancelled', 'canceled', 'cancelado'].includes(r.status)).length}</span>
                         </div>
                     </div>
                 </div>
@@ -3825,19 +3885,148 @@ const AdminDashboard = ({ inventory, requests }) => {
 
 const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }) => {
     const [search, setSearch] = useState('');
+    const [selectedType, setSelectedType] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
+
+    const [viewMode, setViewMode] = useState('current');
+    const [historyStartDate, setHistoryStartDate] = useState(() => {
+        const d = new Date(); d.setDate(d.getDate() - 7);
+        return d.toISOString().slice(0, 16);
+    });
+    const [historyEndDate, setHistoryEndDate] = useState(() => {
+        return new Date().toISOString().slice(0, 16);
+    });
+    const [historyLogs, setHistoryLogs] = useState([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [timelineModalItem, setTimelineModalItem] = useState(null);
+    const [timelineLogs, setTimelineLogs] = useState([]);
+    const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
+
+    const fetchHistory = async () => {
+        setIsLoadingHistory(true);
+        try {
+            let startTs = String(historyStartDate);
+            if (startTs.includes(' ') && !startTs.includes('T')) startTs = startTs.replace(' ', 'T');
+            
+            let endTs = String(historyEndDate);
+            if (endTs.includes(' ') && !endTs.includes('T')) endTs = endTs.replace(' ', 'T');
+
+            const { data, error } = await supabase
+                .from('log_movimentacao_equipamentos')
+                .select('*')
+                .gte('data_transferencia', new Date(startTs).toISOString())
+                .lte('data_transferencia', new Date(endTs).toISOString())
+                .order('data_transferencia', { ascending: false });
+
+            if (error) throw error;
+            
+            const enriched = (data || []).map(log => {
+                const eq = inventory.find(i => i.id === log.equipamento_id);
+                return {
+                    ...log,
+                    tag: eq?.tag || 'DESCONHECIDO',
+                    model: eq?.model || 'DESCONHECIDO',
+                    type: eq?.type || 'DESCONHECIDO'
+                };
+            });
+            setHistoryLogs(enriched);
+        } catch (err) {
+            console.error(err);
+            showNotification('error', 'Erro ao carregar histórico: ' + err.message);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
+    const fetchTimeline = async (equipment) => {
+        setTimelineModalItem(equipment);
+        setIsLoadingTimeline(true);
+        try {
+            const { data, error } = await supabase
+                .from('log_movimentacao_equipamentos')
+                .select('*')
+                .eq('equipamento_id', equipment.id)
+                .order('data_transferencia', { ascending: false });
+
+            if (error) throw error;
+            setTimelineLogs(data || []);
+        } catch (err) {
+            console.error(err);
+            showNotification('error', 'Erro ao carregar linha do tempo: ' + err.message);
+        } finally {
+            setIsLoadingTimeline(false);
+        }
+    };
 
     const initialFormState = {
         tag: '', model: '', type: '', status: 'available', location: 'CEIC'
     };
     const [formData, setFormData] = useState(initialFormState);
 
-    const filteredInventory = inventory.filter(item =>
-        item.tag.toLowerCase().includes(search.toLowerCase()) ||
-        item.model.toLowerCase().includes(search.toLowerCase()) ||
-        item.type.toLowerCase().includes(search.toLowerCase())
-    );
+    const types = useMemo(() => {
+        const uniqueTypes = new Set(inventory.map(i => i.type || 'Outros'));
+        return Array.from(uniqueTypes).sort();
+    }, [inventory]);
+
+    const filteredInventory = inventory.filter(item => {
+        const matchesSearch = item.tag.toLowerCase().includes(search.toLowerCase()) ||
+            item.model.toLowerCase().includes(search.toLowerCase()) ||
+            item.type.toLowerCase().includes(search.toLowerCase());
+        const matchesType = selectedType ? item.type === selectedType : true;
+        return matchesSearch && matchesType;
+    });
+
+    const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+    const handleExportExcel = () => {
+        if (filteredInventory.length === 0) return;
+        const headers = ['TAG', 'TIPO', 'MODELO', 'STATUS', 'LOCAL'];
+        let csvContent = headers.join(';') + '\n';
+        filteredInventory.forEach(item => {
+            const row = [item.tag, item.type, item.model, item.status, item.location];
+            csvContent += row.map(escapeCsv).join(';') + '\n';
+        });
+        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `frota_${selectedType || 'todos'}.csv`;
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleExportPdf = () => {
+        if (filteredInventory.length === 0) return;
+        const printWindow = window.open('', '', 'width=800,height=600');
+        if (!printWindow) {
+            alert("O navegador bloqueou a janela pop-up. Permita pop-ups para gerar o PDF.");
+            return;
+        }
+        const dateStr = new Date().toLocaleString('pt-BR');
+        const html = `
+            <html><head><title>Relatório de Frota</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f4f4f4; }
+            </style></head>
+            <body>
+                <h2>Relatório de Frota: ${selectedType || 'Todos'}</h2>
+                <p>Gerado em: ${dateStr} | Total: ${filteredInventory.length} itens</p>
+                <table>
+                    <thead><tr><th>TAG</th><th>Tipo</th><th>Modelo</th><th>Status</th><th>Local</th></tr></thead>
+                    <tbody>${filteredInventory.map(i => `<tr><td>${i.tag}</td><td>${i.type}</td><td>${i.model}</td><td>${i.status}</td><td>${i.location}</td></tr>`).join('')}</tbody>
+                </table>
+                <script>window.onload = function() { window.print(); window.close(); }</script>
+            </body></html>
+        `;
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
 
     const openModal = (item = null) => {
         if (item) {
@@ -3921,6 +4110,7 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }
                                         <option value="maintenance">Manutenção</option>
                                         <option value="cleaning">Higienização</option>
                                         <option value="preventive">Ag. Preventiva</option>
+                                        <option value="inactive">Inativo (Baixa)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -3934,7 +4124,7 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }
                                         <option value="CEIC" />
                                         <option value="Ag. Preventiva" />
                                         <option value="Engenharia Clínica" />
-                                        <option value="Expurgo CEIC" />
+                                        <option value="Higienização CEIC" />
                                         {['03DN', '03DS', '04GN', '04GS', '04CC', '04DN', '04DS', 'Centro Cirúrgico'].map(l =>
                                             <option key={l} value={l} />)}
                                     </datalist>
@@ -3955,24 +4145,37 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }
             <div
                 className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                    <Database className="text-purple-600" /> Gestão da Frota (CRUD)
+                    <Database className="text-purple-600" /> Gestão da Frota
                 </h2>
                 <button data-testid="create-equipment-button" onClick={() => openModal()} className="h-[44px] px-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 flex items-center shadow-lg shadow-purple-200 transition-colors">
                     <PlusCircle size={20} className="mr-2" /> Adicionar Equipamento
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in">
                 <div
-                    className="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                    <div className="relative w-full md:w-96">
-                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                        <input data-testid="equipment-search-input" className="input pl-10 bg-white"
-                            placeholder="Buscar por TAG, Modelo ou Tipo..." value={search} onChange={e =>
-                                setSearch(e.target.value)} />
+                    className="p-4 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto flex-1">
+                        <div className="relative w-full md:w-96">
+                            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                            <input data-testid="equipment-search-input" className="input pl-10 bg-white"
+                                placeholder="Buscar por TAG, Modelo ou Tipo..." value={search} onChange={e =>
+                                    setSearch(e.target.value)} />
+                        </div>
+                        <select
+                            className="input bg-white w-full md:w-64"
+                            value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+                            <option value="">Todos os Tipos</option>
+                            {types.map(type => <option key={type} value={type}>{type}</option>)}
+                        </select>
                     </div>
-                    <span className="text-sm font-bold text-gray-500 ml-4 hidden md:block">Total:
-                        {filteredInventory.length} itens</span>
+                    <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                        <span className="text-sm font-bold text-gray-500">Total: {filteredInventory.length} itens</span>
+                        <div className="flex gap-2">
+                            <button onClick={handleExportExcel} disabled={filteredInventory.length === 0} className="px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed">Exportar Excel</button>
+                            <button onClick={handleExportPdf} disabled={filteredInventory.length === 0} className="px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 font-bold text-xs hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed">Exportar PDF</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -3980,35 +4183,194 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }
                         <thead className="bg-white border-b border-gray-200">
                             <tr>
                                 <th className="p-4 text-xs font-bold text-gray-500 uppercase">TAG</th>
-                                <th className="p-4 text-xs font-bold text-gray-500 uppercase">Modelo
-                                </th>
-                                <th className="p-4 text-xs font-bold text-gray-500 uppercase">Tipo</th>
-                                <th className="p-4 text-xs font-bold text-gray-500 uppercase">Status
-                                    Local</th>
+                                <th className="p-4 text-xs font-bold text-gray-500 uppercase">Equipamento</th>
+                                <th className="p-4 text-xs font-bold text-gray-500 uppercase">Status Local</th>
+                                <th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 bg-white">
                             {filteredInventory.length > 0 ? filteredInventory.map(item => (
                                 <tr key={item.id} data-testid="equipment-row" className="hover:bg-gray-50 transition-colors">
                                     <td data-testid="equipment-real-tag" className="p-4 font-mono font-bold text-gray-800">{item.tag}</td>
-                                    <td className="p-4 text-sm font-medium text-gray-600">{item.model}</td>
-                                    <td className="p-4 text-sm text-gray-600">{item.type}</td>
+                                    <td className="p-4 text-sm">
+                                        <div className="font-bold text-gray-800">{item.type}</div>
+                                        <div className="text-xs text-gray-500">{item.model}</div>
+                                    </td>
                                     <td data-testid="equipment-real-status" className="p-4 text-sm">
                                         <StatusBadge status={item.status} /> <span
                                             data-testid="equipment-real-location"
                                             className="text-xs text-gray-400 block mt-1">{item.location}</span>
                                     </td>
+                                    <td className="p-4 flex gap-1">
+                                        <button onClick={() => fetchTimeline(item)} className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Linha do Tempo">
+                                            <Clock size={18} />
+                                        </button>
+                                        <button onClick={() => openModal(item)} className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors" title="Editar">
+                                            <Edit size={18} />
+                                        </button>
+                                        <button onClick={() => { 
+                                            const confirmText = window.prompt('ATENÇÃO: A exclusão permanente apaga todo o histórico.\n\nPara inativar o equipamento (RECOMENDADO), feche este aviso e altere o status para "Inativo (Baixa)" clicando no botão Editar.\n\nSe você realmente precisa EXCLUIR do banco de dados, digite a palavra EXCLUIR abaixo:');
+                                            if (confirmText === 'EXCLUIR') {
+                                                onDelete(item.id);
+                                            } else if (confirmText !== null) {
+                                                alert('Exclusão cancelada. Palavra de segurança incorreta ou vazia.');
+                                            }
+                                        }} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors" title="Excluir Permanentemente">
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </td>
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan="4" className="p-8 text-center text-gray-500">Nenhum
-                                        equipamento encontrado na busca.</td>
+                                    <td colSpan="5" className="p-8 text-center text-gray-500">
+                                        Nenhum equipamento encontrado na busca.
+                                    </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            {timelineModalItem && createPortal(
+                <div className="modal-overlay z-50">
+                    <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full animate-fade-in max-h-[85vh] overflow-hidden flex flex-col">
+                        <div className="flex justify-between items-center mb-5 border-b pb-3 shrink-0">
+                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <Clock size={22} className="text-blue-600" /> Linha do Tempo: {timelineModalItem.tag}
+                            </h3>
+                            <div className="flex gap-3 items-center">
+                                <button onClick={() => {
+                                    const printWindow = window.open('', '', 'width=800,height=600');
+                                    if (!printWindow) return alert('Permita pop-ups para gerar o PDF.');
+                                    const html = `
+                                        <html><head><title>Relatório de Movimentação - ${timelineModalItem.tag}</title>
+                                        <style>
+                                            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+                                            .header { border-bottom: 2px solid #6b21a8; padding-bottom: 10px; margin-bottom: 20px; }
+                                            .meta { font-size: 14px; margin-bottom: 20px; color: #555; }
+                                            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                                            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+                                            th { background-color: #f4f4f4; color: #333; }
+                                            .obs { font-style: italic; color: #666; font-size: 11px; }
+                                        </style></head>
+                                        <body>
+                                            <div class="header">
+                                                <h2>Linha do Tempo de Equipamento</h2>
+                                                <h3>TAG: ${timelineModalItem.tag} - ${timelineModalItem.type || 'Desconhecido'}</h3>
+                                            </div>
+                                            <div class="meta">
+                                                <p><strong>Gerado em:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+                                                <p><strong>Total de Movimentações Registradas:</strong> ${timelineLogs.length}</p>
+                                            </div>
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Data/Hora</th>
+                                                        <th>Origem ➔ Destino</th>
+                                                        <th>Tempo na Origem</th>
+                                                        <th>Responsável</th>
+                                                        <th>Observações</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${timelineLogs.map((log, index) => {
+                                                        const prevLog = timelineLogs[index - 1];
+                                                        let durationStr = '-';
+                                                        if (prevLog) {
+                                                            const diffMs = new Date(prevLog.data_transferencia).getTime() - new Date(log.data_transferencia).getTime();
+                                                            const diffHrs = Math.floor(diffMs / 3600000);
+                                                            const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                                                            durationStr = `${diffHrs}h ${diffMins}m`;
+                                                        }
+                                                        const resp = String(log.responsavel_badge || 'SISTEMA');
+                                                        const respFmt = resp.includes('::') ? `${resp.split('::')[0]} (${resp.split('::')[1]})` : resp;
+                                                        return `
+                                                            <tr>
+                                                                <td>${new Date(log.data_transferencia).toLocaleString('pt-BR')}</td>
+                                                                <td><strong>${log.setor_origem || 'CEIC'}</strong> ➔ <strong>${log.setor_destino}</strong></td>
+                                                                <td>${durationStr}</td>
+                                                                <td>${respFmt}</td>
+                                                                <td class="obs">${log.observacoes || '-'}</td>
+                                                            </tr>
+                                                        `;
+                                                    }).join('')}
+                                                </tbody>
+                                            </table>
+                                            <script>window.onload = function() { window.print(); window.close(); }</script>
+                                        </body></html>
+                                    `;
+                                    printWindow.document.write(html);
+                                    printWindow.document.close();
+                                }} className="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-colors">
+                                    Exportar PDF
+                                </button>
+                                <button onClick={() => setTimelineModalItem(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                            </div>
+                        </div>
+                        <div className="overflow-y-auto pr-2 pb-4 flex-1">
+                            {isLoadingTimeline ? (
+                                <div className="text-center text-gray-500 py-8">Carregando linha do tempo...</div>
+                            ) : timelineLogs.length > 0 ? (
+                                <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+                                    {timelineLogs.map((log, index) => {
+                                        const prevLog = timelineLogs[index - 1];
+                                        let durationStr = '';
+                                        if (prevLog) {
+                                            const diffMs = new Date(prevLog.data_transferencia).getTime() - new Date(log.data_transferencia).getTime();
+                                            const diffHrs = Math.floor(diffMs / 3600000);
+                                            const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                                            durationStr = `Ficou ${diffHrs}h ${diffMins}m`;
+                                        }
+                                        return (
+                                            <div key={log.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                                                <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-300 group-[.is-active]:bg-blue-500 text-slate-500 group-[.is-active]:text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                                                    <MapPin size={16} />
+                                                </div>
+                                                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+                                                    <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                                                        <time className="font-mono text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">{new Date(log.data_transferencia).toLocaleString('pt-BR')}</time>
+                                                        {durationStr && <div className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded">{durationStr}</div>}
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-3 mb-4">
+                                                        <div className="flex-1 bg-slate-50 p-2 rounded border border-slate-100 text-center">
+                                                            <div className="text-[10px] text-slate-400 uppercase font-bold">Origem</div>
+                                                            <div className="font-bold text-slate-700">{log.setor_origem || 'CEIC'}</div>
+                                                        </div>
+                                                        <ArrowRight className="text-slate-300 shrink-0" size={16} />
+                                                        <div className="flex-1 bg-purple-50 p-2 rounded border border-purple-100 text-center">
+                                                            <div className="text-[10px] text-purple-400 uppercase font-bold">Destino</div>
+                                                            <div className="font-bold text-purple-700">{log.setor_destino}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-1 text-sm bg-slate-50 p-2 rounded">
+                                                        <div className="text-xs text-slate-500 font-bold flex items-center gap-1">
+                                                            <User size={12}/> Responsável pela Movimentação
+                                                        </div>
+                                                        <div className="font-medium text-slate-800">{String(log.responsavel_badge || 'SISTEMA').split('::')[0]}</div>
+                                                        {String(log.responsavel_badge || '').includes('::') && <div className="text-xs text-slate-500">{String(log.responsavel_badge).split('::')[1]}</div>}
+                                                    </div>
+                                                    
+                                                    {log.observacoes && (
+                                                        <div className="mt-3 text-xs bg-red-50 text-red-700 p-2 rounded border border-red-100">
+                                                            <strong>Observação/Defeito:</strong> {log.observacoes}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-center text-gray-500 py-8">Nenhuma movimentação registrada para este equipamento.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
@@ -4016,8 +4378,26 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }
 const AdminIndicators = ({ inventory, requests }) => {
     const [selectedCategory, setSelectedCategory] = useState('ALL');
 
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const [startDate, setStartDate] = useState(`${todayStr}T00:00`);
+    const [endDate, setEndDate] = useState(`${todayStr}T23:59`);
+    const [appliedStart, setAppliedStart] = useState(`${todayStr}T00:00`);
+    const [appliedEnd, setAppliedEnd] = useState(`${todayStr}T23:59`);
+
+    const isWithinRange = (timestamp) => {
+        if (!timestamp) return false;
+        let ts = String(timestamp);
+        if (ts.includes(' ') && !ts.includes('T')) {
+            ts = ts.replace(' ', 'T');
+        }
+        const t = new Date(ts).getTime();
+        const s = appliedStart ? new Date(appliedStart).getTime() : 0;
+        const e = appliedEnd ? new Date(appliedEnd).getTime() : Infinity;
+        return !isNaN(t) && t >= s && t <= e;
+    };
+
     const baseInventory = inventory;
-    const baseRequests = requests;
+    const baseRequests = requests.filter(r => isWithinRange(r.timestamp));
 
     const filteredInventory = selectedCategory === 'ALL'
         ? baseInventory
@@ -4030,14 +4410,13 @@ const AdminIndicators = ({ inventory, requests }) => {
     const totalInventory = filteredInventory.length;
     const availableRate = totalInventory > 0 ? Math.round((filteredInventory.filter(i => i.status
         === 'available').length / totalInventory) * 100) : 0;
-    const maintRate = totalInventory > 0 ? Math.round((filteredInventory.filter(i => i.status ===
-        'maintenance').length / totalInventory) * 100) : 0;
+    const maintRate = totalInventory > 0 ? Math.round((filteredInventory.filter(i => ['maintenance', 'preventive', 'reparo'].includes(i.status)).length / totalInventory) * 100) : 0;
 
     const totalRequests = filteredRequests.length;
     const urgentRequests = filteredRequests.filter(r => r.isUrgent).length;
     const urgentRate = totalRequests > 0 ? Math.round((urgentRequests / totalRequests) * 100) : 0;
 
-    const cancelledRequests = filteredRequests.filter(r => r.status === 'cancelled').length;
+    const cancelledRequests = filteredRequests.filter(r => ['cancelled', 'canceled', 'cancelado'].includes(r.status)).length;
     const cancelRate = totalRequests > 0 ? Math.round((cancelledRequests / totalRequests) * 100) :
         0;
 
@@ -4060,19 +4439,27 @@ const AdminIndicators = ({ inventory, requests }) => {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);
 
-    const approvedRequestsWithTime = filteredRequests.filter(r => r.status === 'approved' &&
+    const approvedRequestsWithTime = filteredRequests.filter(r => ['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(r.status) &&
         r.fulfilledAt);
     let totalFulfillmentTimeMs = 0;
     let slaMetCount = 0;
 
-    approvedRequestsWithTime.forEach(r => {
-        const start = new Date(r.timestamp).getTime();
-        const end = new Date(r.fulfilledAt).getTime();
-        const diff = Math.max(0, end - start);
-        totalFulfillmentTimeMs += diff;
+    const parseTs = (ts) => {
+        if (!ts) return NaN;
+        let str = String(ts);
+        if (str.includes(' ') && !str.includes('T')) str = str.replace(' ', 'T');
+        return new Date(str).getTime();
+    };
 
-        const slaLimitMs = getSlaInfo(r).ms;
-        if (diff <= slaLimitMs) slaMetCount++;
+    approvedRequestsWithTime.forEach(r => {
+        const start = parseTs(r.timestamp);
+        const end = parseTs(r.fulfilledAt);
+        const diff = Math.max(0, end - start);
+        if (!isNaN(diff)) {
+            totalFulfillmentTimeMs += diff;
+            const slaLimitMs = getSlaInfo(r).ms;
+            if (diff <= slaLimitMs) slaMetCount++;
+        }
     }); const
         avgFulfillmentTimeMs = approvedRequestsWithTime.length > 0 ? totalFulfillmentTimeMs /
             approvedRequestsWithTime.length : 0;
@@ -4096,6 +4483,26 @@ const AdminIndicators = ({ inventory, requests }) => {
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <LineChart className="text-purple-600" /> Indicadores de Performance
                 </h2>
+                <div className="flex flex-wrap items-end gap-2 bg-white p-2 rounded-lg border border-gray-200 shadow-sm w-full md:w-auto">
+                    <div className="flex flex-col w-full sm:w-auto">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Início</label>
+                        <input type="datetime-local" data-testid="report-filter-start"
+                            className="bg-gray-50 border border-gray-200 rounded text-xs px-2 py-1.5 outline-none focus:border-purple-500 w-full"
+                            value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    </div>
+                    <div className="flex flex-col w-full sm:w-auto">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Fim</label>
+                        <input type="datetime-local" data-testid="report-filter"
+                            className="bg-gray-50 border border-gray-200 rounded text-xs px-2 py-1.5 outline-none focus:border-purple-500 w-full"
+                            value={endDate} onChange={e => setEndDate(e.target.value)} />
+                    </div>
+                    <button
+                        onClick={() => { setAppliedStart(startDate); setAppliedEnd(endDate); }}
+                        className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded text-xs shadow-sm transition-colors flex items-center justify-center gap-1"
+                    >
+                        <Search size={14} /> Atualizar
+                    </button>
+                </div>
             </div>
 
             <div
@@ -4298,7 +4705,7 @@ const AdminIndicators = ({ inventory, requests }) => {
                             <div>
                                 <p className="text-sm text-gray-500 font-bold">Pedidos Atendidos</p>
                                 <p className="text-xl font-black text-gray-800">
-                                    {filteredRequests.filter(r => r.status === 'approved').length}
+                                    {filteredRequests.filter(r => ['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(r.status)).length}
                                 </p>
                             </div>
                         </div>
@@ -4312,7 +4719,7 @@ const AdminIndicators = ({ inventory, requests }) => {
                                 </p>
                                 <p className="text-xl font-black text-gray-800">
                                     {filteredRequests.filter(r => r.kind === 'return_pickup' &&
-                                        r.status === 'completed').length}</p>
+                                        ['completed', 'concluido'].includes(r.status)).length}</p>
                             </div>
                         </div>
                     </div>
@@ -4766,6 +5173,23 @@ const AdminUsersView = ({ onLogout }) => {
 // Componente App: Gerenciamento principal de estado, rotas e integração com o Supabase.
 function App() {
     const [userProfile, setUserProfile] = useState(null);
+    const userProfileRef = useRef(null);
+    useEffect(() => {
+        userProfileRef.current = userProfile;
+    }, [userProfile]);
+
+    const triggerBrowserNotification = (title, body) => {
+        if (!("Notification" in window) || Notification.permission !== "granted") return;
+        const profileRole = String(userProfileRef.current?.role || '').toUpperCase();
+        if (profileRole.includes('OPERACIONAL') || profileRole.includes('ASSISTENCIAL')) {
+            try {
+                new Notification(title, { body, icon: '/favicon.ico' });
+            } catch (e) {
+                console.error("Erro ao exibir notificação de navegador", e);
+            }
+        }
+    };
+
     const [currentView, setCurrentView] = useState('login');
     const [isLoading, setIsLoading] = useState(true);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -4805,7 +5229,11 @@ function App() {
         try { localStorage.setItem('ceic_sound_enabled', soundEnabled ? '1' : '0'); } catch { }
     }, [soundEnabled]);
     const [inventory, setInventory] = useState([]);
+    const inventoryRef = useRef([]);
+    useEffect(() => { inventoryRef.current = inventory; }, [inventory]);
     const [requests, setRequests] = useState([]);
+    const requestsRef = useRef([]);
+    useEffect(() => { requestsRef.current = requests; }, [requests]);
     const [ventilatoryCatalog, setVentilatoryCatalog] = useState([]);
     const [generalCatalog, setGeneralCatalog] = useState([]);
     const [fullCatalog, setFullCatalog] = useState([]);
@@ -4826,15 +5254,30 @@ function App() {
         }
     };
 
-    const registrarLogMovimentacao = async (equipamentoId, origem, destino, pacienteMv) => {
+    const registrarLogMovimentacao = async (equipamentoId, origem, destino, pacienteMv, nomeUsuario = null, observacoes = null) => {
         try {
-            await supabase.from('log_movimentacao_equipamentos').insert([{
+            let responsavelStr = userProfile?.login || 'SISTEMA';
+            if (nomeUsuario) {
+                responsavelStr = `${responsavelStr}::${nomeUsuario}`;
+            }
+
+            const payload = {
                 equipamento_id: equipamentoId,
                 setor_origem: origem || 'CEIC',
                 setor_destino: destino,
                 paciente_mv: pacienteMv || null,
-                responsavel_badge: userProfile?.login || 'SISTEMA'
-            }]);
+                responsavel_badge: responsavelStr
+            };
+            if (observacoes) {
+                payload.observacoes = observacoes;
+            }
+
+            const { error } = await supabase.from('log_movimentacao_equipamentos').insert([payload]);
+            if (error && error.code === '42703') {
+                console.warn('Coluna observacoes não existe, ignorando observações...');
+                delete payload.observacoes;
+                await supabase.from('log_movimentacao_equipamentos').insert([payload]);
+            }
         } catch (err) {
             console.error("Falha silenciosa ao gravar log_movimentacao:", err);
         }
@@ -4842,7 +5285,7 @@ function App() {
 
     const availableLocations = useMemo(() => {
         const locs = Array.from(new Set(inventory.map(i => i.location).filter(Boolean))).sort();
-        return locs.length > 0 ? locs : ['CEIC', 'Ag. Preventiva', 'Engenharia Clínica', 'Expurgo CEIC', '03DN', '03DS', '04GN', '04GS', '04CC', '04DN', '04DS', 'Centro Cirúrgico'];
+        return locs.length > 0 ? locs : ['CEIC', 'Ag. Preventiva', 'Engenharia Clínica', 'Higienização CEIC', '03DN', '03DS', '04GN', '04GS', '04CC', '04DN', '04DS', 'Centro Cirúrgico'];
     }, [inventory]);
 
     const equipmentCatalog = useMemo(() => ({
@@ -4958,6 +5401,16 @@ function App() {
                 } else if (payload.eventType === 'UPDATE') {
                     const nextItem = mapPedido(payload.new);
                     setRequests(prev => prev.map(item => item.id === payload.new.id ? nextItem : item));
+                    
+                    const oldReq = requestsRef.current.find(req => req.id === payload.new.id);
+                    if (oldReq) {
+                        if (nextItem.notificationTime && oldReq.notificationTime !== nextItem.notificationTime) {
+                            triggerBrowserNotification(
+                                'Orientação do Operacional',
+                                nextItem.notificationMessage || 'Você tem uma nova orientação sobre o pedido.'
+                            );
+                        }
+                    }
                 } else if (payload.eventType === 'DELETE') {
                     setRequests(prev => prev.filter(item => item.id !== payload.old.id));
                 }
@@ -4980,14 +5433,20 @@ function App() {
         setNotification({ type, message });
         if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
         notificationTimeoutRef.current = setTimeout(() => setNotification(null), 7000);
+        triggerBrowserNotification('Notificação CEIC', message);
     };
 
     const handleLogin = (profile) => {
         setUserProfile(profile);
+
+        // Solicita permissão de notificação no navegador ao fazer login
+        if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission().catch(console.error);
+        }
         const p = String(profile.role).toUpperCase();
         if (p === 'ASSISTENCIAL') setCurrentView('nova_solicitacao');
         else if (p === 'OPERACIONAL') setCurrentView('dashboard');
-        else if (p === 'GESTAO') setCurrentView('admin_dashboard');
+        else if (p === 'GESTAO' || p === 'GERENCIAL') setCurrentView('admin_dashboard');
         else if (p === 'ADMIN') setCurrentView('admin_users');
         else if (p === 'TESTE' || p === 'ADMIN_TESTE') setCurrentView('admin_frota');
         else setCurrentView('login');
@@ -5022,7 +5481,7 @@ function App() {
                     model: String(newItem.model || '').trim(),
                     status: String(newItem.status || 'available').trim().toLowerCase(),
                     location: String(newItem.location || 'CEIC').trim(),
-                    specificLocation: null,
+                    specific_location: null,
                     patient_mv: null,
                     in_use_since: null
                 }])
@@ -5225,7 +5684,8 @@ function App() {
                 .update({
                     status: 'in_transfer',
                     equipment_tag: cleanedTagsForDb.join(', '),
-                    arrival_time: arrivalTime
+                    arrival_time: arrivalTime,
+                    fulfilled_at: new Date().toISOString()
                 })
                 .eq('id', request.id)
                 .select();
@@ -5260,7 +5720,8 @@ function App() {
                     eq.id,
                     eq.location, // Origem (Ex: CEIC)
                     request.requesterBadge || request.sector || 'UNIDADE', // Destino
-                    request.patient_mv
+                    request.patient_mv,
+                    request.requesterName
                 );
             }
 
@@ -5313,7 +5774,7 @@ function App() {
             });
             const { data, error } = await supabase
                 .from('pedidos')
-                .update({ status: 'completed' })
+                .update({ status: 'completed', fulfilled_at: new Date().toISOString() })
                 .eq('id', request.id)
                 .select();
 
@@ -5425,7 +5886,7 @@ function App() {
         }
     };
 
-    const handleReturnByTag = async ({ tag, hasDefect, defectDescription, returnedAllAccessories, unitNotified, patientDamage, notificationNumber }) => {
+    const handleReturnByTag = async ({ tag, hasDefect, defectDescription, returnedAllAccessories, unitNotified, patientDamage, notificationNumber, collaboratorName }) => {
         const cleanTag = normUpper(tag);
         const item = inventory.find(i => normUpper(i.tag) === cleanTag);
 
@@ -5441,7 +5902,7 @@ function App() {
         }
 
         const nextStatus = hasDefect ? 'maintenance' : 'cleaning';
-        const nextLocation = hasDefect ? 'Engenharia Clínica' : 'Expurgo CEIC';
+        const nextLocation = hasDefect ? 'Engenharia Clínica' : 'Higienização CEIC';
 
         const supabaseUpdates = {
             status: nextStatus,
@@ -5496,13 +5957,15 @@ function App() {
             await registrarLogMovimentacao(
                 item.id,
                 item.location, // Setor assistencial onde estava alocado
-                nextLocation,  // Destino (Expurgo CEIC ou Engenharia Clínica)
-                item.patient_mv
+                nextLocation,  // Destino (Higienização CEIC ou Engenharia Clínica)
+                item.patient_mv,
+                collaboratorName,
+                hasDefect ? defectDescription : null
             );
 
             setInventory(prev => prev.map(it => (normUpper(it.tag) === cleanTag ? mapEquip({ ...it, ...localUpdates }) : it)));
             setTriageData(null);
-            showNotification(hasDefect ? 'error' : 'success', hasDefect ? 'Enviado para Manutenção.' : 'Baixa concluída! Item enviado ao Expurgo.');
+            showNotification(hasDefect ? 'error' : 'success', hasDefect ? 'Enviado para Manutenção.' : 'Baixa concluída! Item enviado à Higienização.');
             return true;
         } catch (error) {
             console.error("Erro na atualização Supabase:", error);
@@ -5536,7 +5999,7 @@ function App() {
                 .select();
 
             if (releaseError) {
-                console.error("❌ ERRO SUPABASE [EXPURGO]:", releaseError.message, releaseError.details, releaseError.hint);
+                console.error("❌ ERRO SUPABASE [HIGIENIZAÇÃO]:", releaseError.message, releaseError.details, releaseError.hint);
                 throw new Error(`Operação não persistiu: ${releaseError.message}`);
             }
 
@@ -5801,7 +6264,8 @@ function App() {
                 await supabase
                     .from('pedidos')
                     .update({
-                        status: 'in_transfer'
+                        status: 'in_transfer',
+                        fulfilled_at: new Date().toISOString()
                     })
                     .eq('id', activeReq.id);
             }
@@ -5870,7 +6334,8 @@ function App() {
                     status: 'delivered', // Volta ao status de entregue/normal
                     sector: userProfile?.login, // A posse do pedido passa para o novo setor
                     requester_name: userProfile?.name,
-                    requester_badge: userProfile?.login
+                    requester_badge: userProfile?.login,
+                    fulfilled_at: new Date().toISOString()
                 }).eq('id', pedidoId).select();
                 if (error) throw error;
                 if (data && data[0]) pedidoAtualizado = data[0];
@@ -5958,7 +6423,7 @@ function App() {
             if (requestToComplete) {
                 const { data: reqData, error: reqError } = await supabase
                     .from('pedidos')
-                    .update({ status: 'completed' })
+                    .update({ status: 'completed', fulfilled_at: new Date().toISOString() })
                     .eq('id', requestToComplete.id)
                     .select();
                 if (reqError || !reqData || reqData.length === 0) {
@@ -5996,6 +6461,14 @@ function App() {
                 throw new Error('Operação não persistiu no banco de equipamentos');
             }
 
+            await registrarLogMovimentacao(
+                item.id,
+                item.location,
+                destination,
+                patient_mv,
+                collaboratorName
+            );
+
             // Tenta atualizar o pedido ativo para manter histórico coerente
             const activeReq = requests.find(r => normUpper(r.equipmentTag).includes(normUpper(tag)) && (r.status === 'delivered' || r.status === 'aprovado' || r.status === 'approved'));
             if (activeReq) {
@@ -6003,7 +6476,8 @@ function App() {
                     .from('pedidos')
                     .update({
                         status: 'in_transfer',
-                        transfer_to: destination
+                        transfer_to: destination,
+                        fulfilled_at: new Date().toISOString()
                     })
                     .eq('id', activeReq.id);
             }
@@ -6035,6 +6509,39 @@ function App() {
             (p.sector === userProfile?.login || (p.sector && p.sector.startsWith(userProfile?.login + ' - ')) || p.requesterBadge === userProfile?.login || p.transfer_to === userProfile?.login)
         );
     }, [requests, userProfile]);
+
+    const prevMyRequestsRef = useRef([]);
+    useEffect(() => {
+        const p = String(userProfile?.role || userProfile?.perfil || '').toUpperCase();
+        if (p === 'ASSISTENCIAL') {
+            const currentReqs = mySectorPendingRequests;
+            const prevReqs = prevMyRequestsRef.current;
+
+            if (prevReqs.length > 0 && "Notification" in window && Notification.permission === "granted") {
+                currentReqs.forEach(req => {
+                    const prevReq = prevReqs.find(p => p.id === req.id);
+                    if (prevReq && prevReq.status !== req.status) {
+                        let statusText = "Atualizado";
+                        if (req.status === 'in_transfer') statusText = "Em Transferência";
+                        if (req.status === 'pickup_requested') statusText = "Devolução Solicitada";
+                        if (req.status === 'approved') statusText = "Aprovado (Em Curso)";
+                        if (req.status === 'waitlisted') statusText = "Fila de Espera";
+                        if (req.status === 'completed') statusText = "Finalizado";
+                        
+                        try {
+                            new Notification(`CEIC: Status Atualizado`, {
+                                body: `O pedido de ${req.equipmentType} mudou para: ${statusText}`,
+                                icon: logoCeic
+                            });
+                        } catch (e) {
+                            if (DEBUG_LOGS) console.log("Erro ao emitir Notification", e);
+                        }
+                    }
+                });
+            }
+            prevMyRequestsRef.current = currentReqs;
+        }
+    }, [mySectorPendingRequests, userProfile]);
 
     if (isLoading) {
         return (
