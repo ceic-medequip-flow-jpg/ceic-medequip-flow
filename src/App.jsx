@@ -3136,10 +3136,10 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="label text-gray-700">Leito Destino</label>
+                                    <label className="label text-gray-700">{(unidades?.find(u => u.login === destinationSector)?.nome?.toUpperCase().includes('CIRURG') || destinationSector === '09B2') ? 'Sala Cirúrgica' : 'Leito Destino'}</label>
                                     <input type="text" className="input border-purple-200 focus:border-purple-500"
                                         value={destinationBed} onChange={e => setDestinationBed(e.target.value)}
-                                        placeholder="Ex: Leito 05" />
+                                        placeholder={(unidades?.find(u => u.login === destinationSector)?.nome?.toUpperCase().includes('CIRURG') || destinationSector === '09B2') ? 'Ex: Sala 03' : 'Ex: Leito 05'} />
                                 </div>
                             </div>
                             <div>
@@ -3624,9 +3624,9 @@ const AdminRemanejamento = ({ inventory, onRemanejamento, showNotification, unid
                                 </select>
                             </div>
                             <div>
-                                <label className="label">Leito de Destino</label>
+                                <label className="label">{(unidades?.find(u => u.login === destinationSector)?.nome?.toUpperCase().includes('CIRURG') || destinationSector === '09B2') ? 'Sala Cirúrgica' : 'Leito de Destino'}</label>
                                 <input type="text" className="input h-[50px]" value={destinationBed}
-                                    onChange={e => setDestinationBed(e.target.value)} placeholder="Ex: Leito 12" />
+                                    onChange={e => setDestinationBed(e.target.value)} placeholder={(unidades?.find(u => u.login === destinationSector)?.nome?.toUpperCase().includes('CIRURG') || destinationSector === '09B2') ? 'Ex: Sala 03' : 'Ex: Leito 12'} />
                             </div>
                         </div>
                     </div>
