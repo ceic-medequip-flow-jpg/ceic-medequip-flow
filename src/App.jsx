@@ -7,7 +7,8 @@ import {
     ArrowDownLeft, User, Clock, LogOut, SprayCan, ClipboardList, Siren, CheckCircle,
     AlertCircle, Search, BadgeCheck, PlusCircle, List, MapPin, X, Send, ChevronDown,
     ChevronUp, XCircle, Menu, Wrench, BarChart3, Database, Edit, Trash2, LineChart,
-    Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight, ArrowRight
+    Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight, ArrowRight,
+    HelpCircle, LifeBuoy
 } from 'lucide-react';
 import logoCeic from './assets/logo-ceic.png';
 
@@ -35,6 +36,8 @@ const SIDEBAR_ITEMS = [
     { id: 'nova_solicitacao', label: 'Nova Solicitação', icon: PlusCircle, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-nova-solicitacao' },
     { id: 'meus_pedidos', label: 'Meus Pedidos', icon: List, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-meus-pedidos' },
     { id: 'equipamentos_area', label: 'Equipamentos do Setor', icon: MapPin, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'admin_suporte', label: 'Chamados de Suporte', icon: LifeBuoy, roles: ['ADMIN', 'GESTAO', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'suporte_tecnico', label: 'Suporte Técnico', icon: HelpCircle, roles: ['OPERACIONAL', 'ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
 ];
 
 const CHECKLIST_OPTIONS = { "Monitor de Pressão Intracraniana (PIC)": ["Apenas Kit: Módulo + Cabo", "Maleta completa: Monitor + cabo + módulo + cabos + fonte + Suporte"] };
@@ -5027,6 +5030,229 @@ const mapPedidoLegacy = (p) => {
     };
 };
 
+// Componente de Suporte Técnico para envio de mensagens
+const SupportView = ({ userProfile, showNotification }) => {
+    const [formData, setFormData] = useState({
+        nome: '',
+        unidade: userProfile?.name || userProfile?.sector || '',
+        ramal: '',
+        emailPrefix: '',
+        tipo: 'Dúvida',
+        mensagem: ''
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!formData.nome || !formData.unidade || !formData.emailPrefix || !formData.mensagem) {
+            showNotification('error', 'Preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const emailFull = formData.emailPrefix + '@hc.fm.usp.br';
+            const payload = {
+                nome: formData.nome,
+                unidade: formData.unidade,
+                ramal: formData.ramal,
+                email: emailFull,
+                tipo: formData.tipo,
+                mensagem: formData.mensagem
+            };
+
+            const { error } = await supabase.from('ceic_suporte').insert([payload]);
+            if (error) throw error;
+
+            showNotification('success', 'Mensagem enviada com sucesso! A equipe de suporte analisará em breve.');
+            setFormData({ ...formData, emailPrefix: '', ramal: '', tipo: 'Dúvida', mensagem: '' });
+        } catch (error) {
+            console.error('Erro ao enviar suporte:', error);
+            showNotification('error', 'Erro ao enviar a mensagem. Tente novamente mais tarde.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="max-w-3xl mx-auto p-4 sm:p-6 animate-fade-in pb-24">
+            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2 mb-6">
+                <HelpCircle className="text-blue-600" /> Suporte Técnico
+            </h2>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <p className="text-gray-600 mb-6">Utilize este canal para encaminhar dúvidas, sugestões, elogios ou relatar problemas no sistema. Nossas equipes analisarão seu chamado o mais breve possível.</p>
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl mb-6 flex items-start gap-3">
+                    <AlertCircle className="shrink-0 mt-0.5 text-yellow-600" size={20} />
+                    <div>
+                        <p className="font-bold text-sm mb-1">Horário de Atendimento: Segunda a sexta das 06h às 16h.</p>
+                        <p className="text-sm">Fora do horário de atendimento e em casos de urgência/emergência, entre em contato com a CEIC através dos ramais <strong>6638</strong> ou <strong>6601</strong>.</p>
+                    </div>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="label">Nome Completo *</label>
+                            <input type="text" className="input" value={formData.nome} onChange={e => setFormData({ ...formData, nome: e.target.value })} required />
+                        </div>
+                        <div>
+                            <label className="label">Unidade / Setor *</label>
+                            <input type="text" className="input bg-gray-100 text-gray-500 cursor-not-allowed" value={formData.unidade} disabled />
+                        </div>
+                        <div>
+                            <label className="label">Ramal</label>
+                            <input type="text" className="input" value={formData.ramal} onChange={e => setFormData({ ...formData, ramal: e.target.value })} placeholder="Ex: 9999" />
+                        </div>
+                        <div>
+                            <label className="label">E-mail Institucional *</label>
+                            <div className="flex">
+                                <input type="text" className="input rounded-r-none border-r-0 focus:z-10 focus:ring-1" value={formData.emailPrefix} onChange={e => setFormData({ ...formData, emailPrefix: e.target.value.replace(/@.*/, '') })} placeholder="seunome" required />
+                                <span className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">@hc.fm.usp.br</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="label">Tipo de Mensagem *</label>
+                        <select className="input h-[50px]" value={formData.tipo} onChange={e => setFormData({ ...formData, tipo: e.target.value })} required>
+                            <option value="Dúvida">Dúvida</option>
+                            <option value="Sugestão">Sugestão</option>
+                            <option value="Elogio">Elogio</option>
+                            <option value="Problema">Problema / Falha</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="label">Mensagem *</label>
+                        <textarea className="input min-h-[120px] resize-y py-3" value={formData.mensagem} onChange={e => setFormData({ ...formData, mensagem: e.target.value })} placeholder="Descreva aqui sua demanda detalhadamente..." required></textarea>
+                    </div>
+                    <div className="pt-4">
+                        <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                            <Send size={18} /> {isSubmitting ? 'Enviando...' : 'Enviar Mensagem'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// Componente Gerencial de Leitura de Suporte
+const AdminSupportView = ({ userProfile, showNotification }) => {
+    const [chamados, setChamados] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [respostas, setRespostas] = useState({});
+
+    const fetchChamados = async () => {
+        setLoading(true);
+        const { data, error } = await supabase.from('ceic_suporte').select('*').order('criado_em', { ascending: false });
+        if (!error && data) setChamados(data);
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchChamados();
+    }, []);
+
+    const getTagStyle = (tipo) => {
+        switch (tipo) {
+            case 'Problema': return 'bg-red-100 text-red-800 border-red-200';
+            case 'Elogio': return 'bg-green-100 text-green-800 border-green-200';
+            case 'Sugestão': return 'bg-purple-100 text-purple-800 border-purple-200';
+            default: return 'bg-blue-100 text-blue-800 border-blue-200'; // Dúvida
+        }
+    };
+
+    const handleSalvarAtendimento = async (id) => {
+        const resposta = respostas[id];
+        if (!resposta || resposta.trim() === '') {
+            showNotification('error', 'Preencha o que foi feito antes de salvar.');
+            return;
+        }
+
+        const payload = {
+            atendido_em: new Date().toISOString(),
+            atendido_por: userProfile?.name || userProfile?.login || 'Admin',
+            resposta: resposta.trim()
+        };
+
+        const { error } = await supabase.from('ceic_suporte').update(payload).eq('id', id);
+        
+        if (error) {
+            showNotification('error', 'Erro ao salvar o atendimento.');
+        } else {
+            showNotification('success', 'Atendimento registrado com sucesso!');
+            fetchChamados(); // recarrega a lista
+        }
+    };
+
+    return (
+        <div className="max-w-6xl mx-auto p-4 sm:p-6 animate-fade-in pb-24">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <LifeBuoy className="text-purple-600" /> Chamados de Suporte
+                </h2>
+                <button onClick={fetchChamados} className="p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200" title="Atualizar">
+                    <Activity size={18} />
+                </button>
+            </div>
+            
+            {loading ? (
+                <div className="text-center p-12 text-gray-400">Carregando chamados...</div>
+            ) : chamados.length === 0 ? (
+                <div className="text-center p-12 text-gray-400 bg-white rounded-2xl shadow-sm border border-gray-100">Nenhum chamado de suporte registrado.</div>
+            ) : (
+                <div className="space-y-4">
+                    {chamados.map(c => (
+                        <div key={c.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="font-bold text-gray-800 text-lg">{c.nome} <span className="text-sm font-normal text-gray-500">({c.unidade})</span></h3>
+                                    <p className="text-sm text-gray-500">{c.email} {c.ramal ? `| Ramal: ${c.ramal}` : ''}</p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className={`text-xs font-bold px-2 py-1 rounded border ${getTagStyle(c.tipo)}`}>{c.tipo}</span>
+                                    <span className="text-xs text-gray-400">{new Date(c.criado_em).toLocaleString('pt-BR')}</span>
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-gray-700 whitespace-pre-wrap">
+                                {c.mensagem}
+                            </div>
+                            
+                            <div className="mt-2 border-t pt-4">
+                                {c.atendido_em ? (
+                                    <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+                                        <div className="flex items-center gap-2 mb-2 text-green-800 font-bold text-sm">
+                                            <CheckCircle size={16} /> 
+                                            Atendido por {c.atendido_por} em {new Date(c.atendido_em).toLocaleString('pt-BR')}
+                                        </div>
+                                        <p className="text-gray-700 text-sm whitespace-pre-wrap mt-2">{c.resposta}</p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-sm font-bold text-gray-600 flex items-center gap-2"><CheckCircle size={16}/> Registrar Atendimento:</label>
+                                        <textarea 
+                                            className="input text-sm min-h-[80px]" 
+                                            placeholder="O que foi feito para resolver este chamado?"
+                                            value={respostas[c.id] || ''}
+                                            onChange={(e) => setRespostas({...respostas, [c.id]: e.target.value})}
+                                        ></textarea>
+                                        <div className="flex justify-end mt-2">
+                                            <button 
+                                                onClick={() => handleSalvarAtendimento(c.id)}
+                                                className="px-4 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-2"
+                                            >
+                                                <CheckCircle size={16} /> Salvar Atendimento
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const AdminUsersView = ({ onLogout }) => {
     const [users, setUsers] = useState([]);
     const [search, setSearch] = useState('');
@@ -5053,7 +5279,8 @@ const AdminUsersView = ({ onLogout }) => {
             const payload = {
                 login: norm(formData.login),
                 perfil: norm(formData.perfil),
-                setor_nome: norm(formData.setor_nome)
+                setor_nome: norm(formData.setor_nome),
+                nome: norm(formData.setor_nome)
             };
 
             if (formData.senha) payload.senha = formData.senha; // Só atualiza senha se preencheu
@@ -6744,6 +6971,8 @@ function App() {
                     />
                 )}
                 {currentView === 'admin_users' && <AdminUsersView onLogout={handleLogout} />}
+                {currentView === 'suporte_tecnico' && <SupportView userProfile={userProfile} showNotification={showNotification} />}
+                {currentView === 'admin_suporte' && <AdminSupportView userProfile={userProfile} showNotification={showNotification} />}
             </main>
         </div >
     );
