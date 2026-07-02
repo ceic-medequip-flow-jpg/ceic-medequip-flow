@@ -1686,6 +1686,25 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
         setCancelModalData(null);
     };
 
+    const [receiptModalData, setReceiptModalData] = useState(null);
+
+    const openReceiptModal = (req) => {
+        setReceiptModalData({
+            req,
+            name: '',
+            badge: ''
+        });
+    };
+
+    const confirmReceipt = () => {
+        if (!receiptModalData.name.trim() || !receiptModalData.badge.trim()) {
+            showNotification('error', 'Preencha nome e matrícula para receber o equipamento.');
+            return;
+        }
+        onConfirmTransfer(receiptModalData.req, null, { name: receiptModalData.name, badge: receiptModalData.badge });
+        setReceiptModalData(null);
+    };
+
     const renderCancelModal = () => {
         if (!cancelModalData) return null;
         return createPortal(
@@ -1726,6 +1745,48 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                         <button onClick={() => setCancelModalData(null)} className="flex-1 py-2.5 text-gray-600 font-bold bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">Voltar</button>
                         <button onClick={confirmCancel}
                             className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200">Confirmar</button>
+                    </div>
+                </div>
+            </div>,
+            document.body
+        );
+    };
+
+    const renderReceiptModal = () => {
+        if (!receiptModalData) return null;
+        return createPortal(
+            <div className="modal-overlay z-50">
+                <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-fade-in border border-green-100 max-h-[85vh] overflow-y-auto">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-bold text-green-600 flex items-center gap-2">
+                            <CheckCircle size={20} /> Confirmar Recebimento
+                        </h3>
+                        <button onClick={() => setReceiptModalData(null)} className="text-gray-400 hover:text-gray-600">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg mb-5 text-sm text-green-800 border border-green-200">
+                        <p><span className="font-bold">Item:</span> {receiptModalData.req.equipmentType}</p>
+                        <p className="font-mono text-lg font-bold mt-1">TAG(s): {receiptModalData.req.equipmentTag}</p>
+                        <p className="text-green-600 mt-2 text-xs">A CEIC informou a entrega deste equipamento na sua unidade. Confirme o recebimento abaixo.</p>
+                    </div>
+                    <div className="space-y-4 mb-6">
+                        <div>
+                            <label className="label text-gray-700">Seu Nome *</label>
+                            <input className="input border-gray-300 focus:border-green-500 focus:ring-green-500"
+                                value={receiptModalData.name} onChange={e => setReceiptModalData({ ...receiptModalData, name: e.target.value })}
+                                required placeholder="Responsável pelo recebimento" />
+                        </div>
+                        <div>
+                            <label className="label text-gray-700">Sua Matrícula *</label>
+                            <input className="input border-gray-300 focus:border-green-500 focus:ring-green-500"
+                                value={receiptModalData.badge} onChange={e => setReceiptModalData({ ...receiptModalData, badge: e.target.value })}
+                                required placeholder="Ex: 12345" />
+                        </div>
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={() => setReceiptModalData(null)} className="flex-1 py-2.5 text-gray-600 font-bold bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">Voltar</button>
+                        <button onClick={confirmReceipt} className="flex-1 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-200">Confirmar</button>
                     </div>
                 </div>
             </div>,
@@ -1819,7 +1880,7 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                                                                         <Package size={18} className="animate-pulse shrink-0" /> 
                                                                         <span>AGUARDANDO CONFIRMAÇÃO... <span className="ml-1 font-mono bg-white px-2 py-0.5 rounded text-green-900 border border-green-300 shadow-sm">TAG(s): {req.equipmentTag}</span></span>
                                                                     </div>
-                                                                    <button onClick={() => onConfirmTransfer(req)} className="px-3 py-1.5 bg-green-600 text-white font-bold rounded-lg shadow-sm text-xs hover:bg-green-700 transition-colors flex items-center gap-2">
+                                                                    <button onClick={() => openReceiptModal(req)} className="px-3 py-1.5 bg-green-600 text-white font-bold rounded-lg shadow-sm text-xs hover:bg-green-700 transition-colors flex items-center gap-2">
                                                                         <CheckCircle size={16} /> Confirmar Recebimento
                                                                     </button>
                                                                 </div>
@@ -1921,6 +1982,7 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                 )}
             </div>
             {renderCancelModal()}
+            {renderReceiptModal()}
         </div>
     );
 };
@@ -6601,7 +6663,7 @@ function App() {
         }
     };
 
-    const handleConfirmTransfer = async (itemOrReq, optPedido) => {
+    const handleConfirmTransfer = async (itemOrReq, optPedido, receiverData = {}) => {
         try {
             let tagsToConfirm = [];
             let pedidoId = null;
@@ -6640,6 +6702,21 @@ function App() {
                     dica: equipError.hint
                 });
                 throw equipError;
+            }
+
+            // Registrar rastreabilidade do recebedor
+            for (const tag of tagsToConfirm) {
+                const eq = inventory.find(i => normUpper(i.tag) === normUpper(tag));
+                if (eq) {
+                    await registrarLogMovimentacao(
+                        eq.id,
+                        'Em Trânsito',
+                        userProfile?.login,
+                        pedidoObj?.patient_mv || null,
+                        receiverData.name ? `${receiverData.name} (Mat: ${receiverData.badge})` : null,
+                        'Equipamento Recebido'
+                    );
+                }
             }
 
             // 2. Atualiza o Pedido (se houver pedido ativo):
@@ -6731,6 +6808,16 @@ function App() {
             }
 
             showNotification('success', 'Recebimento confirmado! Equipamento alocado com sucesso.');
+
+            // Registrar rastreabilidade do recebedor
+            await registrarLogMovimentacao(
+                item.id,
+                'Em Trânsito',
+                destinationSector,
+                null,
+                `${collaboratorName} (Mat: ${collaboratorBadge})`,
+                'Equipamento Recebido via Remanejamento'
+            );
 
             const requestToComplete = requests.find(r =>
                 r.status === 'approved' && splitTagList(r.equipmentTag).includes(normUpper(equipmentTag))
