@@ -661,6 +661,9 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
     const [filter, setFilter] = useState('all');
     // (fix) soundEnabled vem do App via props
     const pending = requests.filter(r => {
+        // Ignorar pedidos que são transferências de remanejamento (possuem transfer_to definido)
+        if (r.status === 'in_transfer' && r.transfer_to) return false;
+        
         if (r.status === 'pending' || r.status === 'waitlisted' || r.status === 'pickup_requested' || r.status === 'in_transfer') return true;
         return false;
     });
@@ -907,9 +910,18 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
     const [availableTags, setAvailableTags] = useState([]);
 
     const isCapnografia = normUpper(req.equipmentType) === 'MODULO DE CAPNOGRAFIA + CABO' || normUpper(req.equipmentType) === 'MODULO DE CAPNOGRAFIA';
-    const isMultiTag = isCapnografia;
+    const isAltoFluxo = normUpper(req.equipmentType) === 'ALTO FLUXO';
+    const isInvasivo = normUpper(req.equipmentType) === 'VENTILADOR PULMONAR INVASIVO';
+    const isMultiTag = isCapnografia || isAltoFluxo || isInvasivo;
     
-    const multiTagItemsList = isCapnografia ? ['MÓDULO DE CAPNOGRAFIA', 'CABO DE CAPNOGRAFIA', 'CÉLULA DE CAPNOGRAFIA'] : [];
+    let multiTagItemsList = [];
+    if (isCapnografia) multiTagItemsList = ['MÓDULO DE CAPNOGRAFIA', 'CABO DE CAPNOGRAFIA', 'CÉLULA DE CAPNOGRAFIA'];
+    if (isAltoFluxo) multiTagItemsList = ['ALTO FLUXO', 'UMIDIFICADOR'];
+    if (isInvasivo) {
+        multiTagItemsList = ['VENTILADOR PULMONAR INVASIVO', 'CASSETE EXPIRATÓRIO'];
+        const hasUmidificacaoAtiva = Array.isArray(req.accessories) && req.accessories.some(a => String(a || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('UMIDIFICACAO ATIVA'));
+        if (hasUmidificacaoAtiva) multiTagItemsList.push('UMIDIFICADOR');
+    }
     
 
     useEffect(() => {
@@ -1270,6 +1282,10 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                                     ) : req.status === 'pickup_requested' ? (
                                         <button onClick={() => onProcessPickup(req)} className="w-full h-[44px] px-4 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 flex items-center justify-center shadow-sm">
                                             <ClipboardList size={18} className="mr-2" /> Devolução/Triagem
+                                        </button>
+                                    ) : String(req.equipmentType || '').trim().toUpperCase() === 'APENAS ACESSÓRIOS' || String(req.equipmentType || '').trim().toUpperCase() === 'APENAS ACESSORIOS' ? (
+                                        <button onClick={() => onFulfill(req, 'ACESSORIOS')} className="w-full h-[44px] px-4 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 flex items-center justify-center shadow-sm">
+                                            <BadgeCheck size={18} className="mr-2" /> Concluir Entrega de Acessórios
                                         </button>
                                     ) : isMultiTag ? (
                                         <div className="flex flex-col gap-3">
@@ -1799,8 +1815,9 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                                                         if (isReceiver) {
                                                             return (
                                                                 <div className="mt-3 bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg text-sm flex flex-col md:flex-row md:items-center justify-between gap-3 animate-fade-in shadow-sm font-bold">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Package size={18} className="animate-pulse" /> EQUIPAMENTO AGUARDANDO CONFIRMAÇÃO...
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <Package size={18} className="animate-pulse shrink-0" /> 
+                                                                        <span>AGUARDANDO CONFIRMAÇÃO... <span className="ml-1 font-mono bg-white px-2 py-0.5 rounded text-green-900 border border-green-300 shadow-sm">TAG(s): {req.equipmentTag}</span></span>
                                                                     </div>
                                                                     <button onClick={() => onConfirmTransfer(req)} className="px-3 py-1.5 bg-green-600 text-white font-bold rounded-lg shadow-sm text-xs hover:bg-green-700 transition-colors flex items-center gap-2">
                                                                         <CheckCircle size={16} /> Confirmar Recebimento
@@ -2153,8 +2170,14 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
             let catalogo_id = selectedCatItem?.id || null;
             finalEquip = String(subType || '').trim().toUpperCase();
 
-            const normalizedSubType = norm(subType);
-            const ventTypeConfig = equipmentCatalog.VENTILATORIA.types[normalizedSubType];
+            const isAccessoryOnly = norm(subType) === 'APENAS ACESSORIOS';
+            if (isAccessoryOnly && !accessoryItem) {
+                showNotification('error', 'Selecione para qual equipamento deseja os acessórios.');
+                return null;
+            }
+
+            const activeTypeForAccessories = isAccessoryOnly ? norm(accessoryItem) : norm(subType);
+            const ventTypeConfig = equipmentCatalog.VENTILATORIA.types[activeTypeForAccessories];
             const hasAccessories = ventTypeConfig && ventTypeConfig.accessories && ventTypeConfig.accessories.length > 0;
 
             if (hasAccessories) {
@@ -2163,6 +2186,9 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     return null;
                 }
                 finalDetails = `Itens/Acessórios: ${selectedVentAccessories.join(', ')}`;
+                if (isAccessoryOnly) {
+                    finalDetails = `Para ${accessoryItem} - ` + finalDetails;
+                }
                 if (ventObservation && ventObservation.trim() !== '') {
                     finalDetails += ` | Obs: ${ventObservation.trim()}`;
                 }
@@ -2306,10 +2332,20 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                         .toUpperCase();
 
                     const optionsDropdown = (ventilatoryCatalog || []).map(item => ({ value: item.nome_oficial, label: item.nome_oficial }));
+                    optionsDropdown.push({ value: 'APENAS ACESSÓRIOS', label: 'Apenas Acessórios (Avulsos)' });
 
-                    const normalizedSubType = norm(subType);
-                    const ventTypeConfig = equipmentCatalog.VENTILATORIA.types[normalizedSubType];
+                    const isAccessoryOnly = norm(subType) === 'APENAS ACESSORIOS';
+                    // Se for apenas acessórios, buscamos a config baseada na seleção do menu de acessórios, caso contrário, do subType principal
+                    const activeTypeForAccessories = isAccessoryOnly ? norm(accessoryItem) : norm(subType);
+                    const ventTypeConfig = equipmentCatalog.VENTILATORIA.types[activeTypeForAccessories];
                     const hasAccessories = ventTypeConfig && ventTypeConfig.accessories && ventTypeConfig.accessories.length > 0;
+
+                    const accessoryDeviceOptions = [
+                        { value: 'VENTILADOR PULMONAR NAO INVASIVO', label: 'Ventilador Pulmonar Não Invasivo' },
+                        { value: 'VENTILADOR PULMONAR INVASIVO', label: 'Ventilador Pulmonar Invasivo' },
+                        { value: 'ALTO FLUXO', label: 'Alto fluxo' },
+                        { value: 'GERADOR DE FLUXO', label: 'Gerador de fluxo' }
+                    ];
 
                     return (
                         <div className="space-y-4 animate-fade-in">
@@ -2323,8 +2359,19 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                                     }}
                                         options={optionsDropdown} placeholder="Selecione o tipo..." />
                                 </div>
+                                
+                                {isAccessoryOnly && (
+                                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 animate-fade-in relative z-20">
+                                        <label className="label text-yellow-800 font-bold mb-2">Para qual equipamento você precisa de acessórios?</label>
+                                        <SearchDropdown value={accessoryItem} onChange={(val) => {
+                                            setAccessoryItem(val);
+                                            setSelectedHighFlowItems([]); setSelectedVentAccessories([]); setVentObservation('');
+                                        }}
+                                            options={accessoryDeviceOptions} placeholder="Selecione o equipamento alvo..." className="bg-white" />
+                                    </div>
+                                )}
 
-                                {hasAccessories && (
+                                {(hasAccessories && (!isAccessoryOnly || accessoryItem)) && (
                                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 animate-fade-in">
                                         <label className="label text-blue-800 font-bold mb-3">Selecione os itens desejados:</label>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -3221,11 +3268,11 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                 <X className="text-gray-400 hover:text-gray-700" />
                             </button>
                         </div>
-                        <div className="bg-blue-50 p-3 rounded-lg mb-4 text-sm text-blue-800 border border-blue-200">
-                            <p className="font-bold">{selectedItem?.model}</p>
-                            <p className="font-mono">{selectedItem?.tag}</p>
-                            <p className="text-blue-600 mt-1 text-xs">A CEIC informou a entrega deste equipamento na sua
-                                unidade.</p>
+                        <div className="bg-blue-50 p-4 rounded-lg mb-4 text-sm text-blue-800 border border-blue-200">
+                            <p className="font-bold text-base mb-2">{selectedItem?.type || 'Equipamento'} {selectedItem?.model ? `- ${selectedItem.model}` : ''}</p>
+                            <p className="font-mono text-xl font-bold my-2 text-blue-900 bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm inline-block">TAG: {selectedItem?.tag}</p>
+                            <p className="text-blue-600 mt-2 text-xs">A CEIC informou a entrega deste equipamento na sua
+                                unidade. Confirme o recebimento abaixo.</p>
                         </div>
                         <div className="space-y-4 mb-6">
                             <div><label className="label text-gray-700">Seu Nome *</label><input
@@ -5832,6 +5879,36 @@ function App() {
     };
 
     const handleFulfillRequest = async (request, tagInput) => {
+        const isAccessoryOnly = String(request.equipmentType || '').trim().toUpperCase() === 'APENAS ACESSÓRIOS' || String(request.equipmentType || '').trim().toUpperCase() === 'APENAS ACESSORIOS';
+
+        if (isAccessoryOnly) {
+            try {
+                const arrivalTime = new Date().toISOString();
+                const { data, error } = await supabase
+                    .from('pedidos')
+                    .update({
+                        status: 'in_transfer',
+                        equipment_tag: 'ACESSÓRIOS (S/ TAG)',
+                        arrival_time: arrivalTime,
+                        fulfilled_at: new Date().toISOString()
+                    })
+                    .eq('id', request.id)
+                    .select();
+
+                if (error || !data || data.length === 0) throw new Error('Falha ao atualizar pedido de acessórios');
+
+                await registrarLogPedido(request.id, request.status, 'in_transfer');
+
+                const updatedReq = mapPedido(data[0]);
+                setRequests(prev => prev.map(r => r.id === request.id ? updatedReq : r));
+
+                showNotification('success', 'Entrega de acessórios registrada com sucesso!');
+            } catch (error) {
+                showNotification('error', `Falha ao registrar entrega: ${error.message}`);
+            }
+            return;
+        }
+
         if (!tagInput || tagInput.length === 0) {
             showNotification('error', 'Por favor, insira a(s) TAG(s) do equipamento.');
             return;
@@ -5843,7 +5920,18 @@ function App() {
 
         // Extrai e normaliza os tipos de equipamento requeridos para validação estrutural.
         let expectedTypes = [];
-        expectedTypes = [normUpper(request.equipmentType)];
+        const normEqType = normUpper(request.equipmentType);
+        if (normEqType.includes('CAPNOGRAFIA')) {
+            expectedTypes = ['MODULO DE CAPNOGRAFIA', 'CABO DE CAPNOGRAFIA', 'CELULA DE CAPNOGRAFIA'];
+        } else if (normEqType === 'ALTO FLUXO') {
+            expectedTypes = ['ALTO FLUXO', 'UMIDIFICADOR'];
+        } else if (normEqType === 'VENTILADOR PULMONAR INVASIVO') {
+            expectedTypes = ['VENTILADOR PULMONAR INVASIVO', 'CASSETE EXPIRATORIO'];
+            const hasUmidificacaoAtiva = Array.isArray(request.accessories) && request.accessories.some(a => normUpper(a).includes('UMIDIFICACAO ATIVA'));
+            if (hasUmidificacaoAtiva) expectedTypes.push('UMIDIFICADOR');
+        } else {
+            expectedTypes = [normEqType];
+        }
 
         for (let i = 0; i < tagsArray.length; i++) {
             const cleanTag = normUpper(tagsArray[i]);
