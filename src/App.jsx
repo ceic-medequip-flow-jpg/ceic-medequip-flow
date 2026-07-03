@@ -156,6 +156,7 @@ const mapPedido = (raw) => {
         accessories: Array.isArray(raw.accessories) ? raw.accessories : (raw.accessories ? [raw.accessories] : []),
         isUrgent: !!(raw.is_urgent || raw.isUrgent || raw.isurgent),
         isWaitlisted: !!(raw.is_waitlisted || raw.isWaitlisted || raw.iswaitlisted || raw.status === 'waitlisted'),
+        waitlistTime: raw.waitlist_time || raw.waitlistTime || raw.waitlisttime || null,
         extension: raw.extension || '-',
         notificationMessage: raw.notification_message || raw.notificationMessage || raw.notificationmessage || null,
         notificationType: raw.notification_type || raw.notificationType || raw.notificationtype || null,
@@ -1863,7 +1864,12 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                                                 <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                                                     <span className="flex items-center gap-1">
                                                         <User size={12} /> <span data-testid="request-patient-name">{req.patientName}</span>
-                                                        {req.patient_mv && <span data-testid="request-patient-mv" className="ml-2 font-mono bg-gray-100 px-1 rounded text-[10px]">MV: {req.patient_mv}</span>}
+                                                        {(req.patient_mv || req.patientBed) && (
+                                                            <span data-testid="request-patient-mv" className="ml-2 font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">
+                                                                {req.patient_mv ? `MV: ${req.patient_mv}` : 'MV: N/D'}
+                                                                {req.patientBed ? ` | Leito/Sala: ${req.patientBed}` : ''}
+                                                            </span>
+                                                        )}
                                                     </span>
                                                     <span className="flex items-center gap-1">
                                                         <Clock size={12} /> {new Date(req.timestamp).toLocaleTimeString()}
@@ -2012,56 +2018,166 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
     );
 };
 
-const AdminEntregaWrapper = ({ onCreateRequest, showNotification, onBack, adminProfile, equipmentCatalog, ventilatoryCatalog, generalCatalog, transportCatalog, fullCatalog }) => {
-    const [selectedSector, setSelectedSector] = useState('');
+const AdminDirectDeliveryForm = ({ onDirectDelivery, showNotification, inventory, unidades, sectorLogin, onBack }) => {
+    const [tag, setTag] = useState('');
+    const [patientMV, setPatientMV] = useState('');
+    const [patientBed, setPatientBed] = useState('');
+    const [patientName, setPatientName] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
-    if (!selectedSector) {
-        return (
-            <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 animate-fade-in">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <Truck className="text-blue-600" /> Nova Entrega Ativa
-                    </h2>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6 flex items-start gap-3">
-                        <Truck className="text-blue-600 shrink-0 mt-0.5" />
-                        <p className="text-sm text-blue-800">
-                            A <strong>Entrega Ativa</strong> permite que a Gestão crie uma solicitação oficial de equipamento
-                            para um setor. O pedido cairá na fila da <strong>Equipe Operacional</strong> para ser atendido e
-                            entregue.
-                        </p>
-                    </div>
-                    <label className="label text-gray-700">Selecione o Setor de Destino *</label>
-                    <select className="input mb-4 h-[50px] font-medium" value={selectedSector} onChange={e =>
-                        setSelectedSector(e.target.value)}>
-                        <option value="">Selecione o setor...</option>
-                        {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
-                </div>
-            </div>
-        );
-    }
+    const availableEquipment = useMemo(() => {
+        return inventory.filter(e => ['CEIC', 'ESTOQUE CENTRAL'].includes(e.location) && ['available', 'in_use', 'allocated'].includes(e.status))
+            .sort((a, b) => a.tag.localeCompare(b.tag));
+    }, [inventory]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!tag || !sectorLogin) {
+            showNotification('error', 'Preencha a TAG e o Setor de Destino.');
+            return;
+        }
+        setSubmitting(true);
+        await onDirectDelivery({ tag, destinationSector: sectorLogin, patientMV, patientBed, patientName });
+        setSubmitting(false);
+        setTag(''); setPatientMV(''); setPatientBed(''); setPatientName('');
+    };
+
+    const sectorName = unidades?.find(u => u.login === sectorLogin)?.nome || sectorLogin;
 
     return (
         <div className="animate-fade-in">
-            <div
-                className="w-full max-w-screen-xl mx-auto mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm gap-3">
+            <div className="w-full max-w-screen-xl mx-auto mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-purple-50 p-4 rounded-xl border border-purple-200 shadow-sm gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                    <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
                         <Truck size={20} />
                     </div>
                     <div>
-                        <span className="text-xs text-blue-600 font-bold uppercase block">Entrega Ativa para o Setor</span>
-                        <span className="text-lg font-black text-blue-900">{selectedSector}</span>
+                        <span className="text-xs text-purple-600 font-bold uppercase block">Entrega Direta para o Setor</span>
+                        <span className="text-lg font-black text-purple-900">{sectorLogin} - {sectorName}</span>
                     </div>
                 </div>
-                <button onClick={() => setSelectedSector('')} className="text-sm font-bold text-blue-600 hover:text-blue-800 underline transition-colors">Alterar Setor</button>
+                <button onClick={onBack} className="text-sm font-bold text-purple-600 hover:text-purple-800 underline transition-colors">Alterar Setor</button>
             </div>
-            <NewRequestForm onCreateRequest={onCreateRequest} showNotification={showNotification}
-                sectorSelo={selectedSector} onBack={() => setSelectedSector('')}
-                adminProfile={adminProfile} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} fullCatalog={fullCatalog}
-            />
+            
+            <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="label">TAG do Equipamento (Apenas disponíveis) *</label>
+                        <SearchDropdown 
+                            value={tag} 
+                            onChange={setTag}
+                            options={availableEquipment.map(eq => ({ value: eq.tag, label: `${eq.tag} - ${eq.type || eq.model}` }))}
+                            placeholder="Selecione ou busque a TAG do equipamento..."
+                            className="border-gray-300 h-[50px] font-medium"
+                        />
+                    </div>
+                    <div>
+                        <label className="label">Nome do Paciente (Opcional)</label>
+                        <input type="text" className="input" value={patientName} onChange={e => setPatientName(e.target.value)} />
+                    </div>
+                    <div>
+                        <label className="label">MV do Paciente (Opcional)</label>
+                        <input type="text" className="input" value={patientMV} onChange={e => setPatientMV(e.target.value.replace(/\D/g, ''))} />
+                    </div>
+                    <div>
+                        <label className="label">Leito / Sala (Opcional)</label>
+                        <input type="text" className="input" value={patientBed} onChange={e => setPatientBed(e.target.value)} />
+                    </div>
+                </div>
+                <div className="mt-8 flex justify-end">
+                    <button type="submit" disabled={submitting} className="btn-primary flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50 shadow-md">
+                        <Truck size={20} /> {submitting ? 'Registrando...' : 'Realizar Entrega Direta'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+const AdminEntregaWrapper = ({ onCreateRequest, showNotification, onBack, adminProfile, equipmentCatalog, ventilatoryCatalog, generalCatalog, transportCatalog, fullCatalog, inventory, unidades, onDirectDelivery }) => {
+    const [activeTab, setActiveTab] = useState('nova_solicitacao');
+    const [selectedSector, setSelectedSector] = useState('');
+    const [selectedDirectSector, setSelectedDirectSector] = useState('');
+
+    return (
+        <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 animate-fade-in">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <Truck className="text-blue-600" /> Entrega de Equipamentos
+                </h2>
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button onClick={() => setActiveTab('nova_solicitacao')}
+                        className={`px-4 py-2 rounded-md font-bold text-sm transition-colors ${activeTab === 'nova_solicitacao' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                        Nova Solicitação (Equipe CEIC)
+                    </button>
+                    <button onClick={() => setActiveTab('entrega_direta')}
+                        className={`px-4 py-2 rounded-md font-bold text-sm transition-colors ${activeTab === 'entrega_direta' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                        Entregar Equipamento
+                    </button>
+                </div>
+            </div>
+
+            {activeTab === 'nova_solicitacao' ? (
+                <>
+                    {!selectedSector ? (
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 animate-fade-in">
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6 flex items-start gap-3">
+                                <Truck className="text-blue-600 shrink-0 mt-0.5" />
+                                <p className="text-sm text-blue-800">
+                                    A <strong>Nova Solicitação</strong> permite que a Gestão crie um pedido oficial para um setor. O pedido cairá na fila da <strong>Equipe Operacional</strong> para ser atendido e entregue.
+                                </p>
+                            </div>
+                            <label className="label text-gray-700">Selecione o Setor de Destino *</label>
+                            <select className="input mb-4 h-[50px] font-medium" value={selectedSector} onChange={e => setSelectedSector(e.target.value)}>
+                                <option value="">Selecione o setor...</option>
+                                {(unidades || []).filter(u => u.login !== 'CEIC').map(u => (
+                                    <option key={u.login} value={u.login}>{u.login} - {u.nome}</option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : (
+                        <div className="animate-fade-in">
+                            <div className="w-full max-w-screen-xl mx-auto mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm gap-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                                        <Truck size={20} />
+                                    </div>
+                                    <div>
+                                        <span className="text-xs text-blue-600 font-bold uppercase block">Solicitação para o Setor</span>
+                                        <span className="text-lg font-black text-blue-900">{selectedSector} - {unidades?.find(u => u.login === selectedSector)?.nome || ''}</span>
+                                    </div>
+                                </div>
+                                <button onClick={() => setSelectedSector('')} className="text-sm font-bold text-blue-600 hover:text-blue-800 underline transition-colors">Alterar Setor</button>
+                            </div>
+                            <NewRequestForm onCreateRequest={onCreateRequest} showNotification={showNotification}
+                                sectorSelo={selectedSector} onBack={() => setSelectedSector('')}
+                                adminProfile={adminProfile} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} fullCatalog={fullCatalog} />
+                        </div>
+                    )}
+                </>
+            ) : (
+                <>
+                    {!selectedDirectSector ? (
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 animate-fade-in">
+                            <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 mb-6 flex items-start gap-3">
+                                <Truck className="text-purple-600 shrink-0 mt-0.5" />
+                                <p className="text-sm text-purple-800">
+                                    A <strong>Entrega Direta</strong> permite que a Gestão transfira um equipamento diretamente para um setor logado, gerando um pedido automático que cairá na fila da unidade para Confirmação de Recebimento.
+                                </p>
+                            </div>
+                            <label className="label text-gray-700">Selecione o Login de Destino (Setor) *</label>
+                            <select className="input mb-4 h-[50px] font-medium border-purple-200 focus:border-purple-500" value={selectedDirectSector} onChange={e => setSelectedDirectSector(e.target.value)}>
+                                <option value="">Selecione o setor...</option>
+                                {(unidades || []).filter(u => u.login !== 'CEIC').map(u => (
+                                    <option key={u.login} value={u.login}>{u.login} - {u.nome}</option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : (
+                        <AdminDirectDeliveryForm onDirectDelivery={onDirectDelivery} showNotification={showNotification} inventory={inventory} unidades={unidades} sectorLogin={selectedDirectSector} onBack={() => setSelectedDirectSector('')} />
+                    )}
+                </>
+            )}
         </div>
     );
 };
@@ -5627,6 +5743,7 @@ function App() {
     const [ventilatoryCatalog, setVentilatoryCatalog] = useState([]);
     const [generalCatalog, setGeneralCatalog] = useState([]);
     const [fullCatalog, setFullCatalog] = useState([]);
+    const [unidades, setUnidades] = useState([]);
 
     // =========================================================
     // MOTORES DE LOGS PARA HISTÓRICOS E DASHBOARDS (BI)
@@ -5753,6 +5870,17 @@ function App() {
             } catch (err) {
                 console.error('Erro de conexão ao buscar catalogo_equipamentos', err);
             }
+            try {
+                const { data: uniData, error: uniError } = await supabase.from('ceic_usuarios').select('login, nome').order('login', { ascending: true });
+                if (uniData && !uniError) {
+                    setUnidades(uniData);
+                } else if (uniError) {
+                    console.error("Erro ao buscar unidades:", uniError);
+                }
+            } catch (err) {
+                console.error("Erro de conexão ao buscar unidades", err);
+            }
+
             setIsLoading(false);
         };
 
@@ -5994,6 +6122,63 @@ function App() {
         } catch (error) {
             console.error('Erro detalhado em handleCreateRequest:', error);
             showNotification('error', `Falha ao enviar pedido: ${error.message || 'Erro desconhecido'}`);
+        }
+    };
+
+    const handleDirectDelivery = async (deliveryData) => {
+        try {
+            const { tag, destinationSector, patientMV, patientBed, patientName } = deliveryData;
+            
+            const equipment = inventory.find(e => normUpper(e.tag) === normUpper(tag));
+            if (!equipment) {
+                showNotification('error', `Equipamento com TAG ${tag} não encontrado no inventário.`);
+                return;
+            }
+            if (!['CEIC', 'ESTOQUE CENTRAL'].includes(equipment.location) || !['available', 'in_use', 'allocated'].includes(equipment.status)) {
+                showNotification('error', `Equipamento ${tag} não está disponível na CEIC (Local: ${equipment.location}, Status: ${equipment.status}).`);
+                return;
+            }
+
+            const now = new Date().toISOString();
+            
+            const dbPayload = {
+                status: 'in_transfer',
+                kind: 'equipment_request',
+                equipment_type: equipment.type || equipment.model || 'EQUIPAMENTO',
+                requester_name: userProfile?.name || 'Gestão CEIC',
+                requester_badge: userProfile?.login || '00000',
+                sector: destinationSector,
+                is_urgent: false,
+                patient_name: patientName || '',
+                patient_bed: patientBed || '',
+                patient_mv: patientMV || '',
+                equipment_tag: equipment.tag
+            };
+
+            const { data, error } = await supabase.from('pedidos').insert([dbPayload]).select();
+            if (error) throw error;
+            const newReq = mapPedido(data[0]);
+
+            const invPayload = {
+                status: 'in_transfer',
+                transfer_to: destinationSector,
+                transfer_to_bed: patientBed,
+                patient_name: patientName,
+                patient_mv: patientMV
+            };
+            const { error: invError } = await supabase.from('equipamentos').update(invPayload).eq('id', equipment.id);
+            if (invError) throw invError;
+            
+            await registrarLogMovimentacao(equipment.tag, equipment.type, 'Entrega Direta (CEIC)', destinationSector, userProfile?.name || 'Gestão', userProfile?.login || '0000');
+            
+            setRequests(prev => [...prev, newReq]);
+            const updatedEquip = { ...equipment, ...invPayload };
+            setInventory(prev => prev.map(e => e.id === equipment.id ? updatedEquip : e));
+
+            showNotification('success', 'Entrega direta realizada com sucesso!');
+        } catch (error) {
+            console.error('Erro na entrega direta:', error);
+            showNotification('error', `Falha ao realizar entrega: ${error.message}`);
         }
     };
 
@@ -6745,7 +6930,10 @@ function App() {
                 location: userProfile?.login, // Envia estritamente a sigla do login
                 transfer_status: null,        // Limpa usando null nativo
                 transfer_to: null,            // Limpa usando null nativo
-                received_by_sector: true
+                transfer_to_bed: null,
+                received_by_sector: true,
+                status: 'allocated',
+                in_use_since: new Date().toISOString()
             };
 
             const { error: equipError } = await supabase.from('equipamentos')
@@ -6792,7 +6980,7 @@ function App() {
 
             // Atualiza estado local
             setInventory(prev => prev.map(eq =>
-                tagsToConfirm.includes(normUpper(eq.tag)) ? { ...eq, location: userProfile?.login, transferStatus: null, transferTo: null, receivedBySector: true } : eq
+                tagsToConfirm.includes(normUpper(eq.tag)) ? { ...eq, location: userProfile?.login, transferStatus: null, transferTo: null, transferToBed: null, receivedBySector: true, status: 'allocated' } : eq
             ));
 
             if (pedidoAtualizado) {
@@ -6846,12 +7034,13 @@ function App() {
 
             const destinationSector = item.transferTo || userProfile?.sector || item.location;
             const updates = {
-                receivedBySector: true,
-                transferStatus: null,
-                transferTo: null,
-                transferToBed: null,
-                transferRejected: false,
-                location: destinationSector
+                received_by_sector: true,
+                transfer_status: null,
+                transfer_to: null,
+                transfer_to_bed: null,
+                location: destinationSector,
+                status: 'allocated',
+                in_use_since: new Date().toISOString()
             };
 
             const { data, error } = await supabase
@@ -6877,7 +7066,7 @@ function App() {
             );
 
             const requestToComplete = requests.find(r =>
-                r.status === 'approved' && splitTagList(r.equipmentTag).includes(normUpper(equipmentTag))
+                ['approved', 'in_transfer'].includes(r.status) && splitTagList(r.equipmentTag).includes(normUpper(equipmentTag))
             );
             if (requestToComplete) {
                 const { data: reqData, error: reqError } = await supabase
@@ -7165,6 +7354,7 @@ function App() {
                 {currentView === 'admin_entrega_ativa' && <AdminEntregaWrapper
                     onCreateRequest={handleCreateRequest} showNotification={showNotification}
                     onBack={() => setCurrentView('admin_dashboard')} adminProfile={userProfile} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} fullCatalog={fullCatalog}
+                    inventory={inventory} unidades={unidades} onDirectDelivery={handleDirectDelivery}
                 />}
 
                 {currentView === 'dashboard' &&
