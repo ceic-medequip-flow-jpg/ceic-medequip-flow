@@ -1661,6 +1661,18 @@ const InventoryViewV2 = ({ inventory }) => {
 };
 
 const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNotification, inventory, userProfile, onConfirmTransfer }) => {
+    const isSupervisor09B2 = String(userProfile?.login || '').trim().toUpperCase() === '09B2';
+
+    const groupedRequests = useMemo(() => {
+        if (!isSupervisor09B2) return { 'Meus Pedidos': requests };
+        return requests.reduce((acc, req) => {
+            const key = (req.transfer_to || req.sector || 'Desconhecido').split(' - ')[0];
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(req);
+            return acc;
+        }, {});
+    }, [requests, isSupervisor09B2]);
+
     const [cancelModalData, setCancelModalData] = useState(null);
 
     const openCancelModal = (req, isAutoReason = false) => {
@@ -1813,8 +1825,16 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                         <p>Nenhum pedido pendente.</p>
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-100">
-                        {requests.map((req, index) => {
+                    <div>
+                        {Object.keys(groupedRequests).sort().map(groupName => (
+                            <div key={groupName} className="mb-6 last:mb-0">
+                                {isSupervisor09B2 && (
+                                    <div className="bg-gray-100 px-4 py-2 font-bold text-gray-700 uppercase border-b border-gray-200">
+                                        Unidade: {groupName}
+                                    </div>
+                                )}
+                                <div className="divide-y divide-gray-100 bg-white">
+                                    {groupedRequests[groupName].map((req, index) => {
                             let timerVariantAst = 'pending';
                             let timerStartAst = req.timestamp;
 
@@ -1880,9 +1900,11 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                                                                         <Package size={18} className="animate-pulse shrink-0" /> 
                                                                         <span>AGUARDANDO CONFIRMAÇÃO... <span className="ml-1 font-mono bg-white px-2 py-0.5 rounded text-green-900 border border-green-300 shadow-sm">TAG(s): {req.equipmentTag}</span></span>
                                                                     </div>
-                                                                    <button onClick={() => openReceiptModal(req)} className="px-3 py-1.5 bg-green-600 text-white font-bold rounded-lg shadow-sm text-xs hover:bg-green-700 transition-colors flex items-center gap-2">
-                                                                        <CheckCircle size={16} /> Confirmar Recebimento
-                                                                    </button>
+                                                                    {!isSupervisor09B2 && (
+                                                                        <button onClick={() => openReceiptModal(req)} className="px-3 py-1.5 bg-green-600 text-white font-bold rounded-lg shadow-sm text-xs hover:bg-green-700 transition-colors flex items-center gap-2">
+                                                                            <CheckCircle size={16} /> Confirmar Recebimento
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             );
                                                         } else {
@@ -1937,7 +1959,7 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                                         </div>
                                         <div className="flex flex-col items-end gap-2 ml-4 shrink-0">
                                             <div className="flex items-center gap-2">
-                                                {req.status !== 'approved' && req.status !== 'in_transfer' && (
+                                                {!isSupervisor09B2 && req.status !== 'approved' && req.status !== 'in_transfer' && (
                                                     <button onClick={() => openCancelModal(req, false)} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-bold transition-colors border border-red-100 flex items-center gap-1" title="Cancelar Pedido">
                                                         <XCircle size={14} /> Cancelar
                                                     </button>
@@ -1977,7 +1999,10 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                                     </div>
                                 </div>
                             );
-                        })}
+                                    })}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -2042,7 +2067,7 @@ const AdminEntregaWrapper = ({ onCreateRequest, showNotification, onBack, adminP
 };
 
 // View: Nova Solicitação (Formulário de requisição de equipamentos).
-const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack, adminProfile, equipmentCatalog, ventilatoryCatalog, generalCatalog, fullCatalog }) => {
+const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack, adminProfile, equipmentCatalog, ventilatoryCatalog, generalCatalog, fullCatalog, userProfile }) => {
     const [equipmentList, setEquipmentList] = useState([]);
     const [category, setCategory] = useState('');
     const [subType, setSubType] = useState('');
@@ -2349,9 +2374,9 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     <div><label className="label">Nome do Paciente *</label><input data-testid="request-patient-name" required type="text"
                         className="input" value={patientName} onChange={e => setPatientName(e.target.value)} />
                     </div>
-                    <div><label className="label">Leito do Paciente *</label><input data-testid="request-patient-bed" required type="text"
+                    <div><label className="label">{(['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1'].includes(userProfile?.login) || ['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1', 'Centro Cirúrgico'].includes(sectorSelo) || String(sectorSelo).toUpperCase().includes('CIRURG')) ? 'Sala do procedimento *' : 'Leito do Paciente *'}</label><input data-testid="request-patient-bed" required type="text"
                         className="input font-bold" value={patientBed} onChange={e =>
-                            setPatientBed(e.target.value.replace(/\D/g, '').substring(0, 2))} placeholder="Ex: 05"
+                            setPatientBed(e.target.value.replace(/\D/g, '').substring(0, 2))} placeholder={(['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1'].includes(userProfile?.login) || ['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1', 'Centro Cirúrgico'].includes(sectorSelo) || String(sectorSelo).toUpperCase().includes('CIRURG')) ? 'Ex: Sala 05' : 'Ex: Leito 05'}
                         maxLength="2" /></div>
                 </div>
                 <hr className="border-gray-100" />
@@ -3101,9 +3126,16 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
         const loc = String(e.location).trim().toUpperCase();
         const transTo = String(e.transferTo || '').trim().toUpperCase();
         const userLogin = String(userProfile?.login || '').trim().toUpperCase();
+        
+        const isSupervisor09B2 = userLogin === '09B2';
+        const blocos = ['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4'];
 
-        // O equipamento pertence à unidade logada se a localização ou o destino em trânsito baterem com o login.
-        const isMine = (loc === userLogin || transTo === userLogin);
+        let isMine = false;
+        if (isSupervisor09B2) {
+            isMine = blocos.includes(loc) || blocos.includes(transTo);
+        } else {
+            isMine = (loc === userLogin || transTo === userLogin);
+        }
 
         // Exibe equipamentos que estão na unidade e não foram recolhidos pela CEIC
         const activeStatuses = ['in_use', 'allocated', 'pickup_requested', 'disponivel'];
@@ -3111,13 +3143,18 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
         return loc !== 'CEIC' && isMine && activeStatuses.includes(e.status);
     });
 
+    const isSupervisor09B2 = String(userProfile?.login || '').trim().toUpperCase() === '09B2';
+
     const groupedEquipments = myEquipments.reduce((acc, item) => {
-        const groupKey = item.type || item.model || 'Desconhecido';
-        if (!acc[groupKey]) { acc[groupKey] = []; }
-        acc[groupKey].push(item);
+        const unitKey = isSupervisor09B2 ? (item.transferTo || item.location || 'Desconhecido') : 'Equipamentos do Setor';
+        const typeKey = item.type || item.model || 'Desconhecido';
+        
+        if (!acc[unitKey]) acc[unitKey] = {};
+        if (!acc[unitKey][typeKey]) acc[unitKey][typeKey] = [];
+        acc[unitKey][typeKey].push(item);
         return acc;
     }, {});
-    const equipmentNames = Object.keys(groupedEquipments).sort();
+    const hasAnyEquipment = Object.keys(groupedEquipments).length > 0;
 
     const handleReturnClick = (item) => {
         setSelectedItem(item); setCollaboratorName(''); setCollaboratorBadge(''); setHasIssue('');
@@ -3248,10 +3285,10 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="label text-gray-700">{(unidades?.find(u => u.login === destinationSector)?.nome?.toUpperCase().includes('CIRURG') || destinationSector === '09B2') ? 'Sala Cirúrgica' : 'Leito Destino'}</label>
+                                    <label className="label text-gray-700">{['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1'].includes(destinationSector) ? 'Sala' : ((unidades?.find(u => u.login === destinationSector)?.nome?.toUpperCase().includes('CIRURG') || destinationSector === '09B2') ? 'Sala Cirúrgica' : 'Leito Destino')}</label>
                                     <input type="text" className="input border-purple-200 focus:border-purple-500"
                                         value={destinationBed} onChange={e => setDestinationBed(e.target.value)}
-                                        placeholder={(unidades?.find(u => u.login === destinationSector)?.nome?.toUpperCase().includes('CIRURG') || destinationSector === '09B2') ? 'Ex: Sala 03' : 'Ex: Leito 05'} />
+                                        placeholder={['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1'].includes(destinationSector) ? 'Ex: Sala 03' : ((unidades?.find(u => u.login === destinationSector)?.nome?.toUpperCase().includes('CIRURG') || destinationSector === '09B2') ? 'Ex: Sala 03' : 'Ex: Leito 05')} />
                                 </div>
                             </div>
                             <div>
@@ -3364,24 +3401,32 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                 </button>
             </div>
 
-            {equipmentNames.length === 0 ? <div
+            {!hasAnyEquipment ? <div
                 className="p-12 text-center bg-white rounded-2xl border border-gray-100 text-gray-400">
                 <Package size={48} className="mx-auto mb-3 opacity-20" />
                 <p>Nenhum equipamento registrado nesta área.</p>
             </div> :
-                <div className="space-y-6">
-                    {equipmentNames.map(modelName => (
-                        <div key={modelName}
-                            className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center gap-2">
-                                <Package className="text-blue-600" size={20} />
-                                <h3 className="font-bold text-gray-800 text-lg">{modelName}</h3>
-                                <span
-                                    className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold ml-auto">Qtd:
-                                    {groupedEquipments[modelName].length}</span>
-                            </div>
-                            <div className="divide-y divide-gray-100">
-                                {groupedEquipments[modelName].sort((a, b) => (a.tag || '').localeCompare(b.tag || '')).map(item => {
+                <div className="space-y-8">
+                    {Object.keys(groupedEquipments).sort().map(unitName => (
+                        <div key={unitName}>
+                            {isSupervisor09B2 && (
+                                <h2 className="text-xl font-bold text-gray-800 mb-4 border-b border-gray-200 pb-2">
+                                    Unidade: {unitName}
+                                </h2>
+                            )}
+                            <div className="space-y-6">
+                                {Object.keys(groupedEquipments[unitName]).sort().map(modelName => (
+                                    <div key={`${unitName}-${modelName}`}
+                                        className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+                                            <Package className="text-blue-600" size={20} />
+                                            <h3 className="font-bold text-gray-800 text-lg">{modelName}</h3>
+                                            <span
+                                                className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold ml-auto">Qtd:
+                                                {groupedEquipments[unitName][modelName].length}</span>
+                                        </div>
+                                        <div className="divide-y divide-gray-100">
+                                            {groupedEquipments[unitName][modelName].sort((a, b) => (a.tag || '').localeCompare(b.tag || '')).map(item => {
                                     const pickupRequest = requests.find(r => r.status === 'pickup_requested' && splitTagList(r.equipmentTag).includes(normUpper(item.tag)));
                                     const isPendingPickup = !!pickupRequest;
                                     const isBeingTriaged = item.status === 'pickup_requested' && !isPendingPickup;
@@ -3395,6 +3440,7 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                     // BUSCA O PEDIDO VINCULADO PARA PEGAR O NOME DO PACIENTE
                                     const pedidoRelacionado = (requests || []).find(r => r.equipmentTag?.includes(normUpper(item.tag)));
                                     const displayPatientName = item.patientName || pedidoRelacionado?.patientName || 'Paciente não identificado';
+                                    const displayPatientBed = item.patientBed || item.patientbed || item.patient_bed || pedidoRelacionado?.patientBed || pedidoRelacionado?.patientbed || pedidoRelacionado?.patient_bed || '';
 
                                     return (
                                         <div key={item.id} className={`p-4 flex flex-col hover:bg-blue-50/30 transition-colors
@@ -3417,13 +3463,14 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                                             Recusado!</span>}
                                                     </div>
                                                     <div className="text-sm text-gray-500 mt-2 flex flex-wrap items-center gap-3">
-                                                        {item.patient_mv && (
+                                                        {(item.patient_mv || displayPatientName !== 'Paciente não identificado' || displayPatientBed) && (
                                                             <span
                                                                 className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-md text-gray-700 shadow-sm">
                                                                 <User size={14} className="text-blue-500" />
                                                                 <span className="font-bold">{displayPatientName}</span>
-                                                                <span className="text-xs text-gray-400 font-mono">(MV:
-                                                                    {item.patient_mv})</span>
+                                                                <span className="text-xs text-gray-400 font-mono">
+                                                                    ({item.patient_mv ? `MV: ${item.patient_mv}` : 'MV: N/D'}{displayPatientBed ? ` | Leito/Sala: ${displayPatientBed}` : ''})
+                                                                </span>
                                                             </span>
                                                         )}
                                                         {item.specificLocation && !isPendingTransferToMe && <span
@@ -3454,18 +3501,22 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                                             <span className="text-sm text-gray-400 font-medium italic mr-2">Bloqueado em
                                                                 trânsito...</span>
                                                         ) : needsReceiptConfirmation ? (
-                                                            <button onClick={() => handleReceiptClick(item)} disabled={confirmingReceiptTag === item.tag} className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 font-bold text-sm transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed">
-                                                                <CheckCircle size={16} /> {confirmingReceiptTag === item.tag ? 'Confirmando...' : 'Confirmar Recebimento'}
-                                                            </button>
+                                                            !isSupervisor09B2 && (
+                                                                <button onClick={() => handleReceiptClick(item)} disabled={confirmingReceiptTag === item.tag} className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 font-bold text-sm transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed">
+                                                                    <CheckCircle size={16} /> {confirmingReceiptTag === item.tag ? 'Confirmando...' : 'Confirmar Recebimento'}
+                                                                </button>
+                                                            )
                                                         ) : (
-                                                            <>
-                                                                <button onClick={() => handleTransferClick(item)} className="flex items-center gap-2 px-3 py-2 bg-purple-50 text-purple-700 rounded-lg border border-purple-200 hover:bg-purple-100 font-bold text-sm transition-colors shadow-sm">
-                                                                    <Send size={16} /> Remanejar
-                                                                </button>
-                                                                <button onClick={() => handleReturnClick(item)} className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 font-bold text-sm transition-colors shadow-sm">
-                                                                    <LogOut size={16} /> Devolver
-                                                                </button>
-                                                            </>
+                                                            !isSupervisor09B2 && (
+                                                                <>
+                                                                    <button onClick={() => handleTransferClick(item)} className="flex items-center gap-2 px-3 py-2 bg-purple-50 text-purple-700 rounded-lg border border-purple-200 hover:bg-purple-100 font-bold text-sm transition-colors shadow-sm">
+                                                                        <Send size={16} /> Remanejar
+                                                                    </button>
+                                                                    <button onClick={() => handleReturnClick(item)} className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 font-bold text-sm transition-colors shadow-sm">
+                                                                        <LogOut size={16} /> Devolver
+                                                                    </button>
+                                                                </>
+                                                            )
                                                         )}
                                                     </div>
                                                 )}
@@ -3473,6 +3524,9 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                         </div>
                                     );
                                 })}
+                            </div>
+                        </div>
+                                ))}
                             </div>
                         </div>
                     ))}
@@ -5780,7 +5834,10 @@ function App() {
             Notification.requestPermission().catch(console.error);
         }
         const p = String(profile.role).toUpperCase();
-        if (p === 'ASSISTENCIAL') setCurrentView('nova_solicitacao');
+        if (p === 'ASSISTENCIAL') {
+            if (String(profile.login).toUpperCase() === '09B2') setCurrentView('meus_pedidos');
+            else setCurrentView('nova_solicitacao');
+        }
         else if (p === 'OPERACIONAL') setCurrentView('dashboard');
         else if (p === 'GESTAO' || p === 'GERENCIAL') setCurrentView('admin_dashboard');
         else if (p === 'ADMIN') setCurrentView('admin_users');
@@ -6906,10 +6963,19 @@ function App() {
     };
 
     const mySectorPendingRequests = useMemo(() => {
-        return requests.filter(p =>
-            ['pending', 'acknowledged', 'preparing', 'in_transit', 'waitlisted', 'in_transfer', 'pickup_requested'].includes(p.status) &&
-            (p.sector === userProfile?.login || (p.sector && p.sector.startsWith(userProfile?.login + ' - ')) || p.requesterBadge === userProfile?.login || p.transfer_to === userProfile?.login)
-        );
+        const isSupervisor09B2 = String(userProfile?.login || '').trim().toUpperCase() === '09B2';
+        const blocos = ['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4'];
+
+        return requests.filter(p => {
+            const isActive = ['pending', 'acknowledged', 'preparing', 'in_transit', 'waitlisted', 'in_transfer', 'pickup_requested'].includes(p.status);
+            if (!isActive) return false;
+
+            if (isSupervisor09B2) {
+                return blocos.includes(p.sector) || blocos.some(b => p.sector && p.sector.startsWith(b + ' - ')) || blocos.includes(p.transfer_to);
+            }
+
+            return (p.sector === userProfile?.login || (p.sector && p.sector.startsWith(userProfile?.login + ' - ')) || p.requesterBadge === userProfile?.login || p.transfer_to === userProfile?.login);
+        });
     }, [requests, userProfile]);
 
     const prevMyRequestsRef = useRef([]);
@@ -7047,7 +7113,8 @@ function App() {
 
                 <nav className="flex-1 p-4 overflow-y-auto space-y-1 overflow-x-hidden">
                     {SIDEBAR_ITEMS.filter(item =>
-                        item.roles.includes(userProfile.role)).map(item => {
+                        item.roles.includes(userProfile.role) && !(item.id === 'nova_solicitacao' && String(userProfile.login).toUpperCase() === '09B2')
+                    ).map(item => {
                             const IconComponent = item.icon;
                             return (
                                 <button key={item.id} data-testid={item.testId} onClick={() => handleNavClick(item.id)}
@@ -7122,7 +7189,7 @@ function App() {
 
                 {currentView === 'nova_solicitacao' && <NewRequestForm
                     onCreateRequest={handleCreateRequest}
-                    showNotification={showNotification} sectorSelo={userProfile.sector}
+                    showNotification={showNotification} sectorSelo={userProfile.sector} userProfile={userProfile}
                     onBack={() => setCurrentView('meus_pedidos')} equipmentCatalog={equipmentCatalog} ventilatoryCatalog={ventilatoryCatalog} generalCatalog={generalCatalog} fullCatalog={fullCatalog} />}
                 {currentView === 'meus_pedidos' && <MyRequestsView
                     requests={mySectorPendingRequests} sector={userProfile.sector}
