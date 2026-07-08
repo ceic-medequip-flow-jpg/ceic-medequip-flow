@@ -1973,10 +1973,6 @@ const MyRequestsView = ({ requests, sector, onBack, onCancel, onWaitlist, showNo
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <List className="text-blue-600" /> Meus Pedidos ({sector})
                 </h2>
-                <button onClick={onBack}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg shadow-sm transition-colors">
-                    <ArrowDownLeft size={18} className="transform rotate-90" /> Voltar
-                </button>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -2616,10 +2612,6 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                         <h2 className="text-xl font-bold text-gray-800">Nova Solicitação</h2>
                     </div>
                 </div>
-                <button onClick={onBack}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                    <ArrowDownLeft size={18} className="transform rotate-90" /> Voltar
-                </button>
             </div>
 
             <form onSubmit={handleSubmitAll} className="space-y-6" data-testid="request-form">
@@ -3295,10 +3287,6 @@ const MaintenanceView = ({ inventory, onReturn, showNotification, onBack }) => {
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center">
                     <Wrench className="mr-2 text-orange-600" /> Equipamentos em Manutenção
                 </h2>
-                <button onClick={onBack}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg shadow-sm transition-colors">
-                    <ArrowDownLeft size={18} className="transform rotate-90" /> Voltar
-                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3671,10 +3659,6 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <MapPin className="text-blue-600" /> Equipamentos do Setor: {sector}
                 </h2>
-                <button onClick={onBack}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg shadow-sm transition-colors">
-                    <ArrowDownLeft size={18} className="transform rotate-90" /> Voltar
-                </button>
             </div>
 
             {!hasAnyEquipment ? <div
