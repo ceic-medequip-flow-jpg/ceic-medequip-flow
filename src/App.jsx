@@ -8,7 +8,7 @@ import {
     AlertCircle, Search, BadgeCheck, PlusCircle, List, MapPin, X, Send, ChevronDown,
     ChevronUp, XCircle, Menu, Wrench, BarChart3, Database, Edit, Trash2, LineChart,
     Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight, ArrowRight,
-    HelpCircle, LifeBuoy
+    HelpCircle, LifeBuoy, UserPlus
 } from 'lucide-react';
 import logoCeic from './assets/logo-ceic.png';
 
@@ -29,6 +29,7 @@ const SIDEBAR_ITEMS = [
     { id: 'admin_remanejamento', label: 'Remanejamento', icon: Send, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
     { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
     { id: 'admin_users', label: 'Gestão de Utilizadores', icon: User, roles: ['ADMIN', 'GERENCIAL'] },
+    { id: 'admin_plantonistas', label: 'Autorizações de Plantão', icon: UserPlus, roles: ['GESTAO', 'ADMIN', 'GERENCIAL'] },
     { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-dashboard-operacional' },
     { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
     { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-triagem' },
@@ -467,6 +468,17 @@ const LoginScreen = ({ onLogin, showNotification }) => {
                 return;
             }
 
+            // Verifica se é um usuário temporário e se expirou
+            if (data.expires_at) {
+                const now = new Date();
+                const expiresAt = new Date(data.expires_at);
+                if (now > expiresAt) {
+                    showNotification('error', 'Seu login temporário expirou. Realize um novo cadastro.');
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
             // Se chegou aqui, logou com sucesso
             const profile = {
                 role: data.perfil,
@@ -483,6 +495,107 @@ const LoginScreen = ({ onLogin, showNotification }) => {
             showNotification('error', 'Erro de conexão com o servidor.');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const [isPlantonistaModalOpen, setIsPlantonistaModalOpen] = useState(false);
+    const [planNome, setPlanNome] = useState('');
+    const [planMatricula, setPlanMatricula] = useState('');
+    const [planEmail, setPlanEmail] = useState('');
+    const [planSenha, setPlanSenha] = useState('');
+    const [planIsLoading, setPlanIsLoading] = useState(false);
+
+    const handlePlantonistaRegister = async (e) => {
+        e.preventDefault();
+        setPlanIsLoading(true);
+        
+        try {
+            const matricula = planMatricula.trim();
+            const nome = planNome.trim();
+            const email = planEmail.trim();
+            const senha = planSenha.trim();
+
+            if (!matricula || !nome || !email || !senha) {
+                showNotification('error', 'Preencha todos os campos.');
+                setPlanIsLoading(false);
+                return;
+            }
+
+            // 0. Verifica a Lista Branca
+            const { data: authUser, error: authError } = await supabase
+                .from('ceic_plantonistas_autorizados')
+                .select('id')
+                .eq('matricula', matricula)
+                .ilike('email', email)
+                .maybeSingle();
+            
+            if (authError || !authUser) {
+                showNotification('error', 'Acesso negado. Matrícula ou e-mail não constam na lista de autorizados.');
+                setPlanIsLoading(false);
+                return;
+            }
+
+            // 1. Verifica se já existe o usuário (upsert manual se login for unique)
+            const { data: existingUser } = await supabase
+                .from('ceic_usuarios')
+                .select('id')
+                .eq('login', matricula)
+                .maybeSingle();
+
+            const expiresAt = new Date();
+            expiresAt.setHours(expiresAt.getHours() + 12);
+            const expiresAtIso = expiresAt.toISOString();
+
+            if (existingUser) {
+                const { error: updateError } = await supabase
+                    .from('ceic_usuarios')
+                    .update({ 
+                        expires_at: expiresAtIso, 
+                        senha: senha,
+                        nome: nome 
+                    })
+                    .eq('login', matricula);
+                if (updateError) throw updateError;
+            } else {
+                const { error: insertError } = await supabase
+                    .from('ceic_usuarios')
+                    .insert([{
+                        login: matricula,
+                        senha: senha,
+                        nome: nome,
+                        matricula: matricula,
+                        perfil: 'OPERACIONAL',
+                        setor_nome: 'CEIC',
+                        expires_at: expiresAtIso
+                    }]);
+                if (insertError) throw insertError;
+            }
+
+            // 2. Registra no histórico de plantões
+            const { error: histError } = await supabase
+                .from('ceic_historico_plantoes')
+                .insert([{
+                    matricula: matricula,
+                    nome: nome,
+                    inicio_plantao: new Date().toISOString(),
+                    fim_plantao: expiresAtIso
+                }]);
+            
+            if (histError) console.error("Falha ao registrar histórico do plantão", histError);
+
+            showNotification('success', 'Plantão registrado com sucesso! Validade de 12 horas. Faça o login.');
+            setLoginStr(matricula);
+            setPasswordStr(senha);
+            setIsPlantonistaModalOpen(false);
+            setPlanNome('');
+            setPlanMatricula('');
+            setPlanEmail('');
+            setPlanSenha('');
+        } catch (err) {
+            console.error(err);
+            showNotification('error', 'Erro ao cadastrar plantão. Verifique sua conexão.');
+        } finally {
+            setPlanIsLoading(false);
         }
     };
 
@@ -521,7 +634,54 @@ const LoginScreen = ({ onLogin, showNotification }) => {
                         {isLoading ? 'Autenticando...' : 'Entrar'}
                     </button>
                 </form>
+
+                <div className="mt-6 border-t border-gray-100 pt-4">
+                    <button 
+                        type="button" 
+                        onClick={() => setIsPlantonistaModalOpen(true)}
+                        className="text-xs text-gray-400 hover:text-blue-500 hover:underline transition-colors focus:outline-none"
+                    >
+                        Acesso Plantonista (Temporário)
+                    </button>
+                </div>
             </div>
+
+            {isPlantonistaModalOpen && createPortal(
+                <div className="modal-overlay">
+                    <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-fade-in relative max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                            <h3 className="text-lg font-bold text-gray-800">Cadastro de Plantão (12h)</h3>
+                            <button onClick={() => setIsPlantonistaModalOpen(false)} className="text-gray-400 hover:text-gray-600 focus:outline-none">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-4">Este acesso é exclusivo para plantonistas eventuais do perfil Operacional e expirará automaticamente após 12 horas.</p>
+                        
+                        <form onSubmit={handlePlantonistaRegister} className="space-y-4">
+                            <div>
+                                <label className="label">Nome Completo</label>
+                                <input type="text" className="input" value={planNome} onChange={e => setPlanNome(e.target.value)} required placeholder="Ex: João da Silva" />
+                            </div>
+                            <div>
+                                <label className="label">Matrícula (Seu Login)</label>
+                                <input type="text" className="input" value={planMatricula} onChange={e => setPlanMatricula(e.target.value)} required placeholder="00000" />
+                            </div>
+                            <div>
+                                <label className="label">E-mail Corporativo</label>
+                                <input type="email" className="input" value={planEmail} onChange={e => setPlanEmail(e.target.value)} required placeholder="nome@hospital.com.br" />
+                            </div>
+                            <div>
+                                <label className="label">Senha</label>
+                                <input type="password" className="input" value={planSenha} onChange={e => setPlanSenha(e.target.value)} required placeholder="Sua senha de plantão" />
+                            </div>
+                            <button type="submit" disabled={planIsLoading} className="btn-primary w-full mt-2">
+                                {planIsLoading ? 'Registrando...' : 'Confirmar Plantão'}
+                            </button>
+                        </form>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
@@ -7403,6 +7563,7 @@ function App() {
                     />
                 )}
                 {currentView === 'admin_users' && <AdminUsersView onLogout={handleLogout} />}
+                {currentView === 'admin_plantonistas' && <AdminPlantonistasAuthView showNotification={showNotification} />}
                 {currentView === 'suporte_tecnico' && <SupportView userProfile={userProfile} showNotification={showNotification} />}
                 {currentView === 'admin_suporte' && <AdminSupportView userProfile={userProfile} showNotification={showNotification} />}
             </main>
@@ -7412,7 +7573,165 @@ function App() {
 
 
 
+const AdminPlantonistasAuthView = ({ showNotification }) => {
+    const [auths, setAuths] = useState([]);
+    const [search, setSearch] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    
+    // Form state
+    const [newMatricula, setNewMatricula] = useState('');
+    const [newEmail, setNewEmail] = useState('');
+    const [newNome, setNewNome] = useState('');
 
+    const fetchAuths = async () => {
+        setIsLoading(true);
+        const { data, error } = await supabase
+            .from('ceic_plantonistas_autorizados')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (data) setAuths(data);
+        if (error) console.error("Erro ao carregar autorizações", error);
+        setIsLoading(false);
+    };
 
+    useEffect(() => {
+        fetchAuths();
+    }, []);
+
+    const handleAddAuth = async (e) => {
+        e.preventDefault();
+        if (!newMatricula.trim() || !newEmail.trim() || !newNome.trim()) {
+            showNotification('error', 'Preencha Matrícula, Nome e E-mail.');
+            return;
+        }
+
+        setIsSaving(true);
+        const { error } = await supabase
+            .from('ceic_plantonistas_autorizados')
+            .insert([{
+                matricula: newMatricula.trim(),
+                email: newEmail.trim(),
+                nome: newNome.trim()
+            }]);
+
+        if (error) {
+            if (error.code === '23505') {
+                showNotification('error', 'Esta matrícula já está autorizada.');
+            } else {
+                showNotification('error', 'Erro ao adicionar autorização.');
+            }
+        } else {
+            showNotification('success', 'Plantonista autorizado com sucesso!');
+            setNewMatricula('');
+            setNewEmail('');
+            setNewNome('');
+            fetchAuths();
+        }
+        setIsSaving(false);
+    };
+
+    const handleRemoveAuth = async (id) => {
+        if (!window.confirm("Remover esta autorização? O plantonista não poderá mais iniciar plantões.")) return;
+        
+        const { error } = await supabase
+            .from('ceic_plantonistas_autorizados')
+            .delete()
+            .eq('id', id);
+            
+        if (error) {
+            showNotification('error', 'Erro ao remover autorização.');
+        } else {
+            showNotification('success', 'Autorização removida.');
+            fetchAuths();
+        }
+    };
+
+    const filtered = auths.filter(a => 
+        (a.nome?.toLowerCase() || '').includes(search.toLowerCase()) ||
+        (a.matricula?.toLowerCase() || '').includes(search.toLowerCase()) ||
+        (a.email?.toLowerCase() || '').includes(search.toLowerCase())
+    );
+
+    return (
+        <div className="animate-fade-in p-6 max-w-5xl mx-auto space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                        <BadgeCheck className="mr-2 text-green-600" /> Lista Branca de Plantonistas
+                    </h2>
+                    <p className="text-sm text-gray-500">Gerencie quem tem autorização para iniciar plantões no sistema.</p>
+                </div>
+            </div>
+
+            {/* Formulário de Adição */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <UserPlus size={20} className="mr-2 text-blue-600" /> Autorizar Novo Plantonista
+                </h3>
+                <form onSubmit={handleAddAuth} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label className="label">Nome Completo</label>
+                        <input type="text" className="input" value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Ex: Maria Souza" required />
+                    </div>
+                    <div>
+                        <label className="label">Matrícula</label>
+                        <input type="text" className="input" value={newMatricula} onChange={e => setNewMatricula(e.target.value)} placeholder="00000" required />
+                    </div>
+                    <div>
+                        <label className="label">E-mail Corporativo</label>
+                        <input type="email" className="input" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="nome@hospital.com" required />
+                    </div>
+                    <button type="submit" disabled={isSaving} className="btn-primary w-full h-[42px] flex items-center justify-center">
+                        {isSaving ? 'Adicionando...' : <><PlusCircle size={18} className="mr-2" /> Autorizar</>}
+                    </button>
+                </form>
+            </div>
+
+            {/* Lista de Autorizados */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                    <h3 className="font-semibold text-gray-700">Plantonistas Autorizados</h3>
+                    <div className="relative w-64">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                        <input type="text" placeholder="Buscar na lista..." className="input pl-10 text-sm h-9"
+                            value={search} onChange={e => setSearch(e.target.value)} />
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-white border-b border-gray-100 text-gray-500">
+                            <tr>
+                                <th className="p-4 font-semibold">Nome</th>
+                                <th className="p-4 font-semibold">Matrícula</th>
+                                <th className="p-4 font-semibold">E-mail Corporativo</th>
+                                <th className="p-4 font-semibold text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {isLoading ? (
+                                <tr><td colSpan="4" className="p-8 text-center text-gray-400">Carregando autorizações...</td></tr>
+                            ) : filtered.length === 0 ? (
+                                <tr><td colSpan="4" className="p-8 text-center text-gray-400">Nenhum plantonista na lista.</td></tr>
+                            ) : filtered.map(a => (
+                                <tr key={a.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="p-4 font-medium text-gray-800">{a.nome}</td>
+                                    <td className="p-4 text-gray-600 font-mono">{a.matricula}</td>
+                                    <td className="p-4 text-gray-600">{a.email}</td>
+                                    <td className="p-4 text-right">
+                                        <button onClick={() => handleRemoveAuth(a.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Revogar autorização">
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default App;
