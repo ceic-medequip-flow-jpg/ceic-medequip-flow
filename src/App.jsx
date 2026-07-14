@@ -4225,7 +4225,7 @@ const AdminDashboard = ({ inventory, requests }) => {
         
         let waitStatus = 'Aguardando';
         if (['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(req.status)) waitStatus = 'Atendido';
-        else if (req.status === 'canceled' || req.status === 'cancelado') waitStatus = 'Cancelado';
+        else if (['canceled', 'cancelado', 'cancelled'].includes(req.status)) waitStatus = 'Cancelado';
         
         return {
             ...req,
@@ -4536,7 +4536,9 @@ const AdminDashboard = ({ inventory, requests }) => {
                                                     <div key={item.id} className="p-3 flex flex-col hover:bg-gray-50 gap-2">
                                                         <div className="flex justify-between items-start">
                                                             <p className="font-bold text-gray-800 text-sm">{item.equipmentType}</p>
-                                                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-red-100 text-red-700">Cancelado</span>
+                                                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${item.waitlistTime ? 'bg-orange-100 text-orange-800 border border-orange-200' : 'bg-red-100 text-red-700'}`}>
+                                                                {item.waitlistTime ? 'Cancelado Após Fila' : 'Cancelado'}
+                                                            </span>
                                                         </div>
                                                         <p className="text-[11px] text-gray-500">Setor: <span className="font-bold">{item.sector}</span> | Solicitado em: {new Date(item.timestamp).toLocaleString('pt-BR')}</p>
                                                         <p className="text-[11px] text-gray-400">Paciente: <span className="font-medium text-gray-600">{item.patientName}</span> (MV: {item.patient_mv})</p>
