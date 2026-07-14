@@ -8,7 +8,7 @@ import {
     AlertCircle, Search, BadgeCheck, PlusCircle, List, MapPin, X, Send, ChevronDown,
     ChevronUp, XCircle, Menu, Wrench, BarChart3, Database, Edit, Trash2, LineChart,
     Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight, ArrowRight,
-    HelpCircle, LifeBuoy, UserPlus
+    HelpCircle, LifeBuoy, UserPlus, Briefcase, PackageOpen
 } from 'lucide-react';
 import logoCeic from './assets/logo-ceic.png';
 
@@ -21,24 +21,24 @@ const ROLES = { OPERATOR: 'Equipe Operacional', REQUESTER: 'Equipe Assistencial'
 const LOCATIONS = ['03DN', '03DS', '04GN', '04GS', '04CC', '04DN', '04DS', 'Centro Cirúrgico'];
 
 const SIDEBAR_ITEMS = [
-    { id: 'admin_dashboard', label: 'Painel Gerencial', icon: BarChart3, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-gestao' },
-    { id: 'admin_indicadores', label: 'Indicadores', icon: LineChart, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-relatorios' },
-    { id: 'admin_frota', label: 'Gestão da Frota', icon: Database, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-equipamentos' },
-    { id: 'admin_ocorrencias', label: 'Gestão de Ocorrências', icon: AlertTriangle, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
-    { id: 'admin_preventiva', label: 'Plano de Preventivas', icon: CalendarClock, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
-    { id: 'admin_remanejamento', label: 'Remanejamento', icon: Send, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
-    { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
-    { id: 'admin_users', label: 'Gestão de Utilizadores', icon: User, roles: ['ADMIN', 'GERENCIAL'] },
-    { id: 'admin_plantonistas', label: 'Autorizações de Plantão', icon: UserPlus, roles: ['GESTAO', 'ADMIN', 'GERENCIAL'] },
-    { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-dashboard-operacional' },
-    { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
-    { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-triagem' },
-    { id: 'manutencao', label: 'Higienização / Limpeza', icon: SprayCan, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-expurgo' },
-    { id: 'nova_solicitacao', label: 'Nova Solicitação', icon: PlusCircle, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-nova-solicitacao' },
-    { id: 'meus_pedidos', label: 'Meus Pedidos', icon: List, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], testId: 'nav-meus-pedidos' },
-    { id: 'equipamentos_area', label: 'Equipamentos do Setor', icon: MapPin, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
-    { id: 'admin_suporte', label: 'Chamados de Suporte', icon: LifeBuoy, roles: ['ADMIN', 'GESTAO', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
-    { id: 'suporte_tecnico', label: 'Suporte Técnico', icon: HelpCircle, roles: ['OPERACIONAL', 'ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'] },
+    { id: 'admin_dashboard', label: 'Painel Gerencial', icon: BarChart3, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial', testId: 'nav-gestao' },
+    { id: 'admin_indicadores', label: 'Indicadores', icon: LineChart, roles: ['GESTAO', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial', testId: 'nav-relatorios' },
+    { id: 'admin_frota', label: 'Gestão da Frota', icon: Database, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial', testId: 'nav-equipamentos' },
+    { id: 'admin_ocorrencias', label: 'Gestão de Ocorrências', icon: AlertTriangle, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
+    { id: 'admin_preventiva', label: 'Plano de Preventivas', icon: CalendarClock, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
+    { id: 'admin_remanejamento', label: 'Remanejamento', icon: Send, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
+    { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
+    { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-dashboard-operacional' },
+    { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
+    { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-triagem' },
+    { id: 'manutencao', label: 'Higienização / Limpeza', icon: SprayCan, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-expurgo' },
+    { id: 'nova_solicitacao', label: 'Nova Solicitação', icon: PlusCircle, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Assistencial', testId: 'nav-nova-solicitacao' },
+    { id: 'meus_pedidos', label: 'Meus Pedidos', icon: List, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Assistencial', testId: 'nav-meus-pedidos' },
+    { id: 'equipamentos_area', label: 'Equipamentos do Setor', icon: MapPin, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Assistencial' },
+    { id: 'admin_users', label: 'Gestão de Utilizadores', icon: User, roles: ['ADMIN', 'GERENCIAL'], group: 'Sistema e Suporte' },
+    { id: 'admin_plantonistas', label: 'Autorizações de Plantão', icon: UserPlus, roles: ['GESTAO', 'ADMIN', 'GERENCIAL'], group: 'Sistema e Suporte' },
+    { id: 'admin_suporte', label: 'Chamados de Suporte', icon: LifeBuoy, roles: ['ADMIN', 'GESTAO', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Sistema e Suporte' },
+    { id: 'suporte_tecnico', label: 'Suporte Técnico', icon: HelpCircle, roles: ['OPERACIONAL', 'ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Sistema e Suporte' },
 ];
 
 const CHECKLIST_OPTIONS = { "Monitor de Pressão Intracraniana (PIC)": ["Apenas Kit: Módulo + Cabo", "Maleta completa: Monitor + cabo + módulo + cabos + fonte + Suporte"] };
@@ -166,6 +166,9 @@ const mapPedido = (raw) => {
         transfer_to: raw.transfer_to || raw.transferTo || raw.transferto || null,
         timestamp: raw.timestamp || raw.created_at || raw.createdAt || raw.createdat || null,
         catalogo_equipamentos: raw.catalogo_equipamentos || null,
+        cancelName: raw.cancel_name || raw.cancelName || raw.cancelname || null,
+        cancelBadge: raw.cancel_badge || raw.cancelBadge || raw.cancelbadge || null,
+        cancelReason: raw.cancel_reason || raw.cancelReason || raw.cancelreason || null,
         tevPriority: raw.tev_priority != null ? Number(raw.tev_priority) : (raw.tevPriority != null ? Number(raw.tevPriority) : null),
         tevGroup: raw.tev_group || raw.tevGroup || null
     };
@@ -201,6 +204,8 @@ const mapEquip = (raw) => {
         lastCleaned: raw.lastCleaned || raw.lastcleaned || null,
         notificationNumber: raw.notificationNumber || raw.notificationnumber || null,
         serviceRequestNumber: raw.serviceRequestNumber || raw.servicerequestnumber || null,
+        unitNotified: raw.unitNotified ?? raw.unitnotified ?? false,
+        patientDamage: raw.patientDamage ?? raw.patientdamage ?? false,
     };
 };
 
@@ -4102,6 +4107,10 @@ const AdminDashboard = ({ inventory, requests }) => {
     const [endDate, setEndDate] = useState(`${todayStr}T23:59`);
     const [appliedStart, setAppliedStart] = useState(`${todayStr}T00:00`);
     const [appliedEnd, setAppliedEnd] = useState(`${todayStr}T23:59`);
+    const [isWaitlistAnalysisOpen, setIsWaitlistAnalysisOpen] = useState(false);
+    const [isCanceledAnalysisOpen, setIsCanceledAnalysisOpen] = useState(false);
+    const [isReturnsAnalysisOpen, setIsReturnsAnalysisOpen] = useState(false);
+    const [isApprovedAnalysisOpen, setIsApprovedAnalysisOpen] = useState(false);
 
     const totalItems = inventory.length;
     const availableItems = inventory.filter(i => i.status === 'available').length;
@@ -4124,7 +4133,11 @@ const AdminDashboard = ({ inventory, requests }) => {
     }; const filteredRequests = requests.filter(r => isWithinRange(r.timestamp));
 
     const approvedRequests = filteredRequests.filter(r => ['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(r.status));
-    const completedReturns = filteredRequests.filter(r => r.kind === 'return_pickup' && ['completed', 'concluido'].includes(r.status)).length;
+    
+    const completedReturnsList = filteredRequests.filter(r => ['return_pickup', 'recolhimento'].includes(r.kind) && ['completed', 'concluido'].includes(r.status))
+        .sort((a, b) => new Date(b.fulfilledAt || b.timestamp).getTime() - new Date(a.fulfilledAt || a.timestamp).getTime());
+    const completedReturns = completedReturnsList.length;
+
     let countGerais = 0; let countVent = 0; let countTransp = 0;
 
     approvedRequests.forEach(r => {
@@ -4137,6 +4150,55 @@ const AdminDashboard = ({ inventory, requests }) => {
             countGerais++;
         }
     });
+
+    const waitlistHistory = filteredRequests.filter(r => r.waitlistTime !== null);
+    const totalWaitlisted = waitlistHistory.length;
+    
+    const calculateWaitTime = (req) => {
+        if (!req.waitlistTime) return 0;
+        const start = new Date(req.waitlistTime).getTime();
+        let end;
+        if (req.status === 'waitlisted') {
+            end = new Date().getTime(); 
+        } else {
+            end = req.notificationTime ? new Date(req.notificationTime).getTime() : 
+                  (req.fulfilled_at ? new Date(req.fulfilled_at).getTime() : new Date().getTime());
+        }
+        return Math.floor(Math.max(0, end - start) / (1000 * 60)); 
+    };
+
+    let totalWaitTimeMins = 0;
+    
+    const waitlistDetails = waitlistHistory.map(req => {
+        const timeMins = calculateWaitTime(req);
+        totalWaitTimeMins += timeMins;
+        
+        let waitStatus = 'Aguardando';
+        if (['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(req.status)) waitStatus = 'Atendido';
+        else if (req.status === 'canceled' || req.status === 'cancelado') waitStatus = 'Cancelado';
+        
+        return {
+            ...req,
+            timeMins,
+            waitStatus
+        };
+    }).sort((a, b) => new Date(b.waitlistTime).getTime() - new Date(a.waitlistTime).getTime()); 
+    
+    const waitlistedCompleted = waitlistDetails.filter(r => r.waitStatus === 'Atendido').length;
+    const waitlistedCanceled = waitlistDetails.filter(r => r.waitStatus === 'Cancelado').length;
+    const waitlistedCurrent = waitlistDetails.filter(r => r.waitStatus === 'Aguardando').length;
+    const avgWaitTimeMins = totalWaitlisted > 0 ? Math.round(totalWaitTimeMins / totalWaitlisted) : 0;
+    
+    const formatWaitTime = (mins) => {
+        if (mins < 60) return `${mins} min`;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${h}h ${m}m`;
+    };
+
+    const canceledRequestsList = filteredRequests.filter(r => ['cancelled', 'canceled', 'cancelado'].includes(r.status))
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const totalCanceled = canceledRequestsList.length;
 
     return (
         <div className="space-y-6 pb-20 animate-fade-in max-w-6xl mx-auto" data-testid="management-dashboard">
@@ -4183,7 +4245,7 @@ const AdminDashboard = ({ inventory, requests }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-6">
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                     <div
                         className="flex flex-col xl:flex-row xl:items-center justify-between mb-4 gap-4">
@@ -4218,62 +4280,231 @@ const AdminDashboard = ({ inventory, requests }) => {
                                 r.status === 'pending').length}</span>
                         </div>
 
-                        <div className="bg-gray-50 rounded-lg overflow-hidden border border-gray-100">
-                            <div
-                                className="flex justify-between items-center p-3 border-b border-gray-200 bg-gray-50">
-                                <span className="text-gray-600 font-medium">Solicitações Atendidas
-                                    (Total)</span>
-                                <span
-                                    className="font-bold text-green-600">{approvedRequests.length}</span>
+                        <button
+                            onClick={() => setIsApprovedAnalysisOpen(!isApprovedAnalysisOpen)}
+                            className="w-full flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-green-400 hover:bg-green-50 transition-colors focus:outline-none cursor-pointer mt-2"
+                        >
+                            <span className="text-gray-600 font-medium text-left">Solicitações Atendidas</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-green-600">{approvedRequests.length}</span>
+                                {isApprovedAnalysisOpen ? <ChevronUp size={16} className="text-green-400" /> : <ChevronDown size={16} className="text-green-400" />}
                             </div>
-                            <div className="bg-white divide-y divide-gray-50">
-                                <div
-                                    className="flex justify-between items-center py-2.5 px-4 text-sm hover:bg-gray-50 transition-colors">
-                                    <span className="text-gray-500 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
-                                        Equipamentos Gerais
-                                    </span>
-                                    <span className="font-bold text-gray-700">{countGerais}</span>
-                                </div>
-                                <div
-                                    className="flex justify-between items-center py-2.5 px-4 text-sm hover:bg-gray-50 transition-colors">
-                                    <span className="text-gray-500 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-teal-400"></div>
-                                        Assistência Ventilatória
-                                    </span>
-                                    <span className="font-bold text-gray-700">{countVent}</span>
-                                </div>
-                                <div
-                                    className="flex justify-between items-center py-2.5 px-4 text-sm hover:bg-gray-50 transition-colors">
-                                    <span className="text-gray-500 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
-                                        Transporte
-                                    </span>
-                                    <span className="font-bold text-gray-700">{countTransp}</span>
+                        </button>
+
+                        {isApprovedAnalysisOpen && (
+                            <div className="bg-white rounded-xl shadow-sm border border-green-200 overflow-hidden animate-fade-in my-2">
+                                <div className="bg-white divide-y divide-gray-50">
+                                    <div
+                                        className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors">
+                                        <span className="text-gray-600 flex items-center gap-2 font-medium">
+                                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                            Equipamentos Gerais
+                                        </span>
+                                        <span className="font-bold text-gray-800">{countGerais}</span>
+                                    </div>
+                                    <div
+                                        className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors">
+                                        <span className="text-gray-600 flex items-center gap-2 font-medium">
+                                            <div className="w-2 h-2 rounded-full bg-teal-400"></div>
+                                            Assistência Ventilatória
+                                        </span>
+                                        <span className="font-bold text-gray-800">{countVent}</span>
+                                    </div>
+                                    <div
+                                        className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors">
+                                        <span className="text-gray-600 flex items-center gap-2 font-medium">
+                                            <div className="w-2 h-2 rounded-full bg-purple-400"></div>
+                                            Transporte
+                                        </span>
+                                        <span className="font-bold text-gray-800">{countTransp}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
-                        <div
-                            className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-purple-400">
-                            <span className="text-gray-600 font-medium">Devoluções Realizadas</span>
-                            <span className="font-bold text-purple-600">{completedReturns}</span>
-                        </div>
+                        <button
+                            onClick={() => setIsReturnsAnalysisOpen(!isReturnsAnalysisOpen)}
+                            className="w-full flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-purple-400 hover:bg-purple-50 transition-colors focus:outline-none cursor-pointer mt-2"
+                        >
+                            <span className="text-gray-600 font-medium text-left">Devoluções Realizadas</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-purple-600">{completedReturns}</span>
+                                {isReturnsAnalysisOpen ? <ChevronUp size={16} className="text-purple-400" /> : <ChevronDown size={16} className="text-purple-400" />}
+                            </div>
+                        </button>
+                        
+                        {isReturnsAnalysisOpen && (
+                            <div className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden animate-fade-in my-2">
+                                <div className="bg-purple-50 p-3 border-b border-purple-100 flex flex-col gap-3">
+                                    <h3 className="font-bold text-purple-800 flex items-center gap-2 text-sm">
+                                        <PackageOpen size={16} /> Análise de Devoluções
+                                    </h3>
+                                    <div className="flex gap-4 text-xs font-medium justify-between px-2">
+                                        <div className="flex flex-col items-center"><span className="text-gray-500 text-[9px] uppercase">Total Devolvido</span><span className="text-gray-800">{completedReturns}</span></div>
+                                    </div>
+                                </div>
+                                
+                                <div className="max-h-[500px] overflow-y-auto">
+                                    {completedReturnsList.length > 0 ? (
+                                        <div className="p-3 space-y-4">
+                                            <div className="divide-y divide-gray-100 border rounded-lg overflow-hidden">
+                                                {completedReturnsList.map(item => (
+                                                    <div key={item.id} className="p-3 flex flex-col hover:bg-purple-50/30 gap-2">
+                                                        <div className="flex justify-between items-start">
+                                                            <p className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                                                {item.equipmentType}
+                                                                {item.equipmentTag && <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">{item.equipmentTag}</span>}
+                                                            </p>
+                                                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-purple-100 text-purple-700">Devolvido</span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1 mt-1">
+                                                            <p className="text-[11px] text-gray-500">De onde veio: <span className="font-bold text-purple-700">{item.sector}</span></p>
+                                                            <p className="text-[11px] text-gray-500">Horário da Devolução: <span className="font-bold">{new Date(item.fulfilledAt || item.timestamp).toLocaleString('pt-BR')}</span></p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="p-6 text-center text-xs text-gray-500">Nenhum equipamento devolvido no período.</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
-                        <div
-                            className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-orange-400">
-                            <span className="text-gray-600 font-medium">Equipamentos em Fila de
+                        <button
+                            onClick={() => setIsWaitlistAnalysisOpen(!isWaitlistAnalysisOpen)}
+                            className="w-full flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-orange-400 hover:bg-orange-100 transition-colors focus:outline-none cursor-pointer"
+                        >
+                            <span className="text-gray-600 font-medium text-left">Equipamentos em Fila de
                                 Espera</span>
-                            <span className="font-bold text-orange-600">{filteredRequests.filter(r =>
-                                r.isWaitlisted && r.status === 'pending').length}</span>
-                        </div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-orange-600">{totalWaitlisted}</span>
+                                {isWaitlistAnalysisOpen ? <ChevronUp size={16} className="text-orange-400" /> : <ChevronDown size={16} className="text-orange-400" />}
+                            </div>
+                        </button>
+                        
+                        {isWaitlistAnalysisOpen && (
+                            <div className="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden animate-fade-in my-2">
+                                <div className="bg-orange-50 p-3 border-b border-orange-100 flex flex-col gap-3">
+                                    <h3 className="font-bold text-orange-800 flex items-center gap-2 text-sm">
+                                        <Clock size={16} /> Análise da Fila de Espera
+                                    </h3>
+                                    <div className="flex gap-4 text-xs font-medium justify-between px-2">
+                                        <div className="flex flex-col items-center"><span className="text-gray-500 text-[9px] uppercase">Total</span><span className="text-gray-800">{totalWaitlisted}</span></div>
+                                        <div className="flex flex-col items-center"><span className="text-orange-600 text-[9px] uppercase">Na Fila Hoje</span><span className="text-orange-700">{waitlistedCurrent}</span></div>
+                                        <div className="flex flex-col items-center"><span className="text-green-600 text-[9px] uppercase">Atendidos</span><span className="text-green-700">{waitlistedCompleted}</span></div>
+                                        <div className="flex flex-col items-center"><span className="text-orange-600 text-[9px] uppercase">Tempo Médio</span><span className="text-orange-700">{formatWaitTime(avgWaitTimeMins)}</span></div>
+                                    </div>
+                                </div>
+                                
+                                <div className="max-h-[500px] overflow-y-auto">
+                                    {waitlistDetails.length > 0 ? (
+                                        <div className="p-3 space-y-4">
+                                            {/* Atualmente na Fila */}
+                                            {waitlistDetails.filter(i => i.waitStatus === 'Aguardando').length > 0 && (
+                                                <div>
+                                                    <h4 className="text-[10px] font-bold text-orange-600 uppercase tracking-widest mb-2 border-b pb-1">Atualmente na Fila</h4>
+                                                    <div className="divide-y divide-gray-100 border rounded-lg overflow-hidden">
+                                                        {waitlistDetails.filter(i => i.waitStatus === 'Aguardando').map(item => (
+                                                            <div key={item.id} className="p-3 flex flex-col hover:bg-gray-50 bg-orange-50/10 gap-2">
+                                                                <div className="flex justify-between items-start">
+                                                                    <p className="font-bold text-gray-800 text-sm">{item.equipmentType}</p>
+                                                                    <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-orange-100 text-orange-700">Aguardando</span>
+                                                                </div>
+                                                                <p className="text-[11px] text-gray-500">Setor: <span className="font-bold">{item.sector}</span> | Entrada: {new Date(item.waitlistTime).toLocaleString('pt-BR')}</p>
+                                                                <p className="text-[11px] text-gray-400">Paciente: <span className="font-medium text-gray-600">{item.patientName}</span> (MV: {item.patient_mv})</p>
+                                                                <div className="text-right mt-1">
+                                                                    <p className="text-xs font-bold text-gray-700">Tempo Decorrido</p>
+                                                                    <p className="text-base font-black text-orange-600 animate-pulse">{formatWaitTime(item.timeMins)}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
 
-                        <div
-                            className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-red-400">
-                            <span className="text-gray-600 font-medium">Solicitações Canceladas</span>
-                            <span className="font-bold text-red-600">{filteredRequests.filter(r =>
-                                ['cancelled', 'canceled', 'cancelado'].includes(r.status)).length}</span>
-                        </div>
+                                            {/* Histórico (Atendidos / Cancelados) */}
+                                            {(waitlistedCompleted > 0 || waitlistedCanceled > 0) && (
+                                                <div>
+                                                    <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 border-b pb-1">Histórico (Atendidos / Cancelados)</h4>
+                                                    <div className="divide-y divide-gray-100 border rounded-lg overflow-hidden">
+                                                        {waitlistDetails.filter(i => i.waitStatus !== 'Aguardando').map(item => (
+                                                            <div key={item.id} className={`p-3 flex flex-col hover:bg-gray-50 gap-2 ${item.waitStatus === 'Cancelado' ? 'opacity-70' : ''}`}>
+                                                                <div className="flex justify-between items-start">
+                                                                    <p className="font-bold text-gray-800 text-sm">{item.equipmentType}</p>
+                                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                                                                        item.waitStatus === 'Atendido' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                                                    }`}>{item.waitStatus}</span>
+                                                                </div>
+                                                                <p className="text-[11px] text-gray-500">Setor: <span className="font-bold">{item.sector}</span> | Entrada: {new Date(item.waitlistTime).toLocaleString('pt-BR')}</p>
+                                                                <p className="text-[11px] text-gray-400">Paciente: <span className="font-medium text-gray-600">{item.patientName}</span> (MV: {item.patient_mv})</p>
+                                                                <div className="text-right mt-1">
+                                                                    <p className="text-xs font-bold text-gray-700">Tempo Total</p>
+                                                                    <p className={`text-base font-black ${item.waitStatus === 'Atendido' ? 'text-green-600' : 'text-red-600'}`}>{formatWaitTime(item.timeMins)}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="p-6 text-center text-xs text-gray-500">Nenhum registro no período.</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => setIsCanceledAnalysisOpen(!isCanceledAnalysisOpen)}
+                            className="w-full flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-red-400 hover:bg-red-50 transition-colors focus:outline-none cursor-pointer mt-2"
+                        >
+                            <span className="text-gray-600 font-medium text-left">Solicitações Canceladas</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-red-600">{totalCanceled}</span>
+                                {isCanceledAnalysisOpen ? <ChevronUp size={16} className="text-red-400" /> : <ChevronDown size={16} className="text-red-400" />}
+                            </div>
+                        </button>
+                        
+                        {isCanceledAnalysisOpen && (
+                            <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden animate-fade-in my-2">
+                                <div className="bg-red-50 p-3 border-b border-red-100 flex flex-col gap-3">
+                                    <h3 className="font-bold text-red-800 flex items-center gap-2 text-sm">
+                                        <XCircle size={16} /> Análise de Cancelamentos
+                                    </h3>
+                                    <div className="flex gap-4 text-xs font-medium justify-between px-2">
+                                        <div className="flex flex-col items-center"><span className="text-gray-500 text-[9px] uppercase">Total</span><span className="text-gray-800">{totalCanceled}</span></div>
+                                    </div>
+                                </div>
+                                
+                                <div className="max-h-[500px] overflow-y-auto">
+                                    {canceledRequestsList.length > 0 ? (
+                                        <div className="p-3 space-y-4">
+                                            <div className="divide-y divide-gray-100 border rounded-lg overflow-hidden">
+                                                {canceledRequestsList.map(item => (
+                                                    <div key={item.id} className="p-3 flex flex-col hover:bg-gray-50 gap-2">
+                                                        <div className="flex justify-between items-start">
+                                                            <p className="font-bold text-gray-800 text-sm">{item.equipmentType}</p>
+                                                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-red-100 text-red-700">Cancelado</span>
+                                                        </div>
+                                                        <p className="text-[11px] text-gray-500">Setor: <span className="font-bold">{item.sector}</span> | Solicitado em: {new Date(item.timestamp).toLocaleString('pt-BR')}</p>
+                                                        <p className="text-[11px] text-gray-400">Paciente: <span className="font-medium text-gray-600">{item.patientName}</span> (MV: {item.patient_mv})</p>
+                                                        <div className="mt-2 bg-red-50 p-2 rounded border border-red-100">
+                                                            <p className="text-[10px] font-bold text-red-800 uppercase mb-1">Motivo do Cancelamento:</p>
+                                                            <p className="text-xs text-red-700 italic">"{item.cancelReason || 'Sem motivo registrado'}"</p>
+                                                            <p className="text-[10px] text-red-500 mt-1 text-right border-t border-red-100/50 pt-1">Cancelado por: <span className="font-bold">{item.cancelName || 'N/A'}</span></p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="p-6 text-center text-xs text-gray-500">Nenhum registro no período.</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -4304,6 +4535,7 @@ const AdminDashboard = ({ inventory, requests }) => {
                         )}
                     </div>
                 </div>
+
             </div>
         </div>
     );
@@ -4846,6 +5078,8 @@ const AdminIndicators = ({ inventory, requests }) => {
     const cancelRate = totalRequests > 0 ? Math.round((cancelledRequests / totalRequests) * 100) :
         0;
 
+    const completedReturns = filteredRequests.filter(r => ['return_pickup', 'recolhimento'].includes(r.kind) && ['completed', 'concluido'].includes(r.status)).length;
+
     const reqCounts = filteredRequests.reduce((acc, req) => {
         if (req.equipmentType) {
             acc[req.equipmentType] = (acc[req.equipmentType] || 0) + 1;
@@ -5144,8 +5378,7 @@ const AdminIndicators = ({ inventory, requests }) => {
                                 <p className="text-sm text-gray-500 font-bold">Devoluções Concluídas
                                 </p>
                                 <p className="text-xl font-black text-gray-800">
-                                    {filteredRequests.filter(r => r.kind === 'return_pickup' &&
-                                        ['completed', 'concluido'].includes(r.status)).length}</p>
+                                    {completedReturns}</p>
                             </div>
                         </div>
                     </div>
@@ -5843,6 +6076,20 @@ function App() {
     const [currentView, setCurrentView] = useState('login');
     const [isLoading, setIsLoading] = useState(true);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({
+        'Gerencial': false,
+        'Operacional': false,
+        'Assistencial': false,
+        'Sistema e Suporte': false,
+        'Outros': false
+    });
+    
+    const toggleSidebarGroup = (groupName) => {
+        setExpandedSidebarGroups(prev => ({
+            ...prev,
+            [groupName]: !prev[groupName]
+        }));
+    };
 
     // =============================================================
     // MELHORIA (Relatório): Alerta sonoro no Operacional quando chega nova solicitação
@@ -6560,8 +6807,9 @@ function App() {
                 .from('pedidos')
                 .update({
                     status: 'cancelled',
-                    cancel_name: userProfile?.name || 'Operacional',
-                    cancel_badge: userProfile?.login || 'N/A'
+                    cancel_name: cancelData?.cancelName || userProfile?.name || 'Operacional',
+                    cancel_badge: cancelData?.cancelBadge || userProfile?.login || 'N/A',
+                    cancel_reason: cancelData?.cancelReason || 'Sem motivo informado'
                 })
                 .eq('id', requestId)
                 .select();
@@ -6915,6 +7163,8 @@ function App() {
             if (error || !data || data.length === 0) {
                 throw new Error('Operação não persistiu no banco');
             }
+
+            setInventory(prev => prev.map(i => i.id === itemId ? mapEquip(data[0]) : i));
         } catch (error) {
             console.error("Erro handleUpdateNotification:", error);
             throw error;
@@ -6934,6 +7184,8 @@ function App() {
             if (error || !data || data.length === 0) {
                 throw new Error('Operação não persistiu no banco');
             }
+
+            setInventory(prev => prev.map(i => i.id === itemId ? mapEquip(data[0]) : i));
         } catch (error) {
             console.error("Erro handleUpdateServiceRequest:", error);
             throw error;
@@ -7444,22 +7696,72 @@ function App() {
                     </button>
                 </div>
 
-                <nav className="flex-1 p-4 overflow-y-auto space-y-1 overflow-x-hidden">
-                    {SIDEBAR_ITEMS.filter(item =>
-                        item.roles.includes(userProfile.role) && !(item.id === 'nova_solicitacao' && String(userProfile.login).toUpperCase() === '09B2')
-                    ).map(item => {
-                            const IconComponent = item.icon;
+                <nav className="flex-1 p-4 overflow-y-auto space-y-4 overflow-x-hidden">
+                    {(() => {
+                        const allowedItems = SIDEBAR_ITEMS.filter(item =>
+                            item.roles.includes(userProfile.role) && !(item.id === 'nova_solicitacao' && String(userProfile.login).toUpperCase() === '09B2')
+                        );
+
+                        const grouped = allowedItems.reduce((acc, item) => {
+                            const g = item.group || 'Outros';
+                            if (!acc[g]) acc[g] = [];
+                            acc[g].push(item);
+                            return acc;
+                        }, {});
+
+                        const order = ['Gerencial', 'Operacional', 'Assistencial', 'Sistema e Suporte', 'Outros'];
+                        const groupsToRender = Object.keys(grouped).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+
+                        const groupIcons = {
+                            'Gerencial': Briefcase,
+                            'Operacional': PackageOpen,
+                            'Assistencial': Activity,
+                            'Sistema e Suporte': Settings,
+                            'Outros': List
+                        };
+
+                        return groupsToRender.map((groupName, index) => {
+                            const isExpanded = expandedSidebarGroups[groupName] === true; // Default to collapsed
+                            const GroupIcon = groupIcons[groupName] || List;
+                            
                             return (
-                                <button key={item.id} data-testid={item.testId} onClick={() => handleNavClick(item.id)}
-                                    title={isSidebarCollapsed ? item.label : undefined}
-                                    className={`flex items-center p-3 rounded-xl mb-1 transition-all
-                                                duration-200 group ${currentView === item.id ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'}
-                                                ${isSidebarCollapsed ? 'justify-center w-full' : 'w-full'}`}>
-                                    <IconComponent size={22} className={`shrink-0 ${currentView === item.id ? '' : 'opacity-70 group-hover:opacity-100'}`} />
-                                    <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 ml-0 overflow-hidden' : 'w-auto opacity-100 ml-3'}`}>{item.label}</span>
-                                </button>
-                            )
-                        })}
+                                <div key={groupName} className={`flex flex-col space-y-1 ${index > 0 && isSidebarCollapsed ? 'pt-4 border-t border-gray-100' : ''}`}>
+                                    <button 
+                                        onClick={() => toggleSidebarGroup(groupName)}
+                                        title={isSidebarCollapsed ? groupName : undefined}
+                                        className={`flex items-center transition-colors focus:outline-none w-full
+                                                    ${isSidebarCollapsed 
+                                                        ? 'justify-center p-3 rounded-xl hover:bg-gray-100' 
+                                                        : 'px-3 py-1.5 justify-between text-[11px] font-bold text-gray-400 uppercase tracking-widest hover:text-gray-600'}`}
+                                    >
+                                        {isSidebarCollapsed ? (
+                                            <GroupIcon size={24} className={isExpanded ? 'text-blue-600' : 'text-gray-400'} />
+                                        ) : (
+                                            <>
+                                                <span>{groupName}</span>
+                                                {isExpanded ? <ChevronDown size={14} className="opacity-60" /> : <ChevronRight size={14} className="opacity-60" />}
+                                            </>
+                                        )}
+                                    </button>
+                                    <div className={`flex-col space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'flex max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                        {grouped[groupName].map(item => {
+                                            const IconComponent = item.icon;
+                                            return (
+                                                <button key={item.id} data-testid={item.testId} onClick={() => handleNavClick(item.id)}
+                                                    title={isSidebarCollapsed ? item.label : undefined}
+                                                    className={`flex items-center p-3 rounded-xl transition-all
+                                                                duration-200 group ${currentView === item.id ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'}
+                                                                ${isSidebarCollapsed ? 'justify-center w-full' : 'w-full'}`}>
+                                                    <IconComponent size={22} className={`shrink-0 ${currentView === item.id ? '' : 'opacity-70 group-hover:opacity-100'}`} />
+                                                    <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 ml-0 overflow-hidden' : 'w-auto opacity-100 ml-3'}`}>{item.label}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        });
+                    })()}
                 </nav>
 
                 <div className="p-4 border-t border-gray-100 overflow-hidden">
