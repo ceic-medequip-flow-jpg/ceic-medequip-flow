@@ -2432,7 +2432,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
     const TRANSPORT_MONITOR_OPTIONS = ["Apenas Monitor", "Módulo completo (ECG, Oxímetro e manguito Adulto)", "Manguito Extra Grande", "Manguito infantil"];
 
     const handleMVChange = (e) => {
-        const val = e.target.value; setPatientMV(val);
+        const val = e.target.value.replace(/\D/g, ''); setPatientMV(val);
         if (PATIENT_DB[val]) {
             setPatientName(PATIENT_DB[val].name); showNotification('success', `Paciente encontrado:
     ${PATIENT_DB[val].name}`);
@@ -2567,11 +2567,43 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
         };
     };
 
+    const getSurgicalBlock = () => {
+        const login = String(userProfile?.login || '').toUpperCase();
+        const sector = String(sectorSelo || '').toUpperCase();
+        
+        if (login.includes('BLOCO1') || sector.includes('BLOCO1')) return 'CC_BLOCO1';
+        if (login.includes('BLOCO2') || sector.includes('BLOCO2')) return 'CC_BLOCO2';
+        if (login.includes('BLOCO3') || sector.includes('BLOCO3')) return 'CC_BLOCO3';
+        if (login.includes('BLOCO4') || sector.includes('BLOCO4')) return 'CC_BLOCO4';
+        if (login === '10B1' || sector === '10B1' || login.includes('PS') || sector.includes('PS') || login.includes('PRONTO SOCORRO') || sector.includes('PRONTO SOCORRO')) return '10B1';
+        
+        if (sector.includes('CIRURG') || sector.includes('CENTRO CIRÚRGICO')) return 'ANY_CC';
+        return null;
+    };
+
     const handleAddAnother = (e) => {
         e.preventDefault();
         if (!requesterBadge.trim() || !patientMV.trim() || !patientName.trim() || !patientBed.trim()) {
             showNotification('error', 'Preencha os dados básicos do paciente primeiro.'); return;
         }
+
+        const loginOrSector = getSurgicalBlock();
+            
+        if (loginOrSector) {
+            const pBedNum = parseInt(patientBed, 10);
+            let isValid = true;
+            if (loginOrSector === 'CC_BLOCO1' && (pBedNum < 1 || pBedNum > 10)) isValid = false;
+            else if (loginOrSector === 'CC_BLOCO2' && (pBedNum < 11 || pBedNum > 20)) isValid = false;
+            else if (loginOrSector === 'CC_BLOCO3' && ![24, 25, 29, 30].includes(pBedNum)) isValid = false;
+            else if (loginOrSector === '10B1' && ![21, 22, 23, 26, 27, 28].includes(pBedNum)) isValid = false;
+            else if (loginOrSector === 'CC_BLOCO4' && ![31, 32, 33, 34].includes(pBedNum)) isValid = false;
+            
+            if (!isValid) {
+                showNotification('error', 'Essa sala não pertence ao bloco cirúrgico selecionado.');
+                return;
+            }
+        }
+
         const equipData = getEquipmentPayload();
         if (!equipData) return;
         setEquipmentList(prev => [...prev, equipData]);
@@ -2584,6 +2616,24 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
         if (!requesterBadge.trim() || !patientMV.trim() || !patientName.trim() || !patientBed.trim()) {
             showNotification('error', 'Preencha os dados do paciente.'); return;
         }
+        
+        const loginOrSector = getSurgicalBlock();
+            
+        if (loginOrSector) {
+            const pBedNum = parseInt(patientBed, 10);
+            let isValid = true;
+            if (loginOrSector === 'CC_BLOCO1' && (pBedNum < 1 || pBedNum > 10)) isValid = false;
+            else if (loginOrSector === 'CC_BLOCO2' && (pBedNum < 11 || pBedNum > 20)) isValid = false;
+            else if (loginOrSector === 'CC_BLOCO3' && ![24, 25, 29, 30].includes(pBedNum)) isValid = false;
+            else if (loginOrSector === '10B1' && ![21, 22, 23, 26, 27, 28].includes(pBedNum)) isValid = false;
+            else if (loginOrSector === 'CC_BLOCO4' && ![31, 32, 33, 34].includes(pBedNum)) isValid = false;
+            
+            if (!isValid) {
+                showNotification('error', 'Essa sala não pertence ao bloco cirúrgico selecionado.');
+                return;
+            }
+        }
+
         const finalCart = [...equipmentList];
         if (category) {
             const currentEquip = getEquipmentPayload();
@@ -2637,9 +2687,9 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                         data-testid="request-requester-name" required type="text" className="input" value={requesterName} onChange={e =>
                             setRequesterName(e.target.value)} /></div>
                     <div><label className="label">Matrícula *</label><input data-testid="request-requester-badge" required type="text" className="input"
-                        value={requesterBadge} onChange={e => setRequesterBadge(e.target.value)} /></div>
+                        value={requesterBadge} onChange={e => setRequesterBadge(e.target.value.replace(/\D/g, ''))} placeholder="Ex: 12345" /></div>
                     <div><label className="label">Ramal *</label><input data-testid="request-extension" required type="text" className="input"
-                        value={ramal} onChange={e => setRamal(e.target.value)} /></div>
+                        value={ramal} onChange={e => setRamal(e.target.value.replace(/\D/g, ''))} placeholder="Ex: 8000" /></div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div><label className="label">Registro MV*</label><input data-testid="request-patient-mv" required type="text" className="input"
@@ -2647,9 +2697,9 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     <div><label className="label">Nome do Paciente *</label><input data-testid="request-patient-name" required type="text"
                         className="input" value={patientName} onChange={e => setPatientName(e.target.value)} />
                     </div>
-                    <div><label className="label">{(['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1'].includes(userProfile?.login) || ['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1', 'Centro Cirúrgico'].includes(sectorSelo) || String(sectorSelo).toUpperCase().includes('CIRURG')) ? 'Sala do procedimento *' : 'Leito do Paciente *'}</label><input data-testid="request-patient-bed" required type="text"
+                    <div><label className="label">{getSurgicalBlock() ? 'Sala do procedimento *' : 'Leito do Paciente *'}</label><input data-testid="request-patient-bed" required type="text"
                         className="input font-bold" value={patientBed} onChange={e =>
-                            setPatientBed(e.target.value.replace(/\D/g, '').substring(0, 2))} placeholder={(['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1'].includes(userProfile?.login) || ['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1', 'Centro Cirúrgico'].includes(sectorSelo) || String(sectorSelo).toUpperCase().includes('CIRURG')) ? 'Ex: Sala 05' : 'Ex: Leito 05'}
+                            setPatientBed(e.target.value.replace(/\D/g, '').substring(0, 2))} placeholder={getSurgicalBlock() ? 'Ex: Sala 05' : 'Ex: Leito 05'}
                         maxLength="2" /></div>
                 </div>
                 <hr className="border-gray-100" />
