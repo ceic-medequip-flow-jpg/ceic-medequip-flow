@@ -180,7 +180,7 @@ const mapEquip = (raw) => {
     const model = trimText(raw.model || raw.Model || '');
     const specificLocation = trimText(raw.specificLocation || raw.specificlocation || raw.SpecificLocation || '');
     const transferTo = trimText(raw.transfer_to || raw.transferTo || raw.transferto || '');
-    const transferToBed = trimText(raw.transferToBed || raw.transfertobed || '');
+    const transferToBed = trimText(raw.transfer_to_bed || raw.transferToBed || raw.transfertobed || '');
     const previousLocation = trimText(raw.previousLocation || raw.previouslocation || '');
 
     return {
@@ -3416,6 +3416,7 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
     const [receiveAction, setReceiveAction] = useState('accept');
 
     const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+    const [receiptActionType, setReceiptActionType] = useState('receipt'); // 'receipt' or 'transfer'
     const [confirmingReceiptTag, setConfirmingReceiptTag] = useState(null);
 
     const [unidades, setUnidades] = useState([]);
@@ -3508,12 +3509,19 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
     };
 
     const handleConfirmTransferClick = (item) => {
-        const pedido = requests.find(r => normUpper(r.equipmentTag).includes(normUpper(item.tag)) && r.status === 'in_transfer');
-        onConfirmTransfer(item, pedido);
+        setSelectedItem(item);
+        setCollaboratorName('');
+        setCollaboratorBadge('');
+        setReceiptActionType('transfer');
+        setReceiptModalOpen(true);
     };
 
     const handleReceiptClick = (item) => {
-        setSelectedItem(item); setCollaboratorName(''); setCollaboratorBadge(''); setReceiptModalOpen(true);
+        setSelectedItem(item);
+        setCollaboratorName('');
+        setCollaboratorBadge('');
+        setReceiptActionType('receipt');
+        setReceiptModalOpen(true);
     };
 
     const confirmReceiptSubmit = async () => {
@@ -3522,7 +3530,20 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
             return;
         }
         setConfirmingReceiptTag(selectedItem.tag);
-        const ok = await onConfirmReceipt({ equipmentTag: selectedItem.tag, collaboratorName, collaboratorBadge });
+        
+        let ok = false;
+        if (receiptActionType === 'transfer') {
+            const pedido = requests.find(r => normUpper(r.equipmentTag).includes(normUpper(selectedItem.tag)) && r.status === 'in_transfer');
+            try {
+                await onConfirmTransfer(selectedItem, pedido, { name: collaboratorName, badge: collaboratorBadge });
+                ok = true;
+            } catch (err) {
+                ok = false;
+            }
+        } else {
+            ok = await onConfirmReceipt({ equipmentTag: selectedItem.tag, collaboratorName, collaboratorBadge });
+        }
+        
         setConfirmingReceiptTag(null);
         if (ok) setReceiptModalOpen(false);
     };
@@ -7316,7 +7337,8 @@ function App() {
                 .from('equipamentos')
                 .update({
                     transfer_status: 'in_transit',
-                    transfer_to: destination
+                    transfer_to: destination,
+                    transfer_to_bed: destinationBed || null
                 })
                 .eq('tag', equipmentTag)
                 .select();
@@ -7332,6 +7354,7 @@ function App() {
                     .from('pedidos')
                     .update({
                         status: 'in_transfer',
+                        patient_bed: destinationBed || null,
                         fulfilled_at: new Date().toISOString()
                     })
                     .eq('id', activeReq.id);
@@ -7339,7 +7362,7 @@ function App() {
 
             // Atualiza inventário local
             setInventory(prev => prev.map(eq =>
-                normUpper(eq.tag) === normUpper(equipmentTag) ? { ...eq, transferStatus: 'in_transit', transferTo: destination } : eq
+                normUpper(eq.tag) === normUpper(equipmentTag) ? { ...eq, transferStatus: 'in_transit', transferTo: destination, transferToBed: destinationBed } : eq
             ));
 
             if (activeReq) {
@@ -7373,12 +7396,17 @@ function App() {
                 throw new Error("Parâmetros inválidos para confirmação.");
             }
 
+            // Descobre o leito de destino se foi informado na transferencia
+            const eqToUpdate = inventory.find(i => tagsToConfirm.includes(normUpper(i.tag)));
+            const incomingBed = eqToUpdate?.transferToBed || pedidoObj?.patient_bed || null;
+
             // 1. Atualiza o Equipamento (Payload Limpo e Sanitizado):
             const payloadAtualizacao = {
                 location: userProfile?.login, // Envia estritamente a sigla do login
                 transfer_status: null,        // Limpa usando null nativo
                 transfer_to: null,            // Limpa usando null nativo
                 transfer_to_bed: null,
+                specific_location: incomingBed, // ATUALIZA O LEITO NO EQUIPAMENTO!
                 received_by_sector: true,
                 status: 'allocated',
                 in_use_since: new Date().toISOString()
@@ -7428,7 +7456,7 @@ function App() {
 
             // Atualiza estado local
             setInventory(prev => prev.map(eq =>
-                tagsToConfirm.includes(normUpper(eq.tag)) ? { ...eq, location: userProfile?.login, transferStatus: null, transferTo: null, transferToBed: null, receivedBySector: true, status: 'allocated' } : eq
+                tagsToConfirm.includes(normUpper(eq.tag)) ? { ...eq, location: userProfile?.login, transferStatus: null, transferTo: null, transferToBed: null, specificLocation: incomingBed, receivedBySector: true, status: 'allocated' } : eq
             ));
 
             if (pedidoAtualizado) {
