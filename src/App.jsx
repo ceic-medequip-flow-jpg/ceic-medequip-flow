@@ -383,6 +383,8 @@ const SearchDropdown = ({ value, onChange, options = [], placeholder, className 
 
     useEffect(() => { setFocusedIndex(-1); }, [search, isOpen]);
 
+    useEffect(() => { setIsOpen(false); }, [value]);
+
     const handleKeyDown = (e) => {
         if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -421,8 +423,11 @@ const SearchDropdown = ({ value, onChange, options = [], placeholder, className 
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((opt, idx) => (
                                 <div key={opt.value} className={`p-3 text-sm cursor-pointer hover:bg-blue-50 transition-colors
-                    ${value === opt.value || focusedIndex === idx ? 'bg-blue-100 text-blue-800 font-bold' : 'text-gray-700'}`} onClick={() => {
-                                        onChange(opt.value); setIsOpen(false);
+                    ${value === opt.value || focusedIndex === idx ? 'bg-blue-100 text-blue-800 font-bold' : 'text-gray-700'}`} 
+                                    onMouseDown={(e) => { e.preventDefault(); }}
+                                    onClick={() => {
+                                        onChange(opt.value);
+                                        setIsOpen(false);
                                     }}>
                                     {opt.label}
                                 </div>
