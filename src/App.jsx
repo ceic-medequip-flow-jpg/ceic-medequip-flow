@@ -178,7 +178,7 @@ const mapEquip = (raw) => {
     if (!raw) return null;
     const location = trimText(raw.location || raw.Location || 'CEIC');
     const model = trimText(raw.model || raw.Model || '');
-    const specificLocation = trimText(raw.specificLocation || raw.specificlocation || raw.SpecificLocation || '');
+    const specificLocation = trimText(raw.specific_location || raw.specificLocation || raw.specificlocation || raw.SpecificLocation || '');
     const transferTo = trimText(raw.transfer_to || raw.transferTo || raw.transferto || '');
     const transferToBed = trimText(raw.transfer_to_bed || raw.transferToBed || raw.transfertobed || '');
     const previousLocation = trimText(raw.previousLocation || raw.previouslocation || '');
@@ -3440,21 +3440,22 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
         meuSetor: sector
     });
 
+    const isSupervisor09B2 = String(userProfile?.login || '').trim().toUpperCase() === '09B2';
+    const blocosCC = ['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4'];
+
     const myEquipments = (inventory || []).filter(e => {
         if (!e.location) return false;
 
         const loc = String(e.location).trim().toUpperCase();
         const transTo = String(e.transferTo || '').trim().toUpperCase();
         const userLogin = String(userProfile?.login || '').trim().toUpperCase();
-        
-        const isSupervisor09B2 = userLogin === '09B2';
-        const blocos = ['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4'];
+        const inTransit = e.transferStatus === 'in_transit';
 
         let isMine = false;
         if (isSupervisor09B2) {
-            isMine = blocos.includes(loc) || blocos.includes(transTo);
+            isMine = blocosCC.includes(loc) || (inTransit && blocosCC.includes(transTo));
         } else {
-            isMine = (loc === userLogin || transTo === userLogin);
+            isMine = (loc === userLogin || (inTransit && transTo === userLogin));
         }
 
         // Exibe equipamentos que estão na unidade e não foram recolhidos pela CEIC
@@ -3463,10 +3464,18 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
         return loc !== 'CEIC' && isMine && activeStatuses.includes(e.status);
     });
 
-    const isSupervisor09B2 = String(userProfile?.login || '').trim().toUpperCase() === '09B2';
-
     const groupedEquipments = myEquipments.reduce((acc, item) => {
-        const unitKey = isSupervisor09B2 ? (item.transferTo || item.location || 'Desconhecido') : 'Equipamentos do Setor';
+        let unitKey = 'Equipamentos do Setor';
+        if (isSupervisor09B2) {
+            const loc = String(item.location || '').trim().toUpperCase();
+            const transTo = String(item.transferTo || '').trim().toUpperCase();
+            if (item.transferStatus === 'in_transit' && blocosCC.includes(transTo)) {
+                unitKey = transTo;
+            } else {
+                unitKey = loc || 'Desconhecido';
+            }
+        }
+        
         const typeKey = item.type || item.model || 'Desconhecido';
         
         if (!acc[unitKey]) acc[unitKey] = {};
@@ -3776,7 +3785,14 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                     // BUSCA O PEDIDO VINCULADO PARA PEGAR O NOME DO PACIENTE
                                     const pedidoRelacionado = (requests || []).find(r => r.equipmentTag?.includes(normUpper(item.tag)));
                                     const displayPatientName = item.patientName || pedidoRelacionado?.patientName || 'Paciente não identificado';
-                                    const displayPatientBed = item.patientBed || item.patientbed || item.patient_bed || pedidoRelacionado?.patientBed || pedidoRelacionado?.patientbed || pedidoRelacionado?.patient_bed || '';
+                                    
+                                    // Pela nova regra: specificLocation é a sala/leito oficial do equipamento (origem se em trânsito, destino se aceito).
+                                    const displayPatientBed = item.specificLocation || item.patientBed || item.patientbed || item.patient_bed || pedidoRelacionado?.patientBed || pedidoRelacionado?.patientbed || pedidoRelacionado?.patient_bed || '';
+                                    
+                                    // Regra de Rótulo (Sala vs Leito)
+                                    const sectorUpper = String(sector || userProfile?.login || '').toUpperCase();
+                                    const isCCorOBST = sectorUpper.includes('CC_') || sectorUpper === '09B2' || sectorUpper === '10B1' || sectorUpper.includes('OBSTETRICO');
+                                    const locLabel = isCCorOBST ? 'Sala' : 'Leito';
 
                                     return (
                                         <div key={item.id} className={`p-4 flex flex-col hover:bg-blue-50/30 transition-colors
@@ -3805,17 +3821,13 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                                                 <User size={14} className="text-blue-500" />
                                                                 <span className="font-bold">{displayPatientName}</span>
                                                                 <span className="text-xs text-gray-400 font-mono">
-                                                                    ({item.patient_mv ? `MV: ${item.patient_mv}` : 'MV: N/D'}{displayPatientBed ? ` | Leito/Sala: ${displayPatientBed}` : ''})
+                                                                    ({item.patient_mv ? `MV: ${item.patient_mv}` : 'MV: N/D'}{displayPatientBed ? ` | ${locLabel}: ${displayPatientBed}` : ''})
                                                                 </span>
                                                             </span>
                                                         )}
-                                                        {item.specificLocation && !isPendingTransferToMe && <span
-                                                            className="text-blue-600 font-medium flex items-center gap-1">
-                                                            <MapPin size={14} /> {formatItemLocation(item)}
-                                                        </span>}
                                                         {isPendingTransferToMe && <span
-                                                            className="text-gray-600 font-medium ml-2">Origem:
-                                                            {item.location}</span>}
+                                                            className="text-gray-600 font-medium ml-2 flex items-center gap-1"><MapPin size={14} /> Origem:
+                                                            {item.location} {item.specificLocation ? `- Sala/Leito: ${item.specificLocation}` : ''}</span>}
                                                     </div>
                                                 </div>
 
