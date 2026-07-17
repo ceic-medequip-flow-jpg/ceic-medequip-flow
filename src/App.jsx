@@ -6864,21 +6864,10 @@ function App() {
     const handleProcessPickup = async (request) => {
         try {
             setTriageData({
+                pedidoId: request.id, // Armazena o ID do pedido para finalizá-lo APENAS no check-in
                 tag: request.equipmentTag, type: request.equipmentType, hasDefect: request.problemReported === 'Sim',
                 defectDesc: request.problemDescription
             });
-            const { data, error } = await supabase
-                .from('pedidos')
-                .update({ status: 'completed', fulfilled_at: new Date().toISOString() })
-                .eq('id', request.id)
-                .select();
-
-            if (error || !data || data.length === 0) {
-                throw new Error('Operação não persistiu no banco');
-            }
-
-            const updatedReq = mapPedido(data[0]);
-            setRequests(prev => prev.map(r => r.id === request.id ? updatedReq : r));
             setCurrentView('triagem');
         } catch (error) {
             console.error('Erro ao processar retirada:', error);
@@ -7006,7 +6995,12 @@ function App() {
             // CORREÇÃO: Limpando o paciente no Supabase ao dar entrada na Triagem
             patient_mv: null,
             patient_name: null,
-            in_use_since: null
+            in_use_since: null,
+            // CORREÇÃO: Forçando limpeza de qualquer estado de transferência zumbi ou alocação (Prevalência da CEIC)
+            specific_location: null,
+            transfer_status: null,
+            transfer_to: null,
+            transfer_to_bed: null
         };
 
         const localUpdates = {
@@ -7058,6 +7052,23 @@ function App() {
                 collaboratorName,
                 hasDefect ? defectDescription : null
             );
+
+            // Finaliza qualquer pedido pendente aberto para essa TAG (Prevalência da CEIC no Check-in)
+            // Se o setor esqueceu de dar o aceite e a CEIC recolheu e bipou, o sistema força a baixa de tudo que ficou "zumbi"
+            const activeRequests = requests.filter(r => 
+                ['pickup_requested', 'in_transfer', 'approved', 'delivered', 'waitlisted'].includes(r.status) && 
+                splitTagList(r.equipmentTag).includes(normUpper(item.tag))
+            );
+            
+            if (activeRequests.length > 0) {
+                const requestIds = activeRequests.map(r => r.id);
+                await supabase
+                    .from('pedidos')
+                    .update({ status: 'completed', fulfilled_at: new Date().toISOString() })
+                    .in('id', requestIds);
+                
+                setRequests(prev => prev.map(r => requestIds.includes(r.id) ? { ...r, status: 'completed' } : r));
+            }
 
             setInventory(prev => prev.map(it => (normUpper(it.tag) === cleanTag ? mapEquip({ ...it, ...localUpdates }) : it)));
             setTriageData(null);
