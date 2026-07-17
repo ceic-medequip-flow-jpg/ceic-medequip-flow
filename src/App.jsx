@@ -526,6 +526,12 @@ const LoginScreen = ({ onLogin, showNotification }) => {
                 return;
             }
 
+            if (!/^\d{4}$/.test(senha)) {
+                showNotification('error', 'A senha deve conter exatamente 4 números.');
+                setPlanIsLoading(false);
+                return;
+            }
+
             // 0. Verifica a Lista Branca
             const { data: authUser, error: authError } = await supabase
                 .from('ceic_plantonistas_autorizados')
@@ -646,7 +652,7 @@ const LoginScreen = ({ onLogin, showNotification }) => {
                         onClick={() => setIsPlantonistaModalOpen(true)}
                         className="text-xs text-gray-400 hover:text-blue-500 hover:underline transition-colors focus:outline-none"
                     >
-                        Acesso Plantonista (Temporário)
+                        Acesso Perfil Operacional
                     </button>
                 </div>
             </div>
@@ -662,22 +668,22 @@ const LoginScreen = ({ onLogin, showNotification }) => {
                         </div>
                         <p className="text-xs text-gray-500 mb-4">Este acesso é exclusivo para plantonistas eventuais do perfil Operacional e expirará automaticamente após 12 horas.</p>
                         
-                        <form onSubmit={handlePlantonistaRegister} className="space-y-4">
+                        <form onSubmit={handlePlantonistaRegister} className="space-y-4" autoComplete="off">
                             <div>
                                 <label className="label">Nome Completo</label>
-                                <input type="text" className="input" value={planNome} onChange={e => setPlanNome(e.target.value)} required placeholder="Ex: João da Silva" />
+                                <input type="text" className="input" value={planNome} onChange={e => setPlanNome(e.target.value)} required placeholder="" autoComplete="new-password" />
                             </div>
                             <div>
                                 <label className="label">Matrícula (Seu Login)</label>
-                                <input type="text" className="input" value={planMatricula} onChange={e => setPlanMatricula(e.target.value)} required placeholder="00000" />
+                                <input type="text" className="input" value={planMatricula} onChange={e => setPlanMatricula(e.target.value)} required placeholder="" autoComplete="new-password" />
                             </div>
                             <div>
                                 <label className="label">E-mail Corporativo</label>
-                                <input type="email" className="input" value={planEmail} onChange={e => setPlanEmail(e.target.value)} required placeholder="nome@hospital.com.br" />
+                                <input type="email" className="input" value={planEmail} onChange={e => setPlanEmail(e.target.value)} required placeholder="" autoComplete="new-password" />
                             </div>
                             <div>
-                                <label className="label">Senha</label>
-                                <input type="password" className="input" value={planSenha} onChange={e => setPlanSenha(e.target.value)} required placeholder="Sua senha de plantão" />
+                                <label className="label">Senha <span className="text-gray-400 font-normal text-xs ml-1">(senha de 4 números)</span></label>
+                                <input type="password" inputMode="numeric" maxLength={4} className="input" value={planSenha} onChange={e => setPlanSenha(e.target.value.replace(/\D/g, '').slice(0, 4))} required placeholder="" autoComplete="new-password" />
                             </div>
                             <button type="submit" disabled={planIsLoading} className="btn-primary w-full mt-2">
                                 {planIsLoading ? 'Registrando...' : 'Confirmar Plantão'}
