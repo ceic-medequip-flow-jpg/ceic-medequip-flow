@@ -27,7 +27,7 @@ const SIDEBAR_ITEMS = [
     { id: 'admin_ocorrencias', label: 'Gestão de Ocorrências', icon: AlertTriangle, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
     { id: 'admin_preventiva', label: 'Plano de Preventivas', icon: CalendarClock, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
     { id: 'admin_remanejamento', label: 'Remanejamento', icon: Send, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
-    { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
+    { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
     { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-dashboard-operacional' },
     { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
     { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-triagem' },
@@ -6561,7 +6561,9 @@ function App() {
                 catalogo_id: requestData?.catalogo_id || null,
                 
                 // O SETOR DEVE INCLUIR O CÓDIGO DO LOGIN (Ex: 04CC - ENF. RETAG...)
-                sector: (userProfile?.login && userProfile?.name ? `${userProfile.login} - ${userProfile.name}` : userProfile?.name) || userProfile?.sector || 'Não Informado',
+                sector: requestData.sector 
+                    ? (unidades?.find(u => u.login === requestData.sector) ? `${requestData.sector} - ${unidades.find(u => u.login === requestData.sector).nome}` : requestData.sector)
+                    : ((userProfile?.login && userProfile?.name ? `${userProfile.login} - ${userProfile.name}` : userProfile?.name) || userProfile?.sector || 'Não Informado'),
                 
                 // AQUI PEGAMOS EXATAMENTE O QUE FOI DIGITADO NO FORMULÁRIO (Sem usar userProfile)
                 requester_name: requestData.requesterName || requestData.solicitante || requestData.collaboratorName || requestData.nomeSolicitante || 'Não Informado',
