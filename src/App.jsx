@@ -6854,7 +6854,24 @@ function App() {
         } else if (normEqType === 'ALTO FLUXO') {
             expectedTypes = ['ALTO FLUXO', 'UMIDIFICADOR'];
         } else if (normEqType === 'VENTILADOR PULMONAR INVASIVO') {
-            expectedTypes = ['VENTILADOR PULMONAR INVASIVO', 'CASSETE EXPIRATORIO'];
+            expectedTypes = ['VENTILADOR PULMONAR INVASIVO'];
+            
+            // Verifica se o modelo requer cassete usando a tag do ventilador (primeiro item em tagsArray)
+            let needsCassete = false;
+            const ventTag = tagsArray[0];
+            if (ventTag) {
+                const ventItem = inventory.find(i => normUpper(i.tag) === normUpper(ventTag));
+                if (ventItem) {
+                    const cleanModel = normUpper(ventItem.model || '').replace(/[\s-]/g, '');
+                    if (cleanModel.includes('SERVOI') || cleanModel.includes('SERVOS') || cleanModel.includes('SERVOC')) {
+                        needsCassete = true;
+                    }
+                }
+            }
+            if (needsCassete) {
+                expectedTypes.push('CASSETE EXPIRATORIO');
+            }
+
             const hasUmidificacaoAtiva = Array.isArray(request.accessories) && request.accessories.some(a => normUpper(a).includes('UMIDIFICACAO ATIVA'));
             if (hasUmidificacaoAtiva) expectedTypes.push('UMIDIFICADOR');
         } else {
