@@ -2371,6 +2371,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
     const [checklistModel, setChecklistModel] = useState('');
     const [selectedUltrasoundAccessories, setSelectedUltrasoundAccessories] = useState([]);
     const [selectedVentAccessories, setSelectedVentAccessories] = useState([]);
+    const [ventOtherAccessory, setVentOtherAccessory] = useState('');
     const [ventObservation, setVentObservation] = useState('');
     const [highFlowCategory, setHighFlowCategory] = useState('Circuito Adulto');
     const [selectedHighFlowItems, setSelectedHighFlowItems] = useState([]);
@@ -2451,7 +2452,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
     };
 
     const handleCategoryChange = (newCat) => {
-        setCategory(newCat); setSubType(''); setSelectedItem(''); setAccessoryItem(''); setHighFlowCategory('Circuito Adulto'); setSelectedHighFlowItems([]); setSelectedVentAccessories([]); setSelectedMonitorAccessories([]); setVentObservation('');
+        setCategory(newCat); setSubType(''); setSelectedItem(''); setAccessoryItem(''); setHighFlowCategory('Circuito Adulto'); setSelectedHighFlowItems([]); setSelectedVentAccessories([]); setSelectedMonitorAccessories([]); setVentObservation(''); setVentOtherAccessory('');
         setSelectedTransportMonitorAccessories([]); setSelectedUltrasoundAccessories([]); setTransportItems([]);
         setIsolation(''); setIsolationType(''); setChecklistModel(''); setDestinyUnitBed('');
         setTevScoreType(''); setTevScoreValue(''); setPatientType(''); setTevIndications([]);
@@ -2560,7 +2561,8 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     showNotification('error', 'Selecione pelo menos um acessório ou circuito.');
                     return null;
                 }
-                finalDetails = `Itens/Acessórios: ${selectedVentAccessories.join(', ')}`;
+                const formattedAccessories = selectedVentAccessories.map(a => a === 'Outros' ? (ventOtherAccessory ? `Outros (${ventOtherAccessory.trim()})` : 'Outros') : a);
+                finalDetails = `Itens/Acessórios: ${formattedAccessories.join(', ')}`;
                 if (isAccessoryOnly) {
                     finalDetails = `Para ${accessoryItem} - ` + finalDetails;
                 }
@@ -2805,7 +2807,19 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                                         </div>
                                         <p className="text-xs text-blue-600 mt-2 font-bold">Selecionados: {selectedVentAccessories.length > 0 ? selectedVentAccessories.join(', ') : 'Nenhum'}</p>
                                         
-                                        {normUpper(subType).includes('VENTILADOR PULMONAR INVASIVO') && selectedVentAccessories.length > 0 && (
+                                        {activeTypeForAccessories === 'VENTILADOR PULMONAR INVASIVO' && selectedVentAccessories.includes('Outros') && (
+                                            <div className="mt-4">
+                                                <label className="label text-blue-800 font-bold mb-2">Especifique o outro acessório:</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={ventOtherAccessory}
+                                                    onChange={(e) => setVentOtherAccessory(e.target.value)}
+                                                    className="input w-full border-blue-200 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                                    placeholder="Digite o nome do acessório..."
+                                                />
+                                            </div>
+                                        )}
+                                        {activeTypeForAccessories === 'VENTILADOR PULMONAR INVASIVO' && selectedVentAccessories.length > 0 && (
                                             <div className="mt-4">
                                                 <label className="label text-blue-800 font-bold mb-2">Observações Adicionais (Opcional):</label>
                                                 <input 
@@ -6291,7 +6305,7 @@ function App() {
                     accessories: ["Circuito", "Circuito BPAP", "Circuito CPAP", "Máscara Orofacial (sem válvula exalatória)", "Máscara Orofacial (com válvula exalatória)", "Máscara Performax (sem válvula exalatória - azul)", "Máscara Performax (com válvula exalatória - branca/laranja)", "Máscara Nasal"]
                 },
                 "VENTILADOR PULMONAR INVASIVO": {
-                    accessories: ["Umidificação Passiva", "Umidificação ativa"]
+                    accessories: ["Aeroneb", "Circuito para umidificação passiva", "Circuito de umidificação ativa", "Outros"]
                 },
                 "ALTO FLUXO": {
                     accessories: ["Circuito Adulto", "Circuito Infantil", "Cânula nasal Adulto P", "Cânula nasal Adulto M", "Cânula nasal Adulto G", "Cânula de interface para TQT", "Cânula nasal Infantil (Roxa - até 20L/min)", "Cânula nasal Pediátrica (Verde - até 25L/min)"]
