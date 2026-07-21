@@ -1095,7 +1095,24 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
     if (isCapnografia) multiTagItemsList = ['MÓDULO DE CAPNOGRAFIA', 'CABO DE CAPNOGRAFIA', 'CÉLULA DE CAPNOGRAFIA'];
     if (isAltoFluxo) multiTagItemsList = ['ALTO FLUXO', 'UMIDIFICADOR'];
     if (isInvasivo) {
-        multiTagItemsList = ['VENTILADOR PULMONAR INVASIVO', 'CASSETE EXPIRATÓRIO'];
+        multiTagItemsList = ['VENTILADOR PULMONAR INVASIVO'];
+        
+        const ventTag = multiTags['VENTILADOR PULMONAR INVASIVO'];
+        let needsCassete = false;
+        if (ventTag) {
+            const ventItem = (inventory || []).find(i => normUpper(i.tag) === normUpper(ventTag));
+            if (ventItem) {
+                const cleanModel = normUpper(ventItem.model || '').replace(/[\s-]/g, '');
+                if (cleanModel.includes('SERVOI') || cleanModel.includes('SERVOS') || cleanModel.includes('SERVOC')) {
+                    needsCassete = true;
+                }
+            }
+        }
+        
+        if (needsCassete) {
+            multiTagItemsList.push('CASSETE EXPIRATÓRIO');
+        }
+
         const hasUmidificacaoAtiva = Array.isArray(req.accessories) && req.accessories.some(a => String(a || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('UMIDIFICACAO ATIVA'));
         if (hasUmidificacaoAtiva) multiTagItemsList.push('UMIDIFICADOR');
     }
@@ -1118,7 +1135,7 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
         } else {
             setAvailableTags(matchingInventory.map(item => normUpper(item.tag)).filter(Boolean));
         }
-    }, [req.equipmentType, req.kind, inventory]);
+    }, [req.equipmentType, req.kind, inventory, multiTagItemsList.join(',')]);
 
     const handleConfirm = () => {
         if (isMultiTag) {
@@ -2396,7 +2413,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
     const dynamicEquipmentOptions = useMemo(() => {
         const seen = new Set();
         const sourceCatalog = fullCatalog || [];
-        return sourceCatalog
+        const options = sourceCatalog
             .filter(item => normUpper(item?.categoria) === normUpper(category))
             .map(item => item?.nome_oficial)
             .filter(label => {
@@ -2406,6 +2423,11 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
             })
             .sort()
             .map(label => ({ value: label, label, aliases: getEquipmentAliases(label) }));
+
+        if (normUpper(category).includes('VENTILATORIA')) {
+            options.push({ value: 'Backup - Ventilador Mecânico Invasivo', label: 'Backup - Ventilador Mecânico Invasivo', aliases: [] });
+        }
+        return options;
     }, [fullCatalog, category]);
 
     const selectedChecklistOptions = useMemo(() => {
@@ -2442,6 +2464,16 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
 
     const MONITOR_ACCESSORIES = ["Manguito Adulto", "Manguito Extra Grande", "Manguito Infantil", "Cabo ECG", "Oxímetro Adulto", "Oxímetro Infantil"];
     const TRANSPORT_MONITOR_OPTIONS = ["Apenas Monitor", "Módulo completo (ECG, Oxímetro e manguito Adulto)", "Manguito Extra Grande", "Manguito infantil"];
+
+    const isBackupMode = (normUpper(subType).includes('BACKUP') || equipmentList.some(eq => normUpper(eq.equipmentType).includes('BACKUP')));
+
+    useEffect(() => {
+        if (isBackupMode) {
+            setPatientName('BACKUP');
+            setPatientMV('99999999');
+            setPatientBed('99');
+        }
+    }, [isBackupMode]);
 
     const handleMVChange = (e) => {
         const val = e.target.value.replace(/\D/g, ''); setPatientMV(val);
@@ -2705,12 +2737,12 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                         value={ramal} onChange={e => setRamal(e.target.value.replace(/\D/g, ''))} placeholder="Ex: 8000" /></div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div><label className="label">Registro MV*</label><input data-testid="request-patient-mv" required type="text" className="input"
+                    <div><label className="label">Registro MV*</label><input data-testid="request-patient-mv" required type="text" className="input" disabled={isBackupMode}
                         value={patientMV} onChange={handleMVChange} placeholder="Ex: 458512" /></div>
-                    <div><label className="label">Nome do Paciente *</label><input data-testid="request-patient-name" required type="text"
+                    <div><label className="label">Nome do Paciente *</label><input data-testid="request-patient-name" required type="text" disabled={isBackupMode}
                         className="input" value={patientName} onChange={e => setPatientName(e.target.value)} />
                     </div>
-                    <div><label className="label">{getSurgicalBlock() ? 'Sala do procedimento *' : 'Leito do Paciente *'}</label><input data-testid="request-patient-bed" required type="text"
+                    <div><label className="label">{getSurgicalBlock() ? 'Sala do procedimento *' : 'Leito do Paciente *'}</label><input data-testid="request-patient-bed" required type="text" disabled={isBackupMode}
                         className="input font-bold" value={patientBed} onChange={e =>
                             setPatientBed(e.target.value.replace(/\D/g, '').substring(0, 2))} placeholder={getSurgicalBlock() ? 'Ex: Sala 05' : 'Ex: Leito 05'}
                         maxLength="2" /></div>
@@ -2756,6 +2788,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
 
                     const optionsDropdown = (ventilatoryCatalog || []).map(item => ({ value: item.nome_oficial, label: item.nome_oficial }));
                     optionsDropdown.push({ value: 'APENAS ACESSÓRIOS', label: 'Apenas Acessórios (Avulsos)' });
+                    optionsDropdown.push({ value: 'Backup - Ventilador Mecânico Invasivo', label: 'Backup - Ventilador Mecânico Invasivo' });
 
                     const isAccessoryOnly = norm(subType) === 'APENAS ACESSORIOS';
                     // Se for apenas acessórios, buscamos a config baseada na seleção do menu de acessórios, caso contrário, do subType principal
@@ -3436,6 +3469,8 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
     const [transferModalOpen, setTransferModalOpen] = useState(false);
     const [destinationSector, setDestinationSector] = useState('');
     const [destinationBed, setDestinationBed] = useState('');
+    const [transferPatientName, setTransferPatientName] = useState('');
+    const [transferPatientMV, setTransferPatientMV] = useState('');
 
     const [receiveModalOpen, setReceiveModalOpen] = useState(false);
     const [receiveAction, setReceiveAction] = useState('accept');
@@ -3489,7 +3524,40 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
         return loc !== 'CEIC' && isMine && activeStatuses.includes(e.status);
     });
 
-    const groupedEquipments = myEquipments.reduce((acc, item) => {
+    const linkedTags = new Set();
+    const groupedEquipmentsRaw = [];
+
+    myEquipments.forEach(item => {
+        const t = normUpper(item.type);
+        if (t === 'VENTILADOR PULMONAR INVASIVO') {
+            const cassetes = myEquipments.filter(e => normUpper(e.type).includes('CASSETE EXPIRAT') && !linkedTags.has(e.tag));
+            const cTag = cassetes.find(c => {
+                const relatedReq = requests.find(r => r.equipmentTag && r.equipmentTag.includes(normUpper(item.tag)) && r.equipmentTag.includes(normUpper(c.tag)));
+                return relatedReq || (c.location === item.location && c.patient_mv === item.patient_mv && c.patient_mv);
+            });
+            if (cTag) {
+                item.pairedCassete = cTag;
+                linkedTags.add(cTag.tag);
+            }
+        }
+
+        if (t === 'VENTILADOR PULMONAR INVASIVO' || t === 'ALTO FLUXO') {
+            const umidificadores = myEquipments.filter(e => normUpper(e.type) === 'UMIDIFICADOR' && !linkedTags.has(e.tag));
+            const uTag = umidificadores.find(u => {
+                const relatedReq = requests.find(r => r.equipmentTag && r.equipmentTag.includes(normUpper(item.tag)) && r.equipmentTag.includes(normUpper(u.tag)));
+                return relatedReq || (u.location === item.location && u.patient_mv === item.patient_mv && u.patient_mv);
+            });
+            if (uTag) {
+                item.pairedUmidificador = uTag;
+                linkedTags.add(uTag.tag);
+            }
+        }
+        groupedEquipmentsRaw.push(item);
+    });
+
+    const mainEquipments = groupedEquipmentsRaw.filter(e => !linkedTags.has(e.tag));
+
+    const groupedEquipments = mainEquipments.reduce((acc, item) => {
         let unitKey = 'Equipamentos do Setor';
         if (isSupervisor09B2) {
             const loc = String(item.location || '').trim().toUpperCase();
@@ -3515,29 +3583,45 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
         setIssueDescription(''); setModalOpen(true);
     };
 
-    const confirmReturn = () => {
-        if (!collaboratorName || !collaboratorBadge) {
-            showNotification('error', 'Preencha nome e matrícula.');
-            return;
-        }
+    const confirmReturn = async () => {
+        if (!collaboratorName || !collaboratorBadge) { showNotification('error', 'Preencha todos os campos obrigatórios.'); return; }
         if (hasIssue === 'Sim' && !issueDescription.trim()) { showNotification('error', 'Descreva o problema identificado.'); return; }
-        onRequestPickup({
-            equipmentTag: selectedItem.tag, collaboratorName, collaboratorBadge, hasIssue,
-            issueDescription
+        
+        // Separa as requisições para a devolução e aguarda para evitar race condition
+        await onRequestPickup({
+            equipmentTag: selectedItem.tag, collaboratorName, collaboratorBadge, hasIssue, issueDescription
         });
+        if (selectedItem.pairedCassete) {
+            await new Promise(r => setTimeout(r, 200));
+            await onRequestPickup({
+                equipmentTag: selectedItem.pairedCassete.tag, collaboratorName, collaboratorBadge, hasIssue, issueDescription
+            });
+        }
+        if (selectedItem.pairedUmidificador) {
+            await new Promise(r => setTimeout(r, 200));
+            await onRequestPickup({
+                equipmentTag: selectedItem.pairedUmidificador.tag, collaboratorName, collaboratorBadge, hasIssue, issueDescription
+            });
+        }
+
         setModalOpen(false);
     };
-
     const handleTransferClick = (item) => {
         setSelectedItem(item); setCollaboratorName(''); setCollaboratorBadge(''); setDestinationSector('');
-        setDestinationBed(''); setTransferModalOpen(true);
+        setDestinationBed(''); setTransferPatientName(''); setTransferPatientMV(''); setTransferModalOpen(true);
     };
 
     const confirmTransfer = () => {
         if (!destinationSector || !collaboratorName || !collaboratorBadge) { showNotification('error', 'Preencha todos os campos obrigatórios.'); return; }
+        if (selectedItem?.patient_mv === '99999999' && (!transferPatientName || !transferPatientMV)) {
+            showNotification('error', 'Preencha o Nome e o MV do novo paciente para efetivar este equipamento de Backup.');
+            return;
+        }
+        let tagPayload = selectedItem.tag;
+        if (selectedItem.pairedCassete) tagPayload += `, ${selectedItem.pairedCassete.tag}`;
         onTransferEquipment({
-            equipmentTag: selectedItem.tag, destination: destinationSector, destinationBed,
-            collaboratorName, collaboratorBadge
+            equipmentTag: tagPayload, destination: destinationSector, destinationBed,
+            collaboratorName, collaboratorBadge, transferPatientName, transferPatientMV
         });
         setTransferModalOpen(false);
     };
@@ -3651,7 +3735,7 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                         className="input border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                                         value={destinationSector} onChange={e => setDestinationSector(e.target.value)}>
                                         <option value="">Selecione a unidade de destino</option>
-                                        {unidades.filter(u => u.login !== sector).map(u => (
+                                        {unidades.map(u => (
                                             <option key={u.login} value={u.login}>
                                                 {u.login} - {u.nome}
                                             </option>
@@ -3665,13 +3749,29 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                         placeholder={['CC_BLOCO1', 'CC_BLOCO2', 'CC_BLOCO3', 'CC_BLOCO4', '10B1'].includes(destinationSector) ? 'Ex: Sala 03' : ((unidades?.find(u => u.login === destinationSector)?.nome?.toUpperCase().includes('CIRURG') || destinationSector === '09B2') ? 'Ex: Sala 03' : 'Ex: Leito 05')} />
                                 </div>
                             </div>
-                            <div>
-                                <label className="label text-gray-700">Paciente Vinculado</label>
-                                <input className="input bg-gray-100 text-gray-500 cursor-not-allowed"
-                                    value={selectedItem?.patient_mv ? `${selectedItem.patientName || 'Desconhecido'} (MV: ${selectedItem.patient_mv})` : 'Nenhum paciente vinculado'} disabled />
-                                <p className="text-[10px] text-gray-400 mt-1">O paciente não pode ser alterado durante o
-                                    remanejamento.</p>
-                            </div>
+                            {selectedItem?.patient_mv === '99999999' ? (
+                                <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                                    <h4 className="font-bold text-orange-800 mb-2">Vincular Paciente (Efetivação de Backup)</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="label text-orange-800">Nome do Paciente *</label>
+                                            <input type="text" className="input border-orange-200 focus:border-orange-500" value={transferPatientName} onChange={e => setTransferPatientName(e.target.value)} placeholder="Ex: João da Silva" />
+                                        </div>
+                                        <div>
+                                            <label className="label text-orange-800">MV do Paciente *</label>
+                                            <input type="text" className="input border-orange-200 focus:border-orange-500" value={transferPatientMV} onChange={e => setTransferPatientMV(e.target.value.replace(/\D/g, ''))} placeholder="Ex: 123456" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="label text-gray-700">Paciente Vinculado</label>
+                                    <input className="input bg-gray-100 text-gray-500 cursor-not-allowed"
+                                        value={selectedItem?.patient_mv ? `${selectedItem.patientName || 'Desconhecido'} (MV: ${selectedItem.patient_mv})` : 'Nenhum paciente vinculado'} disabled />
+                                    <p className="text-[10px] text-gray-400 mt-1">O paciente não pode ser alterado durante o
+                                        remanejamento.</p>
+                                </div>
+                            )}
                             <div><label className="label text-gray-700">Seu Nome *</label><input
                                 className="input border-gray-300" value={collaboratorName} onChange={e =>
                                     setCollaboratorName(e.target.value)} placeholder="Responsável pelo envio" /></div>
@@ -3840,7 +3940,12 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                                             Recusado!</span>}
                                                     </div>
                                                     <div className="text-sm text-gray-500 mt-2 flex flex-wrap items-center gap-3">
-                                                        {(item.patient_mv || displayPatientName !== 'Paciente não identificado' || displayPatientBed) && (
+                                                        {item.patient_mv === '99999999' ? (
+                                                            <span className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md text-orange-800 shadow-sm font-bold">
+                                                                <Package size={14} className="text-orange-500" />
+                                                                ESTADO: EQUIPAMENTO DE BACKUP
+                                                            </span>
+                                                        ) : (item.patient_mv || displayPatientName !== 'Paciente não identificado' || displayPatientBed) ? (
                                                             <span
                                                                 className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-md text-gray-700 shadow-sm">
                                                                 <User size={14} className="text-blue-500" />
@@ -3848,6 +3953,19 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                                                 <span className="text-xs text-gray-400 font-mono">
                                                                     ({item.patient_mv ? `MV: ${item.patient_mv}` : 'MV: N/D'}{displayPatientBed ? ` | ${locLabel}: ${displayPatientBed}` : ''})
                                                                 </span>
+                                                            </span>
+                                                        ) : null}
+                                                        
+                                                        {item.pairedCassete && (
+                                                            <span className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md text-blue-800 shadow-sm text-xs font-medium">
+                                                                <Tag size={12} className="text-blue-500" />
+                                                                Cassete Vinculado: <span className="font-bold font-mono">{item.pairedCassete.tag}</span>
+                                                            </span>
+                                                        )}
+                                                        {item.pairedUmidificador && (
+                                                            <span className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md text-green-800 shadow-sm text-xs font-medium">
+                                                                <Tag size={12} className="text-green-500" />
+                                                                Umidificador Vinculado: <span className="font-bold font-mono">{item.pairedUmidificador.tag}</span>
                                                             </span>
                                                         )}
                                                         {isPendingTransferToMe && <span
@@ -6307,6 +6425,9 @@ function App() {
                 "VENTILADOR PULMONAR INVASIVO": {
                     accessories: ["Aeroneb", "Circuito para umidificação passiva", "Circuito de umidificação ativa", "Outros"]
                 },
+                "Backup - Ventilador Mecânico Invasivo": {
+                    accessories: []
+                },
                 "ALTO FLUXO": {
                     accessories: ["Circuito Adulto", "Circuito Infantil", "Cânula nasal Adulto P", "Cânula nasal Adulto M", "Cânula nasal Adulto G", "Cânula de interface para TQT", "Cânula nasal Infantil (Roxa - até 20L/min)", "Cânula nasal Pediátrica (Verde - até 25L/min)"]
                 },
@@ -7374,23 +7495,40 @@ function App() {
         }
     };
 
-    const handleTransferEquipment = async ({ equipmentTag, destination, destinationBed, collaboratorName, collaboratorBadge }) => {
-        const item = inventory.find(i => normUpper(i.tag) === normUpper(equipmentTag));
+    const handleTransferEquipment = async ({ equipmentTag, destination, destinationBed, collaboratorName, collaboratorBadge, transferPatientName, transferPatientMV }) => {
+        const tagsToTransfer = equipmentTag.split(',').map(t => t.trim()).filter(Boolean);
+        const primaryTag = tagsToTransfer[0];
+        const item = inventory.find(i => normUpper(i.tag) === normUpper(primaryTag));
         if (!item) return;
 
         // Garante que apenas a sigla limpa seja salva e processada em todo o fluxo
         destination = destination ? destination.trim().split(' ')[0] : '';
+        const isSameSector = normUpper(destination) === normUpper(item.location);
 
         try {
-            // BLINDAGEM: Atualiza apenas transfer_status e transfer_to, sem mudar a location ainda
+            const updatePayload = {
+                transfer_to_bed: destinationBed || null
+            };
+
+            if (transferPatientMV && transferPatientName) {
+                updatePayload.patient_mv = transferPatientMV;
+                updatePayload.patient_name = transferPatientName;
+            }
+
+            if (isSameSector) {
+                updatePayload.transfer_status = null;
+                updatePayload.transfer_to = null;
+                updatePayload.location = destination; // technically already there, but ensures consistency
+            } else {
+                updatePayload.transfer_status = 'in_transit';
+                updatePayload.transfer_to = destination;
+            }
+
+            // BLINDAGEM: Atualiza equipamentos
             const { data: eqData, error: eqError } = await supabase
                 .from('equipamentos')
-                .update({
-                    transfer_status: 'in_transit',
-                    transfer_to: destination,
-                    transfer_to_bed: destinationBed || null
-                })
-                .eq('tag', equipmentTag)
+                .update(updatePayload)
+                .in('tag', tagsToTransfer)
                 .select();
 
             if (eqError || !eqData || eqData.length === 0) {
@@ -7398,22 +7536,31 @@ function App() {
             }
 
             // Tenta atualizar o pedido ativo para manter histórico coerente
-            const activeReq = requests.find(r => normUpper(r.equipmentTag).includes(normUpper(equipmentTag)) && (r.status === 'delivered' || r.status === 'aprovado' || r.status === 'approved'));
+            const activeReq = requests.find(r => normUpper(r.equipmentTag).includes(normUpper(primaryTag)) && (r.status === 'delivered' || r.status === 'aprovado' || r.status === 'approved'));
             if (activeReq) {
+                const reqUpdate = {
+                    patient_bed: destinationBed || null,
+                };
+                if (!isSameSector) reqUpdate.status = 'in_transfer';
+                if (transferPatientMV && transferPatientName) {
+                    reqUpdate.patient_mv = transferPatientMV;
+                    reqUpdate.patient_name = transferPatientName;
+                }
+                reqUpdate.fulfilled_at = new Date().toISOString();
+                
                 await supabase
                     .from('pedidos')
-                    .update({
-                        status: 'in_transfer',
-                        patient_bed: destinationBed || null,
-                        fulfilled_at: new Date().toISOString()
-                    })
+                    .update(reqUpdate)
                     .eq('id', activeReq.id);
             }
 
             // Atualiza inventário local
-            setInventory(prev => prev.map(eq =>
-                normUpper(eq.tag) === normUpper(equipmentTag) ? { ...eq, transferStatus: 'in_transit', transferTo: destination, transferToBed: destinationBed } : eq
-            ));
+            setInventory(prev => prev.map(eq => {
+                if (tagsToTransfer.some(t => normUpper(t) === normUpper(eq.tag))) {
+                    return { ...eq, transferStatus: 'in_transit', transferTo: destination, transferToBed: destinationBed };
+                }
+                return eq;
+            }));
 
             if (activeReq) {
                 setRequests(prev => prev.map(r => r.id === activeReq.id ? { ...r, status: 'in_transfer', transfer_to: destination } : r));
