@@ -1088,7 +1088,7 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
 
     const isCapnografia = normUpper(req.equipmentType) === 'MODULO DE CAPNOGRAFIA + CABO' || normUpper(req.equipmentType) === 'MODULO DE CAPNOGRAFIA';
     const isAltoFluxo = normUpper(req.equipmentType) === 'ALTO FLUXO';
-    const isInvasivo = normUpper(req.equipmentType) === 'VENTILADOR PULMONAR INVASIVO';
+    const isInvasivo = normUpper(req.equipmentType) === 'VENTILADOR PULMONAR INVASIVO' || normUpper(req.equipmentType).includes('BACKUP - VENTILADOR MEC');
     const isMultiTag = isCapnografia || isAltoFluxo || isInvasivo;
     
     let multiTagItemsList = [];
@@ -6853,7 +6853,7 @@ function App() {
             expectedTypes = ['MODULO DE CAPNOGRAFIA', 'CABO DE CAPNOGRAFIA', 'CELULA DE CAPNOGRAFIA'];
         } else if (normEqType === 'ALTO FLUXO') {
             expectedTypes = ['ALTO FLUXO', 'UMIDIFICADOR'];
-        } else if (normEqType === 'VENTILADOR PULMONAR INVASIVO') {
+        } else if (normEqType === 'VENTILADOR PULMONAR INVASIVO' || normEqType.includes('BACKUP - VENTILADOR MEC')) {
             expectedTypes = ['VENTILADOR PULMONAR INVASIVO'];
             
             // Verifica se o modelo requer cassete usando a tag do ventilador (primeiro item em tagsArray)
@@ -7558,7 +7558,10 @@ function App() {
                 const reqUpdate = {
                     patient_bed: destinationBed || null,
                 };
-                if (!isSameSector) reqUpdate.status = 'in_transfer';
+                if (!isSameSector) {
+                    reqUpdate.status = 'in_transfer';
+                    reqUpdate.transfer_to = destination;
+                }
                 if (transferPatientMV && transferPatientName) {
                     reqUpdate.patient_mv = transferPatientMV;
                     reqUpdate.patient_name = transferPatientName;
