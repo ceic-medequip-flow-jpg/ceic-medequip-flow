@@ -8,7 +8,7 @@ import {
     AlertCircle, Search, BadgeCheck, PlusCircle, List, MapPin, X, Send, ChevronDown,
     ChevronUp, XCircle, Menu, Wrench, BarChart3, Database, Edit, Trash2, LineChart,
     Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight, ArrowRight,
-    HelpCircle, LifeBuoy, UserPlus, Briefcase, PackageOpen
+    HelpCircle, LifeBuoy, UserPlus, Briefcase, PackageOpen, ClipboardCheck
 } from 'lucide-react';
 import logoCeic from './assets/logo-ceic.png';
 
@@ -27,7 +27,8 @@ const SIDEBAR_ITEMS = [
     { id: 'admin_ocorrencias', label: 'Gestão de Ocorrências', icon: AlertTriangle, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
     { id: 'admin_preventiva', label: 'Plano de Preventivas', icon: CalendarClock, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
     { id: 'admin_remanejamento', label: 'Remanejamento', icon: Send, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
-    { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
+    { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gestão' },
+    { id: 'gestao_plantao', label: 'Gestão do Plantão', icon: ClipboardCheck, roles: ['OPERACIONAL', 'ADMIN', 'GERENCIAL'], group: 'Gestão', testId: 'nav-gestao-plantao' },
     { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-dashboard-operacional' },
     { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
     { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-triagem' },
@@ -4415,7 +4416,19 @@ const AdminRemanejamento = ({ inventory, onRemanejamento, showNotification, unid
     );
 };
 
-const AdminDashboard = ({ inventory, requests }) => {
+const ShiftHandoverView = ({ inventory, requests }) => {
+    return (
+        <div className="space-y-8 animate-fade-in pb-10 max-w-6xl mx-auto w-full">
+            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2 px-4 md:px-0">
+                <ClipboardCheck className="text-blue-600" /> Gestão do Plantão
+            </h2>
+            
+            <AdminDashboard inventory={inventory} requests={requests} hideMetrics={true} />
+        </div>
+    );
+};
+
+const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
     const todayStr = new Date().toISOString().substring(0, 10);
     const [startDate, setStartDate] = useState(`${todayStr}T00:00`);
     const [endDate, setEndDate] = useState(`${todayStr}T23:59`);
@@ -4515,51 +4528,55 @@ const AdminDashboard = ({ inventory, requests }) => {
     const totalCanceled = canceledRequestsList.length;
 
     return (
-        <div className="space-y-6 pb-20 animate-fade-in max-w-6xl mx-auto" data-testid="management-dashboard">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <BarChart3 className="text-purple-600" /> Painel Gerencial de Frota
-            </h2>
+        <div className={`space-y-6 pb-20 animate-fade-in max-w-6xl mx-auto w-full ${hideMetrics ? 'px-0' : ''}`} data-testid="management-dashboard">
+            {!hideMetrics && (
+                <>
+                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2 px-4 md:px-0">
+                        <BarChart3 className="text-purple-600" /> Painel Gerencial de Frota
+                    </h2>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200" data-testid="metrics-card">
-                    <p className="text-xs font-bold text-gray-500 uppercase">Total da Frota</p>
-                    <p className="text-3xl font-black text-gray-800 mt-1">{totalItems}</p>
-                </div>
-                <div className="bg-white p-5 rounded-xl shadow-sm border-b-4 border-green-500" data-testid="metrics-card">
-                    <p className="text-xs font-bold text-gray-500 uppercase">Pronto Uso</p>
-                    <div className="flex items-baseline gap-2 mt-1">
-                        <p className="text-3xl font-black text-green-600">{availableItems}</p>
-                        <span
-                            className="text-sm font-bold text-gray-400">({calcPct(availableItems)}%)</span>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 px-4 md:px-0">
+                        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200" data-testid="metrics-card">
+                            <p className="text-xs font-bold text-gray-500 uppercase">Total da Frota</p>
+                            <p className="text-3xl font-black text-gray-800 mt-1">{totalItems}</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl shadow-sm border-b-4 border-green-500" data-testid="metrics-card">
+                            <p className="text-xs font-bold text-gray-500 uppercase">Pronto Uso</p>
+                            <div className="flex items-baseline gap-2 mt-1">
+                                <p className="text-3xl font-black text-green-600">{availableItems}</p>
+                                <span
+                                    className="text-sm font-bold text-gray-400">({calcPct(availableItems)}%)</span>
+                            </div>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl shadow-sm border-b-4 border-blue-500">
+                            <p className="text-xs font-bold text-gray-500 uppercase">Em Uso Clínico</p>
+                            <div className="flex items-baseline gap-2 mt-1">
+                                <p className="text-3xl font-black text-blue-600">{inUseItems}</p>
+                                <span
+                                    className="text-sm font-bold text-gray-400">({calcPct(inUseItems)}%)</span>
+                            </div>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl shadow-sm border-b-4 border-yellow-500">
+                            <p className="text-xs font-bold text-gray-500 uppercase">Higienização</p>
+                            <div className="flex items-baseline gap-2 mt-1">
+                                <p className="text-3xl font-black text-yellow-600">{cleaningItems}</p>
+                                <span
+                                    className="text-sm font-bold text-gray-400">({calcPct(cleaningItems)}%)</span>
+                            </div>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl shadow-sm border-b-4 border-red-500">
+                            <p className="text-xs font-bold text-gray-500 uppercase">Manutenção</p>
+                            <div className="flex items-baseline gap-2 mt-1">
+                                <p className="text-3xl font-black text-red-600">{maintenanceItems}</p>
+                                <span
+                                    className="text-sm font-bold text-gray-400">({calcPct(maintenanceItems)}%)</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div className="bg-white p-5 rounded-xl shadow-sm border-b-4 border-blue-500">
-                    <p className="text-xs font-bold text-gray-500 uppercase">Em Uso Clínico</p>
-                    <div className="flex items-baseline gap-2 mt-1">
-                        <p className="text-3xl font-black text-blue-600">{inUseItems}</p>
-                        <span
-                            className="text-sm font-bold text-gray-400">({calcPct(inUseItems)}%)</span>
-                    </div>
-                </div>
-                <div className="bg-white p-5 rounded-xl shadow-sm border-b-4 border-yellow-500">
-                    <p className="text-xs font-bold text-gray-500 uppercase">Higienização</p>
-                    <div className="flex items-baseline gap-2 mt-1">
-                        <p className="text-3xl font-black text-yellow-600">{cleaningItems}</p>
-                        <span
-                            className="text-sm font-bold text-gray-400">({calcPct(cleaningItems)}%)</span>
-                    </div>
-                </div>
-                <div className="bg-white p-5 rounded-xl shadow-sm border-b-4 border-red-500">
-                    <p className="text-xs font-bold text-gray-500 uppercase">Manutenção</p>
-                    <div className="flex items-baseline gap-2 mt-1">
-                        <p className="text-3xl font-black text-red-600">{maintenanceItems}</p>
-                        <span
-                            className="text-sm font-bold text-gray-400">({calcPct(maintenanceItems)}%)</span>
-                    </div>
-                </div>
-            </div>
+                </>
+            )}
 
-            <div className="flex flex-col gap-6">
+            <div className={`flex flex-col gap-6 ${hideMetrics ? '' : 'px-4 md:px-0'}`}>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                     <div
                         className="flex flex-col xl:flex-row xl:items-center justify-between mb-4 gap-4">
@@ -4824,33 +4841,35 @@ const AdminDashboard = ({ inventory, requests }) => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div
-                        className="bg-red-50 p-4 border-b border-red-100 flex justify-between items-center">
-                        <h3 className="font-bold text-red-800 flex items-center gap-2">
-                            <AlertTriangle size={18} /> Alerta de Ociosidade (Manutenção)
-                        </h3>
-                    </div>
-                    <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
-                        {inventory.filter(i => i.status === 'maintenance').map(item => (
-                            <div key={item.id}
-                                className="p-4 flex justify-between items-center hover:bg-gray-50">
-                                <div>
-                                    <p className="font-bold text-gray-800">{item.tag}</p>
-                                    <p className="text-xs text-gray-500">{item.model}</p>
+                {!hideMetrics && (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div
+                            className="bg-red-50 p-4 border-b border-red-100 flex justify-between items-center">
+                            <h3 className="font-bold text-red-800 flex items-center gap-2">
+                                <AlertTriangle size={18} /> Alerta de Ociosidade (Manutenção)
+                            </h3>
+                        </div>
+                        <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                            {inventory.filter(i => i.status === 'maintenance').map(item => (
+                                <div key={item.id}
+                                    className="p-4 flex justify-between items-center hover:bg-gray-50">
+                                    <div>
+                                        <p className="font-bold text-gray-800">{item.tag}</p>
+                                        <p className="text-xs text-gray-500">{item.model}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-sm font-medium text-red-600">
+                                            {formatElapsed(item.returnDate)} parados</p>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-sm font-medium text-red-600">
-                                        {formatElapsed(item.returnDate)} parados</p>
-                                </div>
-                            </div>
-                        ))}
-                        {inventory.filter(i => i.status === 'maintenance').length === 0 && (
-                            <div className="p-8 text-center text-gray-500">Nenhum equipamento quebrado no
-                                momento.</div>
-                        )}
+                            ))}
+                            {inventory.filter(i => i.status === 'maintenance').length === 0 && (
+                                <div className="p-8 text-center text-gray-500">Nenhum equipamento quebrado no
+                                    momento.</div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
             </div>
         </div>
@@ -8113,7 +8132,10 @@ function App() {
                             return acc;
                         }, {});
 
-                        const order = ['Gerencial', 'Operacional', 'Assistencial', 'Sistema e Suporte', 'Outros'];
+                        let order = ['Gerencial', 'Gestão', 'Operacional', 'Assistencial', 'Sistema e Suporte', 'Outros'];
+                        if (String(userProfile.role).toUpperCase() === 'OPERACIONAL') {
+                            order = ['Operacional', 'Gestão', 'Gerencial', 'Assistencial', 'Sistema e Suporte', 'Outros'];
+                        }
                         const groupsToRender = Object.keys(grouped).sort((a, b) => order.indexOf(a) - order.indexOf(b));
 
                         const groupIcons = {
@@ -8198,6 +8220,9 @@ function App() {
                     <AdminPreventivaView inventory={inventory} onSchedule={handleSchedulePreventive}
                         onSegregate={handleSegregatePreventive}
                         onComplete={handleCompletePreventive} />}
+                {currentView === 'gestao_plantao' && <ShiftHandoverView
+                    inventory={inventory} requests={requests}
+                />}
                 {currentView === 'admin_remanejamento' &&
                     <AdminRemanejamento inventory={inventory} onRemanejamento={handleRemanejamento}
                         showNotification={showNotification} unidades={unidades} />}
