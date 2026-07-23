@@ -170,7 +170,8 @@ const mapPedido = (raw) => {
         cancelBadge: raw.cancel_badge || raw.cancelBadge || raw.cancelbadge || null,
         cancelReason: raw.cancel_reason || raw.cancelReason || raw.cancelreason || null,
         tevPriority: raw.tev_priority != null ? Number(raw.tev_priority) : (raw.tevPriority != null ? Number(raw.tevPriority) : null),
-        tevGroup: raw.tev_group || raw.tevGroup || null
+        tevGroup: raw.tev_group || raw.tevGroup || null,
+        claimedBy: raw.claimed_by || raw.claimedBy || raw.claimedby || null
     };
 };
 
@@ -834,7 +835,7 @@ const LoanedEquipmentSection = ({ requests, inventory }) => {
 };
 
 const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showNotification, onProcessPickup,
-    onCancelRequest, onNotifyRequester, soundEnabled, setSoundEnabled }) => {
+    onCancelRequest, onNotifyRequester, onClaimPickup, soundEnabled, setSoundEnabled }) => {
     const [filter, setFilter] = useState('all');
     // (fix) soundEnabled vem do App via props
     const pending = requests.filter(r => {
@@ -920,65 +921,81 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
 
     const filteredPending = pending.filter(r => filter === 'all' || (filter === 'urgent' && r.isUrgent));
 
-    const sortedFilteredPending = useMemo(() => {
-        let items = [...filteredPending];
-        const nonTevItems = [];
-        const tevItemsByPriority = { 1: [], 2: [], 3: [], 4: [] };
-        
-        items.forEach(req => {
-            if (req.tevPriority != null) {
-                const p = req.tevPriority;
-                if (!tevItemsByPriority[p]) tevItemsByPriority[p] = [];
-                tevItemsByPriority[p].push(req);
-            } else {
-                nonTevItems.push(req);
-            }
-        });
-        
-        const sortedTevItems = [];
-        [1, 2, 3, 4].forEach(p => {
-            let pItems = tevItemsByPriority[p];
-            if (pItems && pItems.length > 0) {
-                const groups = { 'Clínico': [], 'Cirúrgico': [], 'Perioperatório': [], 'Obstétrica': [], 'Outros': [] };
-                pItems.forEach(r => {
-                    const g = r.tevGroup || 'Outros';
-                    if (groups[g]) groups[g].push(r);
-                    else groups['Outros'].push(r);
-                });
-                Object.keys(groups).forEach(g => {
-                    groups[g].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                });
-                const order = ['Clínico', 'Cirúrgico', 'Perioperatório', 'Obstétrica', 'Outros'];
-                let added = true;
-                while (added) {
-                    added = false;
-                    order.forEach(g => {
-                        if (groups[g].length > 0) {
-                            sortedTevItems.push(groups[g].shift());
-                            added = true;
-                        }
-                    });
+    const sortedSections = useMemo(() => {
+        const sortChronological = (arr) => [...arr].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        const sortPriority = (arr) => {
+            let items = [...arr];
+            const nonTevItems = [];
+            const tevItemsByPriority = { 1: [], 2: [], 3: [], 4: [] };
+            
+            items.forEach(req => {
+                if (req.tevPriority != null) {
+                    const p = req.tevPriority;
+                    if (!tevItemsByPriority[p]) tevItemsByPriority[p] = [];
+                    tevItemsByPriority[p].push(req);
+                } else {
+                    nonTevItems.push(req);
                 }
-            }
-        });
-        
-        return items.sort((a, b) => {
-             const getWeight = (req) => {
-                 if (req.isUrgent) return 100;
-                 if (req.tevPriority === 1) return 90;
-                 if (req.tevPriority === 2) return 80;
-                 if (req.tevPriority === 3) return 70;
-                 if (req.tevPriority === 4) return 60;
-                 return 50;
-             };
-             const wA = getWeight(a);
-             const wB = getWeight(b);
-             if (wA !== wB) return wB - wA;
-             if (a.tevPriority != null && b.tevPriority != null && a.tevPriority === b.tevPriority) {
-                 return sortedTevItems.indexOf(a) - sortedTevItems.indexOf(b);
-             }
-             return new Date(a.timestamp) - new Date(b.timestamp);
-        });
+            });
+            
+            const sortedTevItems = [];
+            [1, 2, 3, 4].forEach(p => {
+                let pItems = tevItemsByPriority[p];
+                if (pItems && pItems.length > 0) {
+                    const groups = { 'Clínico': [], 'Cirúrgico': [], 'Perioperatório': [], 'Obstétrica': [], 'Outros': [] };
+                    pItems.forEach(r => {
+                        const g = r.tevGroup || 'Outros';
+                        if (groups[g]) groups[g].push(r);
+                        else groups['Outros'].push(r);
+                    });
+                    Object.keys(groups).forEach(g => {
+                        groups[g].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    });
+                    const order = ['Clínico', 'Cirúrgico', 'Perioperatório', 'Obstétrica', 'Outros'];
+                    let added = true;
+                    while (added) {
+                        added = false;
+                        order.forEach(g => {
+                            if (groups[g].length > 0) {
+                                sortedTevItems.push(groups[g].shift());
+                                added = true;
+                            }
+                        });
+                    }
+                }
+            });
+            
+            return items.sort((a, b) => {
+                const getWeight = (req) => {
+                    if (req.isUrgent) return 100;
+                    if (req.tevPriority === 1) return 90;
+                    if (req.tevPriority === 2) return 80;
+                    if (req.tevPriority === 3) return 70;
+                    if (req.tevPriority === 4) return 60;
+                    return 50;
+                };
+                const wA = getWeight(a);
+                const wB = getWeight(b);
+                if (wA !== wB) return wB - wA;
+                if (a.tevPriority != null && b.tevPriority != null && a.tevPriority === b.tevPriority) {
+                    return sortedTevItems.indexOf(a) - sortedTevItems.indexOf(b);
+                }
+                return new Date(a.timestamp) - new Date(b.timestamp);
+            });
+        };
+
+        const novos = filteredPending.filter(r => r.status === 'pending');
+        const aguardando = filteredPending.filter(r => r.status === 'in_transfer');
+        const devs = filteredPending.filter(r => r.status === 'pickup_requested');
+        const espera = filteredPending.filter(r => r.status === 'waitlisted');
+
+        return {
+            novosPedidos: sortChronological(novos),
+            aguardandoConfirmacao: sortChronological(aguardando),
+            devolucoes: sortChronological(devs),
+            filaEspera: sortPriority(espera)
+        };
     }, [filteredPending]);
 
     const inTransitEquipments = inventory.filter(i => i.transferStatus === 'in_transit');
@@ -1032,14 +1049,70 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
                     </h3>
                     <span className="text-xs text-gray-500">{filteredPending.length} aguardando</span>
                 </div>
-                <div className="divide-y divide-gray-100">
+                <div className="flex flex-col gap-6 p-6 bg-gray-50/50">
                     {filteredPending.length === 0 ? <div className="p-8 text-center text-gray-400">Nenhuma solicitação
                         encontrada no filtro atual.</div> :
-                        sortedFilteredPending.map(req => (
-                            <PendingRequestCard key={req.id} req={req} inventory={inventory} onFulfill={onFulfill}
-                                showNotification={showNotification} onProcessPickup={onProcessPickup} onCancel={onCancelRequest}
-                                onNotifyRequester={onNotifyRequester} />
-                        ))
+                        <>
+                            {sortedSections.novosPedidos.length > 0 && (
+                                <div className="border-2 border-blue-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                                    <div className="bg-blue-50 px-5 py-3 border-b-2 border-blue-200 font-extrabold text-blue-900 text-base flex items-center gap-2">
+                                        <BadgeCheck size={18} /> Novos Pedidos ({sortedSections.novosPedidos.length})
+                                    </div>
+                                    <div className="divide-y divide-gray-100">
+                                        {sortedSections.novosPedidos.map(req => (
+                                            <PendingRequestCard key={req.id} req={req} inventory={inventory} onFulfill={onFulfill}
+                                                showNotification={showNotification} onProcessPickup={onProcessPickup} onCancel={onCancelRequest}
+                                                onNotifyRequester={onNotifyRequester} onClaimPickup={onClaimPickup} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {sortedSections.aguardandoConfirmacao.length > 0 && (
+                                <div className="border-2 border-green-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                                    <div className="bg-green-50 px-5 py-3 border-b-2 border-green-200 font-extrabold text-green-900 text-base flex items-center gap-2">
+                                        <ArrowUpRight size={18} /> Aguardando Confirmação do Setor ({sortedSections.aguardandoConfirmacao.length})
+                                    </div>
+                                    <div className="divide-y divide-gray-100">
+                                        {sortedSections.aguardandoConfirmacao.map(req => (
+                                            <PendingRequestCard key={req.id} req={req} inventory={inventory} onFulfill={onFulfill}
+                                                showNotification={showNotification} onProcessPickup={onProcessPickup} onCancel={onCancelRequest}
+                                                onNotifyRequester={onNotifyRequester} onClaimPickup={onClaimPickup} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {sortedSections.devolucoes.length > 0 && (
+                                <div className="border-2 border-purple-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                                    <div className="bg-purple-50 px-5 py-3 border-b-2 border-purple-200 font-extrabold text-purple-900 text-base flex items-center gap-2">
+                                        <Truck size={18} /> Devoluções Solicitadas ({sortedSections.devolucoes.length})
+                                    </div>
+                                    <div className="divide-y divide-gray-100">
+                                        {sortedSections.devolucoes.map(req => (
+                                            <PendingRequestCard key={req.id} req={req} inventory={inventory} onFulfill={onFulfill}
+                                                showNotification={showNotification} onProcessPickup={onProcessPickup} onCancel={onCancelRequest}
+                                                onNotifyRequester={onNotifyRequester} onClaimPickup={onClaimPickup} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {sortedSections.filaEspera.length > 0 && (
+                                <div className="border-2 border-orange-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                                    <div className="bg-orange-50 px-5 py-3 border-b-2 border-orange-200 font-extrabold text-orange-900 text-base flex items-center gap-2">
+                                        <Clock size={18} /> Fila de Espera ({sortedSections.filaEspera.length})
+                                    </div>
+                                    <div className="divide-y divide-gray-100">
+                                        {sortedSections.filaEspera.map(req => (
+                                            <PendingRequestCard key={req.id} req={req} inventory={inventory} onFulfill={onFulfill}
+                                                showNotification={showNotification} onProcessPickup={onProcessPickup} onCancel={onCancelRequest}
+                                                onNotifyRequester={onNotifyRequester} onClaimPickup={onClaimPickup} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     }
                 </div>
             </div>
@@ -1073,7 +1146,7 @@ const OperatorDashboard = ({ requests, inventory, onViewChange, onFulfill, showN
 
 // Componente: Card de Pedido da fila operacional.
 const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onProcessPickup, onCancel,
-    onNotifyRequester }) => {
+    onNotifyRequester, onClaimPickup }) => {
     const [typedTag, setTypedTag] = useState('');
     const [multiTags, setMultiTags] = useState({});
     const [isCancelling, setIsCancelling] = useState(false);
@@ -1474,9 +1547,24 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                                             </div>
                                         </div>
                                     ) : req.status === 'pickup_requested' ? (
-                                        <button onClick={() => onProcessPickup(req)} className="w-full h-[44px] px-4 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 flex items-center justify-center shadow-sm">
-                                            <ClipboardList size={18} className="mr-2" /> Devolução/Triagem
-                                        </button>
+                                        <div className="space-y-2">
+                                            {req.claimedBy && (
+                                                <div className="flex items-center gap-2 bg-purple-50 text-purple-800 p-2 rounded-lg text-sm font-bold border border-purple-200">
+                                                    <Truck size={16} className="animate-pulse" /> Em rota de retirada por: {req.claimedBy}
+                                                </div>
+                                            )}
+                                            {!req.claimedBy && (
+                                                <button onClick={() => {
+                                                    const name = window.prompt("Qual o seu nome?");
+                                                    if(name && name.trim()) onClaimPickup(req.id, name.trim());
+                                                }} className="w-full h-[40px] px-4 rounded-xl bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 flex items-center justify-center shadow-sm">
+                                                    <Truck size={18} className="mr-2" /> Estou indo retirar
+                                                </button>
+                                            )}
+                                            <button onClick={() => onProcessPickup(req)} className="w-full h-[44px] px-4 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 flex items-center justify-center shadow-sm">
+                                                <ClipboardList size={18} className="mr-2" /> Devolução/Triagem
+                                            </button>
+                                        </div>
                                     ) : String(req.equipmentType || '').trim().toUpperCase() === 'APENAS ACESSÓRIOS' || String(req.equipmentType || '').trim().toUpperCase() === 'APENAS ACESSORIOS' ? (
                                         <button onClick={() => onFulfill(req, 'ACESSORIOS')} className="w-full h-[44px] px-4 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 flex items-center justify-center shadow-sm">
                                             <BadgeCheck size={18} className="mr-2" /> Concluir Entrega de Acessórios
@@ -7037,6 +7125,25 @@ function App() {
         } catch (error) {
             console.error('Erro ao processar retirada:', error);
             showNotification('error', `Erro ao processar retirada: ${error.message}`);
+        }
+    };
+
+    const handleClaimPickup = async (requestId, collaboratorName) => {
+        try {
+            const { data, error } = await supabase
+                .from('pedidos')
+                .update({ claimed_by: collaboratorName })
+                .eq('id', requestId)
+                .select();
+
+            if (error || !data || data.length === 0) {
+                throw new Error('Operação não persistiu no banco');
+            }
+
+            setRequests(prev => prev.map(r => r.id === requestId ? { ...r, claimedBy: collaboratorName } : r));
+            showNotification('success', `Aviso de retirada registrado para ${collaboratorName}.`);
+        } catch (error) {
+            showNotification('error', `Erro ao registrar aviso de retirada: ${error.message}`);
         }
     };
 
