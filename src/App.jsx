@@ -407,7 +407,7 @@ const SearchDropdown = ({ value, onChange, options = [], placeholder, className 
     };
 
     return (
-        <div className="relative" ref={ref}>
+        <div className={`relative ${isOpen ? 'z-[100]' : 'z-10'}`} ref={ref}>
             <div className={`input flex items-center justify-between cursor-pointer bg-white ${className} ${!selectedOption
                 ? 'text-gray-500' : 'text-gray-800'}`} onClick={() => { setIsOpen(!isOpen); setSearch(''); }} tabIndex={0}>
                 <span className="truncate pr-4">{selectedOption ? selectedOption.label : placeholder}</span>
@@ -2789,6 +2789,10 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
 
     const removeEquipmentFromList = (index) => setEquipmentList(prev => prev.filter((_, i) => i !== index));
 
+    const isCatVentilatoria = Boolean(category && normUpper(category).includes('VENTILATORIA'));
+    const isCatGerais = Boolean(category && !isCatVentilatoria && !normUpper(category).includes('TRANSPORTE'));
+    const isCurrentFormInvalid = !category || (isCatGerais && !selectedItem) || (isCatVentilatoria && !subType);
+
     return (
         <div
             className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-gray-100 w-full max-w-screen-xl mx-auto animate-fade-in relative">
@@ -2862,7 +2866,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     </div>
                 )}
 
-                <div data-testid="request-equipment-type">
+                <div data-testid="request-equipment-type" className="relative z-[70]">
                     <label className="label text-lg text-blue-800 font-bold">Categoria do Equipamento</label>
                     <SearchDropdown value={category} onChange={handleCategoryChange}
                         options={dynamicCategoryOptions} placeholder="Selecione a categoria..." className="border-blue-200 bg-blue-50/30 h-[50px] text-lg font-medium" />
@@ -2893,9 +2897,9 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     ];
 
                     return (
-                        <div className="space-y-4 animate-fade-in">
+                        <div className="space-y-4 animate-fade-in relative z-[60]">
                             <div className="grid grid-cols-1 gap-4">
-                                <div>
+                                <div className="relative z-[60]">
                                     <label className="label">Tipo</label>
                                     <SearchDropdown value={subType} onChange={(val) => {
                                         setSubType(val);
@@ -2961,7 +2965,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                 })()}
 
                 {category && !normUpper(category).includes('VENTILATORIA') && !normUpper(category).includes('TRANSPORTE') && (
-                    <div className="animate-fade-in" data-testid="request-equipment-item">
+                    <div className="animate-fade-in relative z-[60]" data-testid="request-equipment-item">
                         <label className="label">Equipamento</label>
                         <SearchDropdown value={selectedItem} onChange={(val) => {
                             setSelectedItem(val);
@@ -3153,12 +3157,12 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
 
 
                 <div className="flex flex-col md:flex-row gap-4 pt-4 border-t border-gray-100">
-                    <button data-testid="create-request-button" type="button" onClick={handleAddAnother} disabled={!category}
+                    <button data-testid="create-request-button" type="button" onClick={handleAddAnother} disabled={isCurrentFormInvalid}
                         className="flex-1 h-[50px] rounded-xl border-2 border-blue-600 text-blue-600 font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                         <PlusCircle size={20} /> Solicitar Outro Equipamento
                     </button>
-                    <button data-testid="request-submit" type="submit" disabled={!category && equipmentList.length === 0}
-                        className="flex-1 btn-primary h-[50px] text-lg shadow-lg shadow-blue-200 flex items-center justify-center gap-2 disabled:opacity-50">Confirmar
+                    <button data-testid="request-submit" type="submit" disabled={equipmentList.length === 0 && isCurrentFormInvalid}
+                        className="flex-1 btn-primary h-[50px] text-lg shadow-lg shadow-blue-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">Confirmar
                         Solicitação
                         <ArrowUpRight size={20} />
                     </button>
@@ -4438,6 +4442,10 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
     const [isCanceledAnalysisOpen, setIsCanceledAnalysisOpen] = useState(false);
     const [isReturnsAnalysisOpen, setIsReturnsAnalysisOpen] = useState(false);
     const [isApprovedAnalysisOpen, setIsApprovedAnalysisOpen] = useState(false);
+    const [isGeraisExpanded, setIsGeraisExpanded] = useState(false);
+    const [isVentExpanded, setIsVentExpanded] = useState(false);
+    const [isReturnsGeraisExpanded, setIsReturnsGeraisExpanded] = useState(false);
+    const [isReturnsVentExpanded, setIsReturnsVentExpanded] = useState(false);
 
     const totalItems = inventory.length;
     const availableItems = inventory.filter(i => i.status === 'available').length;
@@ -4459,22 +4467,34 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
         return !isNaN(t) && t >= s && t <= e;
     }; const filteredRequests = requests.filter(r => isWithinRange(r.timestamp));
 
-    const approvedRequests = filteredRequests.filter(r => ['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(r.status));
+    const approvedRequests = filteredRequests.filter(r => ['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(r.status) && !normUpper(r.equipmentType || '').includes('TRANSPORTE'));
     
     const completedReturnsList = filteredRequests.filter(r => ['return_pickup', 'recolhimento'].includes(r.kind) && ['completed', 'concluido'].includes(r.status))
         .sort((a, b) => new Date(b.fulfilledAt || b.timestamp).getTime() - new Date(a.fulfilledAt || a.timestamp).getTime());
     const completedReturns = completedReturnsList.length;
 
-    let countGerais = 0; let countVent = 0; let countTransp = 0;
+    const returnsGerais = [];
+    const returnsVent = [];
+    const ventKeywords = ['ALTO FLUXO', 'CASSETE', 'GERADOR DE FLUXO', 'UMIDIFICADOR', 'VENTILADOR', 'VENTILOMETRO', 'MANOVACUOMETRO', 'APENAS ACESSORIOS', 'BACKUP'];
+    
+    completedReturnsList.forEach(r => {
+        const type = r.equipmentType || '';
+        if (ventKeywords.some(vb => normUpper(type).includes(vb))) {
+            returnsVent.push(r);
+        } else {
+            returnsGerais.push(r);
+        }
+    });
+
+    const listGerais = [];
+    const listVent = [];
 
     approvedRequests.forEach(r => {
         const type = r.equipmentType || '';
-        if (normUpper(type).includes('TRANSPORTE')) {
-            countTransp++;
-        } else if (['VENTILADOR PULMONAR', 'GERADOR DE FLUXO', 'OXIDO NITRICO', 'APENAS ACESSORIOS'].some(vb => normUpper(type).startsWith(vb))) {
-            countVent++;
+        if (ventKeywords.some(vb => normUpper(type).includes(vb))) {
+            listVent.push(r);
         } else {
-            countGerais++;
+            listGerais.push(r);
         }
     });
 
@@ -4625,29 +4645,67 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
                         {isApprovedAnalysisOpen && (
                             <div className="bg-white rounded-xl shadow-sm border border-green-200 overflow-hidden animate-fade-in my-2">
                                 <div className="bg-white divide-y divide-gray-50">
-                                    <div
-                                        className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors">
-                                        <span className="text-gray-600 flex items-center gap-2 font-medium">
-                                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                                            Equipamentos Gerais
-                                        </span>
-                                        <span className="font-bold text-gray-800">{countGerais}</span>
+                                    <div className="flex flex-col">
+                                        <button 
+                                            onClick={() => setIsGeraisExpanded(!isGeraisExpanded)}
+                                            className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors focus:outline-none w-full text-left"
+                                        >
+                                            <span className="text-gray-600 flex items-center gap-2 font-medium">
+                                                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                                Equipamentos Gerais
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-gray-800">{listGerais.length}</span>
+                                                {isGeraisExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                                            </div>
+                                        </button>
+                                        {isGeraisExpanded && listGerais.length > 0 && (
+                                            <div className="bg-gray-50 p-2 text-xs divide-y divide-gray-200 border-t border-gray-100 max-h-60 overflow-y-auto">
+                                                {listGerais.map(item => (
+                                                    <div key={item.id} className="py-2 px-2 flex flex-col gap-1">
+                                                        <div className="flex justify-between">
+                                                            <span className="font-bold text-gray-700">{item.equipmentType} {item.equipmentTag ? `(${item.equipmentTag})` : ''}</span>
+                                                            <span className="text-gray-500 font-medium">Para: <span className="text-blue-600 font-bold">{item.sector}</span></span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-gray-500">
+                                                            <span>Pedido: {new Date(item.timestamp).toLocaleString('pt-BR')}</span>
+                                                            <span>Entrega: {item.fulfilledAt ? new Date(item.fulfilledAt).toLocaleString('pt-BR') : 'Pendente'}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div
-                                        className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors">
-                                        <span className="text-gray-600 flex items-center gap-2 font-medium">
-                                            <div className="w-2 h-2 rounded-full bg-teal-400"></div>
-                                            Assistência Ventilatória
-                                        </span>
-                                        <span className="font-bold text-gray-800">{countVent}</span>
-                                    </div>
-                                    <div
-                                        className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors">
-                                        <span className="text-gray-600 flex items-center gap-2 font-medium">
-                                            <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                                            Transporte
-                                        </span>
-                                        <span className="font-bold text-gray-800">{countTransp}</span>
+                                    <div className="flex flex-col">
+                                        <button 
+                                            onClick={() => setIsVentExpanded(!isVentExpanded)}
+                                            className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors focus:outline-none w-full text-left"
+                                        >
+                                            <span className="text-gray-600 flex items-center gap-2 font-medium">
+                                                <div className="w-2 h-2 rounded-full bg-teal-400"></div>
+                                                Assistência Ventilatória
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-gray-800">{listVent.length}</span>
+                                                {isVentExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                                            </div>
+                                        </button>
+                                        {isVentExpanded && listVent.length > 0 && (
+                                            <div className="bg-gray-50 p-2 text-xs divide-y divide-gray-200 border-t border-gray-100 max-h-60 overflow-y-auto">
+                                                {listVent.map(item => (
+                                                    <div key={item.id} className="py-2 px-2 flex flex-col gap-1">
+                                                        <div className="flex justify-between">
+                                                            <span className="font-bold text-gray-700">{item.equipmentType} {item.equipmentTag ? `(${item.equipmentTag})` : ''}</span>
+                                                            <span className="text-gray-500 font-medium">Para: <span className="text-teal-600 font-bold">{item.sector}</span></span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-gray-500">
+                                                            <span>Pedido: {new Date(item.timestamp).toLocaleString('pt-BR')}</span>
+                                                            <span>Entrega: {item.fulfilledAt ? new Date(item.fulfilledAt).toLocaleString('pt-BR') : 'Pendente'}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -4666,39 +4724,67 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
                         
                         {isReturnsAnalysisOpen && (
                             <div className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden animate-fade-in my-2">
-                                <div className="bg-purple-50 p-3 border-b border-purple-100 flex flex-col gap-3">
-                                    <h3 className="font-bold text-purple-800 flex items-center gap-2 text-sm">
-                                        <PackageOpen size={16} /> Análise de Devoluções
-                                    </h3>
-                                    <div className="flex gap-4 text-xs font-medium justify-between px-2">
-                                        <div className="flex flex-col items-center"><span className="text-gray-500 text-[9px] uppercase">Total Devolvido</span><span className="text-gray-800">{completedReturns}</span></div>
-                                    </div>
-                                </div>
-                                
-                                <div className="max-h-[500px] overflow-y-auto">
-                                    {completedReturnsList.length > 0 ? (
-                                        <div className="p-3 space-y-4">
-                                            <div className="divide-y divide-gray-100 border rounded-lg overflow-hidden">
-                                                {completedReturnsList.map(item => (
-                                                    <div key={item.id} className="p-3 flex flex-col hover:bg-purple-50/30 gap-2">
-                                                        <div className="flex justify-between items-start">
-                                                            <p className="font-bold text-gray-800 text-sm flex items-center gap-2">
-                                                                {item.equipmentType}
-                                                                {item.equipmentTag && <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">{item.equipmentTag}</span>}
-                                                            </p>
-                                                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-purple-100 text-purple-700">Devolvido</span>
+                                <div className="bg-white divide-y divide-gray-50">
+                                    <div className="flex flex-col">
+                                        <button 
+                                            onClick={() => setIsReturnsGeraisExpanded(!isReturnsGeraisExpanded)}
+                                            className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors focus:outline-none w-full text-left"
+                                        >
+                                            <span className="text-gray-600 flex items-center gap-2 font-medium">
+                                                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                                Equipamentos Gerais
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-gray-800">{returnsGerais.length}</span>
+                                                {isReturnsGeraisExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                                            </div>
+                                        </button>
+                                        {isReturnsGeraisExpanded && returnsGerais.length > 0 && (
+                                            <div className="bg-gray-50 p-2 text-xs divide-y divide-gray-200 border-t border-gray-100 max-h-60 overflow-y-auto">
+                                                {returnsGerais.map(item => (
+                                                    <div key={item.id} className="py-2 px-2 flex flex-col gap-1">
+                                                        <div className="flex justify-between">
+                                                            <span className="font-bold text-gray-700">{item.equipmentType} {item.equipmentTag ? `(${item.equipmentTag})` : ''}</span>
                                                         </div>
-                                                        <div className="flex flex-col gap-1 mt-1">
-                                                            <p className="text-[11px] text-gray-500">De onde veio: <span className="font-bold text-purple-700">{item.sector}</span></p>
-                                                            <p className="text-[11px] text-gray-500">Horário da Devolução: <span className="font-bold">{new Date(item.fulfilledAt || item.timestamp).toLocaleString('pt-BR')}</span></p>
+                                                        <div className="flex justify-between text-[10px] text-gray-500">
+                                                            <span>De onde veio: <span className="text-purple-700 font-bold">{item.sector}</span></span>
+                                                            <span>Devolução: <span className="font-bold">{new Date(item.fulfilledAt || item.timestamp).toLocaleString('pt-BR')}</span></span>
                                                         </div>
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div className="p-6 text-center text-xs text-gray-500">Nenhum equipamento devolvido no período.</div>
-                                    )}
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <button 
+                                            onClick={() => setIsReturnsVentExpanded(!isReturnsVentExpanded)}
+                                            className="flex justify-between items-center py-3 px-4 text-sm hover:bg-gray-50 transition-colors focus:outline-none w-full text-left"
+                                        >
+                                            <span className="text-gray-600 flex items-center gap-2 font-medium">
+                                                <div className="w-2 h-2 rounded-full bg-teal-400"></div>
+                                                Assistência Ventilatória
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-gray-800">{returnsVent.length}</span>
+                                                {isReturnsVentExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                                            </div>
+                                        </button>
+                                        {isReturnsVentExpanded && returnsVent.length > 0 && (
+                                            <div className="bg-gray-50 p-2 text-xs divide-y divide-gray-200 border-t border-gray-100 max-h-60 overflow-y-auto">
+                                                {returnsVent.map(item => (
+                                                    <div key={item.id} className="py-2 px-2 flex flex-col gap-1">
+                                                        <div className="flex justify-between">
+                                                            <span className="font-bold text-gray-700">{item.equipmentType} {item.equipmentTag ? `(${item.equipmentTag})` : ''}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-gray-500">
+                                                            <span>De onde veio: <span className="text-purple-700 font-bold">{item.sector}</span></span>
+                                                            <span>Devolução: <span className="font-bold">{new Date(item.fulfilledAt || item.timestamp).toLocaleString('pt-BR')}</span></span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
