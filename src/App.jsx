@@ -6660,7 +6660,7 @@ function App() {
 
             // Busca pedidos
             try {
-                const { data: reqData, error: reqError } = await supabase.from('pedidos').select('*, catalogo_equipamentos(instrucao_devolucao)');
+                const { data: reqData, error: reqError } = await supabase.from('pedidos').select('*, catalogo_equipamentos(instrucao_devolucao)').order('created_at', { ascending: false }).limit(2000);
                 if (reqData && !reqError) {
                     setRequests((reqData || []).map(mapPedido).filter(Boolean));
                 } else if (reqError) {
