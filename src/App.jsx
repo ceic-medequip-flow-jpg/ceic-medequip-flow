@@ -1362,7 +1362,7 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
     };
 
     const baseStyle = req.kind === 'return_pickup'
-        ? 'border-l-4 border-purple-500 hover:bg-purple-50'
+        ? (req.claimedBy ? 'border-l-4 border-purple-600 bg-purple-100 hover:bg-purple-200' : 'border-l-4 border-purple-500 hover:bg-purple-50 bg-white')
         : req.isWaitlisted
             ? 'bg-orange-50 border-l-4 border-orange-500'
             : 'hover:bg-blue-50 border-b border-gray-100';
@@ -8325,6 +8325,7 @@ function App() {
                         onProcessPickup={handleProcessPickup}
                         onCancelRequest={handleCancelRequest}
                         onNotifyRequester={handleNotifyRequester}
+                        onClaimPickup={handleClaimPickup}
                         soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} />}
                 {currentView === 'triagem' &&
                     <ReturnView inventory={inventory} onReturnByTag={handleReturnByTag}
