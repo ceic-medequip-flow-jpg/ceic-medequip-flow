@@ -407,7 +407,7 @@ const SearchDropdown = ({ value, onChange, options = [], placeholder, className 
     };
 
     return (
-        <div className={`relative ${isOpen ? 'z-[100]' : 'z-10'}`} ref={ref}>
+        <div className={`relative ${isOpen ? 'z-[100]' : ''}`} ref={ref}>
             <div className={`input flex items-center justify-between cursor-pointer bg-white ${className} ${!selectedOption
                 ? 'text-gray-500' : 'text-gray-800'}`} onClick={() => { setIsOpen(!isOpen); setSearch(''); }} tabIndex={0}>
                 <span className="truncate pr-4">{selectedOption ? selectedOption.label : placeholder}</span>
@@ -2866,7 +2866,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     </div>
                 )}
 
-                <div data-testid="request-equipment-type" className="relative z-[70]">
+                <div data-testid="request-equipment-type" className="relative">
                     <label className="label text-lg text-blue-800 font-bold">Categoria do Equipamento</label>
                     <SearchDropdown value={category} onChange={handleCategoryChange}
                         options={dynamicCategoryOptions} placeholder="Selecione a categoria..." className="border-blue-200 bg-blue-50/30 h-[50px] text-lg font-medium" />
@@ -2897,9 +2897,9 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                     ];
 
                     return (
-                        <div className="space-y-4 animate-fade-in relative z-[60]">
+                        <div className="space-y-4 animate-fade-in relative">
                             <div className="grid grid-cols-1 gap-4">
-                                <div className="relative z-[60]">
+                                <div className="relative">
                                     <label className="label">Tipo</label>
                                     <SearchDropdown value={subType} onChange={(val) => {
                                         setSubType(val);
@@ -2910,7 +2910,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                                 </div>
                                 
                                 {isAccessoryOnly && (
-                                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 animate-fade-in relative z-20">
+                                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 animate-fade-in relative">
                                         <label className="label text-yellow-800 font-bold mb-2">Para qual equipamento você precisa de acessórios?</label>
                                         <SearchDropdown value={accessoryItem} onChange={(val) => {
                                             setAccessoryItem(val);
@@ -2965,7 +2965,7 @@ const NewRequestForm = ({ onCreateRequest, showNotification, sectorSelo, onBack,
                 })()}
 
                 {category && !normUpper(category).includes('VENTILATORIA') && !normUpper(category).includes('TRANSPORTE') && (
-                    <div className="animate-fade-in relative z-[60]" data-testid="request-equipment-item">
+                    <div className="animate-fade-in relative" data-testid="request-equipment-item">
                         <label className="label">Equipamento</label>
                         <SearchDropdown value={selectedItem} onChange={(val) => {
                             setSelectedItem(val);
