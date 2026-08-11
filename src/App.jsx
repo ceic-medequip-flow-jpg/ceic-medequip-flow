@@ -7254,6 +7254,8 @@ function App() {
 
     const handleCancelRequest = async (requestId, cancelData) => {
         try {
+            const pedidoOriginal = requests.find(r => r.id === requestId);
+
             const { data, error } = await supabase
                 .from('pedidos')
                 .update({
@@ -7270,8 +7272,27 @@ function App() {
             }
 
             // LOG DO PEDIDO: Registra a saída forçada do fluxo
-            const pedidoOriginal = requests.find(r => r.id === requestId);
             await registrarLogPedido(requestId, pedidoOriginal?.status || 'pending', 'cancelled');
+
+            // SE FOI UM CANCELAMENTO DE DEVOLUÇÃO, REVERTER O STATUS DO EQUIPAMENTO PARA 'allocated'
+            if (pedidoOriginal && (pedidoOriginal.kind === 'recolhimento' || pedidoOriginal.kind === 'return_pickup' || pedidoOriginal.status === 'pickup_requested')) {
+                const tagsToRevert = splitTagList(pedidoOriginal.equipmentTag);
+                if (tagsToRevert.length > 0) {
+                    const { error: eqError } = await supabase
+                        .from('equipamentos')
+                        .update({ status: 'allocated' })
+                        .in('tag', tagsToRevert);
+
+                    if (eqError) {
+                        console.error('Erro ao reverter status do equipamento:', eqError);
+                    } else {
+                        // Atualiza estado local
+                        setInventory(prev => prev.map(eq => 
+                            tagsToRevert.includes(normUpper(eq.tag)) ? { ...eq, status: 'allocated' } : eq
+                        ));
+                    }
+                }
+            }
 
             const updatedReq = mapPedido(data[0]);
             setRequests(prev => prev.map(r => r.id === requestId ? updatedReq : r));
