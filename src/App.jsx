@@ -1752,12 +1752,12 @@ const InventoryViewV2 = ({ inventory }) => {
         return config[status] || 'Disponível';
     };
 
-    const types = useMemo(() => Array.from(new Set((inventory || []).filter(item => item.status !== 'inactive').map(item => item.type || 'OUTROS'))).sort(), [inventory]);
-    const locations = useMemo(() => Array.from(new Set((inventory || []).filter(item => item.status !== 'inactive').map(item => trimText(item.location)).filter(Boolean))).sort(), [inventory]);
+    const types = useMemo(() => Array.from(new Set((inventory || []).filter(item => item.status !== 'inativo' && item.status !== 'inactive').map(item => item.type || 'OUTROS'))).sort(), [inventory]);
+    const locations = useMemo(() => Array.from(new Set((inventory || []).filter(item => item.status !== 'inativo' && item.status !== 'inactive').map(item => trimText(item.location)).filter(Boolean))).sort(), [inventory]);
 
     const filteredItems = useMemo(() => {
         return (inventory || [])
-            .filter(item => item.status !== 'inactive')
+            .filter(item => item.status !== 'inativo' && item.status !== 'inactive')
             .filter(item => !selectedType || item.type === selectedType)
             .filter(item => !selectedLocation || sameText(item.location, selectedLocation))
             .slice()
@@ -4448,11 +4448,12 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
     const [isReturnsGeraisExpanded, setIsReturnsGeraisExpanded] = useState(false);
     const [isReturnsVentExpanded, setIsReturnsVentExpanded] = useState(false);
 
-    const totalItems = inventory.length;
-    const availableItems = inventory.filter(i => i.status === 'available').length;
-    const inUseItems = inventory.filter(i => i.status === 'in_use').length;
-    const maintenanceItems = inventory.filter(i => i.status === 'maintenance').length;
-    const cleaningItems = inventory.filter(i => i.status === 'cleaning').length;
+    const activeInventory = (inventory || []).filter(i => i.status !== 'inativo' && i.status !== 'inactive');
+    const totalItems = activeInventory.length;
+    const availableItems = activeInventory.filter(i => i.status === 'available').length;
+    const inUseItems = activeInventory.filter(i => i.status === 'in_use').length;
+    const maintenanceItems = activeInventory.filter(i => i.status === 'maintenance').length;
+    const cleaningItems = activeInventory.filter(i => i.status === 'cleaning').length;
 
     const calcPct = (val) => totalItems === 0 ? 0 : Math.round((val / totalItems) * 100);
 
@@ -6480,6 +6481,14 @@ const AdminUsersView = ({ onLogout }) => {
     );
 };
 
+const getModelSortKey = (modelName) => {
+    const m = String(modelName || '').toUpperCase();
+    if (m.includes('CELULA') || m.includes('CÉLULA')) return 'CAPNOGRAFIA_3';
+    if (m.includes('CABO')) return 'CAPNOGRAFIA_2';
+    if (m.includes('MODULO') || m.includes('MÓDULO')) return 'CAPNOGRAFIA_1';
+    return m;
+};
+
 // Componente App: Gerenciamento principal de estado, rotas e integração com o Supabase.
 const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -6498,9 +6507,16 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
         const groups = {};
         
         (inventory || []).forEach(item => {
-            if (!item) return;
-            const type = item.type || 'NÃO ESPECIFICADO';
+            if (!item || item.status === 'inativo' || item.status === 'inactive') return;
+            let type = item.type || 'NÃO ESPECIFICADO';
             const model = item.model || 'NÃO ESPECIFICADO';
+            
+            const upperModel = String(model).toUpperCase();
+            const upperType = String(type).toUpperCase();
+            
+            if (upperModel.includes('CAPNO') || upperType.includes('CAPNO')) {
+                type = 'Capnografia (Módulos e Acessórios)';
+            }
             const status = item.status || 'available';
             
             if (!groups[type]) groups[type] = {};
@@ -6636,7 +6652,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                             </thead>
                             <tbody className="divide-y divide-gray-200">
                                 {Object.entries(reportSummary).sort().map(([type, models], typeIndex) => (
-                                    Object.entries(models).sort().map(([model, stats], index) => (
+                                    Object.entries(models).sort(([modelA], [modelB]) => getModelSortKey(modelA).localeCompare(getModelSortKey(modelB))).map(([model, stats], index) => (
                                         <tr key={`${type}-${model}`} className={`hover:bg-gray-200 ${typeIndex % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
                                             {index === 0 && (
                                                 <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 font-bold text-gray-800" rowSpan={Object.keys(models).length}>
@@ -6717,7 +6733,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {Object.entries(summary).sort().map(([type, models], typeIndex) => (
-                                Object.entries(models).sort().map(([model, stats], index) => (
+                                Object.entries(models).sort(([modelA], [modelB]) => getModelSortKey(modelA).localeCompare(getModelSortKey(modelB))).map(([model, stats], index) => (
                                     <tr key={`${type}-${model}`} className={`transition-colors hover:bg-gray-200 ${typeIndex % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
                                         {index === 0 && <td className="px-4 py-3 font-bold text-gray-800 border-r border-gray-100" rowSpan={Object.keys(models).length}>{type}</td>}
                                         <td className="px-4 py-3 font-semibold text-gray-700 border-r border-gray-100">{model}</td>
