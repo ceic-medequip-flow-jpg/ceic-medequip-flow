@@ -8,7 +8,7 @@ import {
     AlertCircle, Search, BadgeCheck, PlusCircle, List, MapPin, X, Send, ChevronDown,
     ChevronUp, XCircle, Menu, Wrench, BarChart3, Database, Edit, Trash2, LineChart,
     Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight, ArrowRight,
-    HelpCircle, LifeBuoy, UserPlus, Briefcase, PackageOpen, ClipboardCheck
+    HelpCircle, LifeBuoy, UserPlus, Briefcase, PackageOpen, ClipboardCheck, Printer, Calendar, FileText
 } from 'lucide-react';
 import logoCeic from './assets/logo-ceic.png';
 
@@ -31,6 +31,7 @@ const SIDEBAR_ITEMS = [
     { id: 'gestao_plantao', label: 'Gestão do Plantão', icon: ClipboardCheck, roles: ['OPERACIONAL', 'ADMIN', 'GERENCIAL'], group: 'Gestão', testId: 'nav-gestao-plantao' },
     { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-dashboard-operacional' },
     { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
+    { id: 'inventario_rapido', label: 'Conferência Diária', icon: ClipboardCheck, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
     { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-triagem' },
     { id: 'manutencao', label: 'Higienização / Limpeza', icon: SprayCan, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-expurgo' },
     { id: 'nova_solicitacao', label: 'Nova Solicitação', icon: PlusCircle, roles: ['ASSISTENCIAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Assistencial', testId: 'nav-nova-solicitacao' },
@@ -5892,6 +5893,11 @@ const GlobalStyles = () => (
                                         animation: fadeIn 0.2s ease-out;
                                         padding: 1rem;
                                     }
+                                    @media print {
+                                        .modal-overlay {
+                                            display: none !important;
+                                        }
+                                    }
 
                                     `
         }
@@ -6475,6 +6481,421 @@ const AdminUsersView = ({ onLogout }) => {
 };
 
 // Componente App: Gerenciamento principal de estado, rotas e integração com o Supabase.
+const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
+    const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [historyDate, setHistoryDate] = useState(new Date().toISOString().split('T')[0]);
+    const [historyData, setHistoryData] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+    const [selectedReport, setSelectedReport] = useState(null);
+    
+    const [enfermeiroResp, setEnfermeiroResp] = useState('');
+    const [equipe, setEquipe] = useState([{ nome: '', matricula: '' }]);
+    const [observacoes, setObservacoes] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const summary = useMemo(() => {
+        const groups = {};
+        
+        (inventory || []).forEach(item => {
+            if (!item) return;
+            const type = item.type || 'NÃO ESPECIFICADO';
+            const model = item.model || 'NÃO ESPECIFICADO';
+            const status = item.status || 'available';
+            
+            if (!groups[type]) groups[type] = {};
+            if (!groups[type][model]) {
+                groups[type][model] = { available: 0, in_use: 0, maintenance: 0, cleaning: 0, irregular: 0, total: 0 };
+            }
+            
+            const stats = groups[type][model];
+            stats.total += 1;
+            
+            const isTransferring = item.transferStatus === 'in_transit' || item.transferStatus === 'pending' || item.transferTo;
+            const isPickupRequested = status === 'pickup_requested';
+            const isInUse = status === 'in_use' || status === 'allocated' || isTransferring || isPickupRequested;
+            
+            if (isInUse) stats.in_use += 1;
+            else if (status === 'available') stats.available += 1;
+            else if (status === 'maintenance' || status === 'preventive') stats.maintenance += 1;
+            else if (status === 'cleaning') stats.cleaning += 1;
+            else stats.irregular += 1;
+        });
+        
+        return groups;
+    }, [inventory]);
+
+    const handleAddMember = () => setEquipe([...equipe, { nome: '', matricula: '' }]);
+    
+    const handleMemberChange = (index, field, value) => {
+        const newEquipe = [...equipe];
+        newEquipe[index][field] = value;
+        setEquipe(newEquipe);
+    };
+
+    const handleSavePlantao = async (e) => {
+        e.preventDefault();
+        if (!enfermeiroResp.trim()) return showNotification?.('error', 'Preencha o Enfermeiro Responsável.');
+        if (equipe.some(m => !m.nome.trim() || !m.matricula.trim())) return showNotification?.('error', 'Preencha todos os membros da equipe.');
+
+        setIsSaving(true);
+        const { data, error } = await supabase.from('ceic_passagem_plantao').insert([{
+            enfermeiro_resp: enfermeiroResp.trim(),
+            equipe_operacional: equipe,
+            inventario_snapshot: summary,
+            observacoes: observacoes.trim() || null,
+            created_by_login: userProfile?.login || 'desconhecido'
+        }]).select();
+
+        setIsSaving(false);
+        if (error) {
+            console.error(error);
+            showNotification?.('error', 'Erro ao salvar passagem de plantão. Verifique se a tabela foi criada no Supabase.');
+        } else {
+            showNotification?.('success', 'Passagem de plantão registrada com sucesso!');
+            setIsRegisterModalOpen(false);
+            setEnfermeiroResp('');
+            setEquipe([{ nome: '', matricula: '' }]);
+            setObservacoes('');
+            setSelectedReport(data[0]);
+        }
+    };
+
+    const loadHistory = async () => {
+        if (!historyDate) return;
+        setLoadingHistory(true);
+        const startOfDay = new Date(historyDate + 'T00:00:00-03:00').toISOString();
+        const endOfDay = new Date(historyDate + 'T23:59:59-03:00').toISOString();
+        
+        const { data, error } = await supabase
+            .from('ceic_passagem_plantao')
+            .select('*')
+            .gte('created_at', startOfDay)
+            .lte('created_at', endOfDay)
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            console.error(error);
+            showNotification?.('error', 'Erro ao buscar histórico.');
+        } else {
+            setHistoryData(data || []);
+        }
+        setLoadingHistory(false);
+    };
+
+    useEffect(() => {
+        if (isHistoryModalOpen) loadHistory();
+    }, [historyDate, isHistoryModalOpen]);
+
+    const handlePrint = () => window.print();
+
+    const ReportView = ({ report }) => {
+        const reportSummary = report ? report.inventario_snapshot : summary;
+        const reportEquipe = report ? report.equipe_operacional : equipe;
+        const reportEnf = report ? report.enfermeiro_resp : enfermeiroResp;
+        const reportObs = report ? report.observacoes : observacoes;
+        const reportDate = report ? new Date(report.created_at).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
+
+        return (
+            <div className="space-y-6 print:space-y-3 bg-white p-4 md:p-8 print:p-0">
+                <div className="text-center pb-4 print:pb-2 border-b border-gray-200 flex flex-col items-center">
+                    <h1 className="text-2xl print:text-lg font-bold uppercase text-gray-800">
+                        {report ? "Relatório de Passagem de Plantão" : "RASCUNHO - Conferência de Equipamentos"}
+                    </h1>
+                    <p className="text-gray-600 mt-2 font-medium">{reportDate}</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2 print:text-xs">
+                    <div className="bg-gray-50 p-4 print:p-2 rounded-xl border border-gray-200">
+                        <h3 className="font-bold text-gray-800 mb-2 border-b border-gray-200 pb-2 print:pb-1 print:mb-1">Equipe Assistencial</h3>
+                        <p className="text-gray-700 mt-2"><span className="font-semibold text-gray-900">Enfermeiro(a) Resp:</span> {reportEnf || 'Não informado'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 print:p-2 rounded-xl border border-gray-200">
+                        <h3 className="font-bold text-gray-800 mb-2 border-b border-gray-200 pb-2 print:pb-1 print:mb-1">Equipe Operacional</h3>
+                        <ul className="list-disc pl-5 mt-2 print:mt-1 text-gray-700 space-y-1 print:space-y-0">
+                            {reportEquipe.map((m, i) => (
+                                <li key={i}>{m.nome || 'N/I'} <span className="text-gray-500 text-sm">(Matrícula: {m.matricula || 'N/I'})</span></li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="pt-4 print:pt-2">
+                    <h3 className="font-bold text-gray-800 mb-4 print:mb-2 text-lg print:text-sm border-b border-gray-200 pb-2 print:pb-1">Conferência de Equipamentos</h3>
+                    <div className="overflow-x-auto print:overflow-visible rounded-xl border border-gray-200">
+                        <table className="w-full text-left text-sm print:text-[10px] border-collapse">
+                            <thead className="bg-gray-100 text-gray-700 border-b border-gray-200">
+                                <tr>
+                                    <th className="px-4 py-3 print:px-2 print:py-1 font-bold border-r border-gray-200">Tipo</th>
+                                    <th className="px-4 py-3 print:px-2 print:py-1 font-bold border-r border-gray-200">Modelo</th>
+                                    <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Disp.</th>
+                                    <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Em Uso</th>
+                                    <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Manut.</th>
+                                    <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {Object.entries(reportSummary).sort().map(([type, models], typeIndex) => (
+                                    Object.entries(models).sort().map(([model, stats], index) => (
+                                        <tr key={`${type}-${model}`} className={`hover:bg-gray-200 ${typeIndex % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
+                                            {index === 0 && (
+                                                <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 font-bold text-gray-800" rowSpan={Object.keys(models).length}>
+                                                    {type}
+                                                </td>
+                                            )}
+                                            <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-gray-700">{model}</td>
+                                            <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-emerald-600">{stats.available}</td>
+                                            <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-blue-600">{stats.in_use}</td>
+                                            <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-red-600">{stats.maintenance}</td>
+                                            <td className="px-4 py-2 print:px-2 print:py-0.5 text-center font-bold text-gray-800 bg-gray-50/30">{stats.total}</td>
+                                        </tr>
+                                    ))
+                                ))}
+                                {Object.keys(reportSummary).length === 0 && (
+                                    <tr><td colSpan="6" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento registrado.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                    <h3 className="font-bold text-gray-800 mb-2 print:mb-1 print:text-sm">Observações</h3>
+                    <p className="text-gray-700 whitespace-pre-wrap print:text-xs bg-gray-50 p-4 print:p-2 rounded-xl border border-gray-200">{reportObs || 'Nenhuma observação registrada.'}</p>
+                </div>
+                
+                <div className="mt-8 pt-8 border-t border-gray-200 flex justify-around text-center text-gray-500 text-sm">
+                    <div>
+                        <div className="w-48 border-b border-gray-400 mx-auto mb-2"></div>
+                        <p>Assinatura do Enfermeiro(a)</p>
+                    </div>
+                    <div>
+                        <div className="w-48 border-b border-gray-400 mx-auto mb-2"></div>
+                        <p>Assinatura da Equipe Operacional</p>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="space-y-6 animate-fade-in p-2 md:p-6 print:p-0 print:m-0">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <ClipboardCheck className="text-blue-600" /> Conferência Diária
+                </h2>
+                <div className="flex gap-2">
+                    <button onClick={() => { setSelectedReport(null); window.print(); }} className="btn-secondary border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 flex items-center gap-2 px-4 h-10">
+                        <Printer size={18} /> <span className="hidden md:inline">Imprimir Rascunho</span>
+                    </button>
+                    <button onClick={() => setIsHistoryModalOpen(true)} className="btn-secondary flex items-center gap-2 px-4 h-10">
+                        <CalendarClock size={18} /> <span className="hidden md:inline">Histórico</span>
+                    </button>
+                    <button onClick={() => setIsRegisterModalOpen(true)} className="btn-primary flex items-center gap-2 px-4 h-10 shadow-lg shadow-blue-200">
+                        <PlusCircle size={18} /> <span className="hidden md:inline">Passagem de Plantão</span>
+                    </button>
+                </div>
+            </div>
+            
+            {/* Main Table for current state */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print:hidden">
+                <div className="p-4 bg-gray-50 border-b border-gray-200">
+                    <h3 className="font-semibold text-gray-700">Contagem Atual de Estoque (Em tempo real)</h3>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-gray-50 border-b border-gray-200 text-gray-700">
+                            <tr>
+                                <th className="px-4 py-3 font-bold border-r border-gray-100">Tipo</th>
+                                <th className="px-4 py-3 font-bold border-r border-gray-100">Modelo</th>
+                                <th className="px-4 py-3 font-bold text-center text-emerald-700 bg-emerald-50 border-r border-gray-100">Disponível (CEIC)</th>
+                                <th className="px-4 py-3 font-bold text-center text-blue-700 bg-blue-50 border-r border-gray-100">Em Uso / Trânsito</th>
+                                <th className="px-4 py-3 font-bold text-center text-red-700 bg-red-50 border-r border-gray-100">Manutenção</th>
+                                <th className="px-4 py-3 font-bold text-center bg-gray-100">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {Object.entries(summary).sort().map(([type, models], typeIndex) => (
+                                Object.entries(models).sort().map(([model, stats], index) => (
+                                    <tr key={`${type}-${model}`} className={`transition-colors hover:bg-gray-200 ${typeIndex % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
+                                        {index === 0 && <td className="px-4 py-3 font-bold text-gray-800 border-r border-gray-100" rowSpan={Object.keys(models).length}>{type}</td>}
+                                        <td className="px-4 py-3 font-semibold text-gray-700 border-r border-gray-100">{model}</td>
+                                        <td className="px-4 py-3 text-center font-bold text-emerald-600 bg-emerald-50/30 border-r border-gray-100">{stats.available}</td>
+                                        <td className="px-4 py-3 text-center font-bold text-blue-600 bg-blue-50/30 border-r border-gray-100">{stats.in_use}</td>
+                                        <td className="px-4 py-3 text-center font-bold text-red-600 bg-red-50/30 border-r border-gray-100">{stats.maintenance}</td>
+                                        <td className="px-4 py-3 text-center font-bold text-gray-800 bg-gray-50">{stats.total}</td>
+                                    </tr>
+                                ))
+                            ))}
+                            {Object.keys(summary).length === 0 && <tr><td colSpan="6" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento no inventário.</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Render Print View */}
+            <div className="hidden print:block bg-white text-black">
+                <ReportView report={selectedReport} />
+            </div>
+
+            {/* Register Modal */}
+            {isRegisterModalOpen && createPortal(
+                <div className="modal-overlay z-[100] print:hidden">
+                    <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <ClipboardCheck className="text-blue-600" size={24} /> Registrar Passagem de Plantão
+                            </h3>
+                            <button onClick={() => setIsRegisterModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-lg hover:bg-gray-100"><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleSavePlantao} className="space-y-6">
+                            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                                <h4 className="font-semibold text-blue-900 mb-3 text-sm uppercase tracking-wider">Equipe Assistencial</h4>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Enfermeiro(a) Responsável</label>
+                                <input className="input" value={enfermeiroResp} onChange={e => setEnfermeiroResp(e.target.value)} placeholder="Nome completo" required />
+                            </div>
+                            
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="font-semibold text-gray-700 text-sm uppercase tracking-wider">Equipe Operacional</h4>
+                                    <button type="button" onClick={handleAddMember} className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
+                                        <PlusCircle size={16} /> Adicionar Membro
+                                    </button>
+                                </div>
+                                <div className="space-y-3">
+                                    {equipe.map((m, index) => (
+                                        <div key={index} className="flex gap-3 items-start animate-fade-in">
+                                            <div className="flex-1"><input className="input w-full" value={m.nome} onChange={e => handleMemberChange(index, 'nome', e.target.value)} placeholder="Nome do colaborador" required /></div>
+                                            <div className="w-1/3"><input className="input w-full" value={m.matricula} onChange={e => handleMemberChange(index, 'matricula', e.target.value)} placeholder="Matrícula" required /></div>
+                                            {equipe.length > 1 && (
+                                                <button type="button" onClick={() => handleRemoveMember(index)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors mt-0.5" title="Remover"><Trash2 size={20} /></button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                <h4 className="font-semibold text-gray-700 text-sm uppercase tracking-wider mb-2">Observações (Opcional)</h4>
+                                <textarea 
+                                    className="input w-full min-h-[100px] resize-y" 
+                                    value={observacoes} 
+                                    onChange={e => setObservacoes(e.target.value)} 
+                                    placeholder="Adicione notas, ocorrências ou pendências relevantes do plantão..." 
+                                />
+                            </div>
+                            
+                            <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                                <p className="text-sm text-amber-800 flex items-start gap-2">
+                                    <AlertCircle size={18} className="shrink-0 mt-0.5 text-amber-600" />
+                                    <span>Ao confirmar, um <strong className="font-bold">registro fotográfico</strong> da contagem atual de estoque será salvo permanentemente. Revise se a contagem no sistema reflete a realidade do momento antes de prosseguir.</span>
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3 pt-4 border-t border-gray-100">
+                                <button type="button" onClick={() => setIsRegisterModalOpen(false)} className="btn-secondary flex-1 py-3 text-lg">Cancelar</button>
+                                <button type="submit" disabled={isSaving} className="btn-primary flex-1 py-3 text-lg flex justify-center items-center gap-2">
+                                    {isSaving ? 'Salvando...' : <><ClipboardCheck size={20} /> Salvar Plantão e Ver Relatório</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* History Modal */}
+            {isHistoryModalOpen && createPortal(
+                <div className="modal-overlay z-[90] print:hidden">
+                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-2xl w-[98vw] max-w-7xl h-[95vh] animate-fade-in flex flex-col">
+                        <div className="flex justify-between items-center mb-6 shrink-0">
+                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <CalendarClock className="text-blue-600" size={24} /> Histórico de Plantões
+                            </h3>
+                            <button onClick={() => setIsHistoryModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-2"><X size={20} /></button>
+                        </div>
+                        
+                        <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-0">
+                            <div className="w-full md:w-1/4 space-y-4 border-r border-gray-100 pr-0 md:pr-6 flex flex-col h-full shrink-0">
+                                <div className="shrink-0">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><Calendar size={16} /> Selecionar Data</label>
+                                    <input type="date" className="input cursor-pointer" value={historyDate} onChange={e => setHistoryDate(e.target.value)} />
+                                </div>
+                                
+                                <div className="space-y-2 flex-1 overflow-y-auto pr-2 pb-4">
+                                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 mt-4 border-b border-gray-100 pb-2 shrink-0">Plantões do Dia</h4>
+                                    {loadingHistory ? (
+                                        <p className="text-sm text-gray-500 text-center py-4">Buscando...</p>
+                                    ) : historyData.length === 0 ? (
+                                        <div className="text-center py-6 bg-gray-50 rounded-xl border border-gray-100">
+                                            <CalendarClock size={24} className="mx-auto text-gray-300 mb-2" />
+                                            <p className="text-sm text-gray-500">Nenhum registro<br/>encontrado nesta data.</p>
+                                        </div>
+                                    ) : (
+                                        historyData.map(h => (
+                                            <button key={h.id} onClick={() => setSelectedReport(h)} className={`w-full text-left p-4 rounded-xl border transition-all shrink-0 mb-2 ${selectedReport?.id === h.id ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-500' : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md'}`}>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">{new Date(h.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute:'2-digit' })}</span>
+                                                    <span className="text-xs text-gray-400">Por: {h.created_by_login}</span>
+                                                </div>
+                                                <p className="text-sm font-semibold text-gray-800 line-clamp-1">{h.enfermeiro_resp}</p>
+                                                <p className="text-xs text-gray-500 mt-1">{h.equipe_operacional?.length || 0} membros operacionais</p>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                            
+                            <div className="w-full md:w-3/4 flex flex-col h-full min-h-0">
+                                {selectedReport ? (
+                                    <div className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden shadow-inner flex flex-col h-full min-h-0">
+                                        <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center shrink-0">
+                                            <h4 className="font-bold text-gray-800">Visualização do Relatório</h4>
+                                            <button onClick={handlePrint} className="btn-primary text-sm px-4 py-2 flex items-center gap-2 w-auto">
+                                                <Printer size={16} /> Imprimir / PDF
+                                            </button>
+                                        </div>
+                                        <div className="p-4 overflow-y-auto flex-1 bg-white print:p-0">
+                                            <ReportView report={selectedReport} />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl p-12 bg-gray-50/50">
+                                        <FileText size={48} className="mb-4 text-gray-300" />
+                                        <p className="text-center font-medium">Selecione um relatório na lista<br/>para visualizar os detalhes</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* View specific report modal (used right after saving) */}
+            {selectedReport && !isHistoryModalOpen && createPortal(
+                <div className="modal-overlay z-[110] print:hidden">
+                    <div className="bg-white p-0 rounded-2xl shadow-2xl w-full max-w-4xl animate-fade-in max-h-[95vh] flex flex-col overflow-hidden">
+                        <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2"><CheckCircle className="text-green-600" /> Relatório Registrado</h3>
+                            <div className="flex gap-2">
+                                <button onClick={handlePrint} className="btn-primary flex items-center gap-2"><Printer size={16} /> Imprimir / PDF</button>
+                                <button onClick={() => setSelectedReport(null)} className="btn-secondary px-3"><X size={20} /></button>
+                            </div>
+                        </div>
+                        <div className="p-6 overflow-y-auto bg-white">
+                            <ReportView report={selectedReport} />
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+        </div>
+    );
+};
+
+
 function App() {
     const [userProfile, setUserProfile] = useState(null);
     const userProfileRef = useRef(null);
@@ -8147,7 +8568,7 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans text-base w-full overflow-x-hidden flex flex-col">
+        <div className="min-h-screen bg-gray-50 font-sans text-base w-full overflow-x-hidden print:overflow-visible flex flex-col print:block print:bg-white">
             <GlobalStyles />
             {notification && (
                 <div data-testid={notification.type === 'success' ? "request-success-message" : "notification-message"} className={`fixed top-4 md:top-8 left-1/2 transform -translate-x-1/2 z-[100] px-4
@@ -8170,7 +8591,7 @@ function App() {
             )}
 
             <header
-                className="md:hidden bg-white border-b border-gray-200 p-4 sticky top-0 z-40 flex justify-between items-center shadow-sm">
+                className="md:hidden bg-white border-b border-gray-200 p-4 sticky top-0 z-40 flex justify-between items-center shadow-sm print:hidden">
                 <div className="flex items-center gap-2">
                     <img src={logoCeic} alt="Logo CEIC" className="h-10 w-auto object-contain" />
                 </div>
@@ -8187,7 +8608,7 @@ function App() {
             <aside className={`fixed inset-y-0 left-0 bg-white border-r border-gray-200 
                                         z-50 flex flex-col transform transition-all duration-300 ease-in-out
                                         md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
-                                        ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
+                                        ${isSidebarCollapsed ? 'w-20' : 'w-64'} print:hidden`}>
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center relative">
                     <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
                         {/* LOGO NO CABEÇALHO DO SISTEMA */}
@@ -8309,7 +8730,7 @@ function App() {
             </aside >
 
             <main
-                className={`transition-all duration-300 ease-in-out p-4 sm:p-6 md:p-8 min-h-[calc(100vh-64px)] md:min-h-screen flex-1 min-w-0 w-full md:w-auto overflow-x-hidden ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+                className={`transition-all duration-300 ease-in-out p-4 sm:p-6 md:p-8 min-h-[calc(100vh-64px)] md:min-h-screen flex-1 min-w-0 w-full md:w-auto overflow-x-hidden ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'} print:m-0 print:p-0 print:w-full print:block print:max-w-none`}>
                 {currentView === 'admin_dashboard' &&
                     <AdminDashboard inventory={inventory} requests={requests} />}
                 {currentView === 'admin_indicadores' &&
@@ -8359,6 +8780,7 @@ function App() {
                         setCurrentView('dashboard')} />}
                 {currentView === 'estoque' &&
                     <InventoryViewV2 inventory={inventory} />}
+                {currentView === 'inventario_rapido' && <QuickInventoryView inventory={inventory} showNotification={showNotification} userProfile={userProfile} />}
 
                 {currentView === 'nova_solicitacao' && <NewRequestForm
                     onCreateRequest={handleCreateRequest}
