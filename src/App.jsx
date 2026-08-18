@@ -27,10 +27,12 @@ const SIDEBAR_ITEMS = [
     { id: 'admin_ocorrencias', label: 'Gestão de Ocorrências', icon: AlertTriangle, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
     { id: 'admin_preventiva', label: 'Plano de Preventivas', icon: CalendarClock, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
     { id: 'admin_remanejamento', label: 'Remanejamento', icon: Send, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
+    { id: 'admin_config_uti', label: 'Config. Leitos UTI', icon: Settings, roles: ['ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gerencial' },
     { id: 'admin_entrega_ativa', label: 'Entrega Ativa', icon: Truck, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Gestão' },
     { id: 'gestao_plantao', label: 'Gestão do Plantão', icon: ClipboardCheck, roles: ['OPERACIONAL', 'ADMIN', 'GERENCIAL'], group: 'Gestão', testId: 'nav-gestao-plantao' },
     { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-dashboard-operacional' },
     { id: 'estoque', label: 'Estoque Central', icon: Package, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
+    { id: 'monitor_reserva', label: 'Ventilador Reserva', icon: Activity, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
     { id: 'inventario_rapido', label: 'Conferência Diária', icon: ClipboardCheck, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional' },
     { id: 'triagem', label: 'Triagem / Devolução', icon: ClipboardList, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-triagem' },
     { id: 'manutencao', label: 'Higienização / Limpeza', icon: SprayCan, roles: ['OPERACIONAL', 'ADMIN', 'TESTE', 'ADMIN_TESTE', 'GERENCIAL'], group: 'Operacional', testId: 'nav-expurgo' },
@@ -4448,13 +4450,20 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
     const [isReturnsGeraisExpanded, setIsReturnsGeraisExpanded] = useState(false);
     const [isReturnsVentExpanded, setIsReturnsVentExpanded] = useState(false);
 
-    const activeInventory = (inventory || []).filter(i => i.status !== 'inativo' && i.status !== 'inactive');
-    const totalItems = activeInventory.length;
-    const availableItems = activeInventory.filter(i => i.status === 'available').length;
-    const inUseItems = activeInventory.filter(i => i.status === 'in_use').length;
-    const maintenanceItems = activeInventory.filter(i => i.status === 'maintenance').length;
-    const cleaningItems = activeInventory.filter(i => i.status === 'cleaning').length;
+    const activeInventory = (inventory || []).filter(i => 
+        i.status !== 'inativo' && i.status !== 'inactive'
+    );
 
+    const availableItems = activeInventory.filter(i => i.status === 'available').length;
+    const inUseItems = activeInventory.filter(i => 
+        ['in_use', 'allocated', 'pickup_requested', 'in_transit', 'awaiting_acceptance'].includes(i.status) || 
+        i.transfer_status === 'in_transit' || 
+        i.transferStatus === 'in_transit'
+    ).length;
+    const maintenanceItems = activeInventory.filter(i => i.status === 'maintenance' || i.status === 'preventive').length;
+    const cleaningItems = activeInventory.filter(i => i.status === 'cleaning').length;
+    
+    const totalItems = availableItems + inUseItems + maintenanceItems + cleaningItems;
     const calcPct = (val) => totalItems === 0 ? 0 : Math.round((val / totalItems) * 100);
 
     const isWithinRange = (timestamp) => {
@@ -8289,7 +8298,7 @@ function App() {
 
             // 1. Atualiza o Equipamento (Payload Limpo e Sanitizado):
             const payloadAtualizacao = {
-                location: userProfile?.login, // Envia estritamente a sigla do login
+                location: userProfile?.sector || userProfile?.login, // Atualiza para o setor logado
                 transfer_status: null,        // Limpa usando null nativo
                 transfer_to: null,            // Limpa usando null nativo
                 transfer_to_bed: null,
@@ -8319,7 +8328,7 @@ function App() {
                     await registrarLogMovimentacao(
                         eq.id,
                         'Em Trânsito',
-                        userProfile?.login,
+                        userProfile?.sector || userProfile?.login,
                         pedidoObj?.patient_mv || null,
                         receiverData.name ? `${receiverData.name} (Mat: ${receiverData.badge})` : null,
                         'Equipamento Recebido'
@@ -8332,7 +8341,7 @@ function App() {
             if (pedidoId) {
                 const { data, error } = await supabase.from('pedidos').update({
                     status: 'delivered', // Volta ao status de entregue/normal
-                    sector: userProfile?.login, // A posse do pedido passa para o novo setor
+                    sector: userProfile?.sector || userProfile?.login, // A posse do pedido passa para o novo setor
                     requester_name: userProfile?.name,
                     requester_badge: userProfile?.login,
                     fulfilled_at: new Date().toISOString()
@@ -8343,7 +8352,7 @@ function App() {
 
             // Atualiza estado local
             setInventory(prev => prev.map(eq =>
-                tagsToConfirm.includes(normUpper(eq.tag)) ? { ...eq, location: userProfile?.login, transferStatus: null, transferTo: null, transferToBed: null, specificLocation: incomingBed, receivedBySector: true, status: 'allocated' } : eq
+                tagsToConfirm.includes(normUpper(eq.tag)) ? { ...eq, location: userProfile?.sector || userProfile?.login, transferStatus: null, transferTo: null, transferToBed: null, specificLocation: incomingBed, receivedBySector: true, status: 'allocated' } : eq
             ));
 
             if (pedidoAtualizado) {
@@ -8825,6 +8834,8 @@ function App() {
                 )}
                 {currentView === 'admin_users' && <AdminUsersView onLogout={handleLogout} />}
                 {currentView === 'admin_plantonistas' && <AdminPlantonistasAuthView showNotification={showNotification} />}
+                {currentView === 'admin_config_uti' && <AdminConfigUtiView showNotification={showNotification} />}
+                {currentView === 'monitor_reserva' && <ReservaMonitorView inventory={inventory} showNotification={showNotification} userProfile={userProfile} />}
                 {currentView === 'suporte_tecnico' && <SupportView userProfile={userProfile} showNotification={showNotification} />}
                 {currentView === 'admin_suporte' && <AdminSupportView userProfile={userProfile} showNotification={showNotification} />}
             </main>
@@ -8991,6 +9002,397 @@ const AdminPlantonistasAuthView = ({ showNotification }) => {
                     </table>
                 </div>
             </div>
+        </div>
+    );
+};
+
+const AdminConfigUtiView = ({ showNotification }) => {
+    const [configs, setConfigs] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const { data: configData, error: configError } = await supabase.from('config_uti_leitos').select('*');
+                if (configError) throw configError;
+
+                const { data: eqData } = await supabase.from('equipamentos').select('location');
+                const { data: reqData } = await supabase.from('pedidos').select('sector');
+                
+                const set = new Set(LOCATIONS.map(l => String(l).trim().toUpperCase()));
+                if (eqData) eqData.forEach(d => { if (d.location) set.add(d.location.trim().toUpperCase()); });
+                if (reqData) reqData.forEach(d => { if (d.sector) set.add(d.sector.trim().toUpperCase()); });
+                
+                const allSectors = Array.from(set).sort();
+                
+                const initialConfigs = allSectors.map(sectorName => {
+                    const existing = (configData || []).find(c => c.setor === sectorName);
+                    return {
+                        setor: sectorName,
+                        is_uti: !!existing,
+                        quantidade_leitos: existing ? existing.quantidade_leitos : 0,
+                        id: existing ? existing.id : null
+                    };
+                });
+                
+                initialConfigs.sort((a, b) => (b.is_uti ? 1 : 0) - (a.is_uti ? 1 : 0));
+                setConfigs(initialConfigs);
+            } catch (error) {
+                console.error(error);
+                showNotification('error', 'Erro ao carregar configurações de UTI.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const utis = configs.filter(c => c.is_uti);
+            
+            const { error: delError } = await supabase.from('config_uti_leitos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            if (delError) throw delError;
+
+            if (utis.length > 0) {
+                const inserts = utis.map(u => ({ setor: u.setor, quantidade_leitos: parseInt(u.quantidade_leitos) || 0 }));
+                const { error: insError } = await supabase.from('config_uti_leitos').insert(inserts);
+                if (insError) throw insError;
+            }
+
+            showNotification('success', 'Configurações de leitos atualizadas com sucesso!');
+        } catch (error) {
+            console.error(error);
+            showNotification('error', 'Erro ao salvar configurações.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const updateConfig = (idx, field, value) => {
+        const newConfigs = [...configs];
+        newConfigs[idx][field] = value;
+        setConfigs(newConfigs);
+    };
+
+    if (isLoading) return <div className="p-8 text-center text-gray-500">Carregando configurações...</div>;
+
+    return (
+        <div className="animate-fade-in p-6 max-w-4xl mx-auto space-y-6">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                    <Settings className="mr-2 text-blue-600" /> Configuração de Leitos de UTI
+                </h2>
+                <button onClick={handleSave} disabled={isSaving} className="btn-primary flex items-center">
+                    {isSaving ? 'Salvando...' : <><CheckCircle size={18} className="mr-2" /> Salvar Configurações</>}
+                </button>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-4 border-b border-gray-100 bg-gray-50">
+                    <p className="text-sm text-gray-600">
+                        Marque os setores que funcionam como UTI e informe a quantidade total de leitos.
+                    </p>
+                </div>
+                <div className="overflow-x-auto max-h-[600px]">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-white border-b border-gray-100 text-gray-500 sticky top-0">
+                            <tr>
+                                <th className="p-4 font-semibold w-24 text-center">É UTI?</th>
+                                <th className="p-4 font-semibold">Setor / Unidade</th>
+                                <th className="p-4 font-semibold w-48 text-center">Qtd. de Leitos</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {configs.map((c, idx) => (
+                                <tr key={c.setor} className={`hover:bg-gray-50 transition-colors ${c.is_uti ? 'bg-blue-50/30' : ''}`}>
+                                    <td className="p-4 text-center">
+                                        <input 
+                                            type="checkbox" 
+                                            className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" 
+                                            checked={c.is_uti}
+                                            onChange={(e) => updateConfig(idx, 'is_uti', e.target.checked)}
+                                        />
+                                    </td>
+                                    <td className="p-4 font-medium text-gray-800">{c.setor}</td>
+                                    <td className="p-4 text-center">
+                                        <input 
+                                            type="number" 
+                                            min="0"
+                                            disabled={!c.is_uti}
+                                            className="input w-24 text-center" 
+                                            value={c.quantidade_leitos}
+                                            onChange={(e) => updateConfig(idx, 'quantidade_leitos', e.target.value)}
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ReservaMonitorView = ({ inventory, showNotification, userProfile }) => {
+    const [utis, setUtis] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isContingencyModalOpen, setIsContingencyModalOpen] = useState(false);
+    
+    const [enfermeiroPlantao, setEnfermeiroPlantao] = useState(userProfile?.name || '');
+    const [comunicadoA, setComunicadoA] = useState('');
+    const [situacaoRegularizada, setSituacaoRegularizada] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [lastContingency, setLastContingency] = useState(null);
+
+    useEffect(() => {
+        const fetchUtis = async () => {
+            setIsLoading(true);
+            try {
+                const { data, error } = await supabase.from('config_uti_leitos').select('*');
+                if (error) throw error;
+                setUtis(data || []);
+                
+                const { data: logData } = await supabase
+                    .from('log_plano_contingencia')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                
+                if (logData && logData.length > 0) {
+                    setLastContingency(logData[0]);
+                }
+            } catch (err) {
+                console.error(err);
+                showNotification('error', 'Erro ao carregar configurações de UTIs.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchUtis();
+    }, []);
+
+    const isVentilador = (type) => normUpper(type || '').includes('VENTILADOR PULMONAR INVASIVO');
+    
+    const somaLeitos = utis.reduce((acc, u) => acc + (u.quantidade_leitos || 0), 0);
+    const minimoExigido = Math.floor(somaLeitos / 2) + Math.floor(somaLeitos / 5);
+
+    const ventInventory = (inventory || []).filter(i => isVentilador(i.type));
+    
+    const countUsoNormal = (setorStr) => ventInventory.filter(i => 
+        normUpper(i.location) === normUpper(setorStr) && 
+        ['in_use', 'allocated', 'pickup_requested'].includes(i.status) &&
+        i.patient_mv !== '99999999'
+    ).length;
+
+    const countBackupUti = (setorStr) => ventInventory.filter(i => 
+        normUpper(i.location) === normUpper(setorStr) && 
+        ['in_use', 'allocated', 'pickup_requested'].includes(i.status) &&
+        i.patient_mv === '99999999'
+    ).length;
+
+    const totalEmUso = utis.reduce((acc, u) => acc + countUsoNormal(u.setor), 0);
+    const totalBackupUti = utis.reduce((acc, u) => acc + countBackupUti(u.setor), 0);
+    const totalDisponivelCeic = ventInventory.filter(i => i.status === 'available').length;
+
+    const totalReserva = totalDisponivelCeic + totalBackupUti;
+    
+    let statusColor = 'green';
+    let statusText = 'Em Conformidade';
+    let requiresContingency = false;
+
+    if (totalDisponivelCeic < minimoExigido) {
+        if (totalReserva >= minimoExigido) {
+            statusColor = 'yellow';
+            statusText = 'Atenção: Reserva na CEIC baixa. Realocar de UTIs se necessário.';
+        } else {
+            statusColor = 'red';
+            statusText = 'Déficit de Reserva! Mínimo não alcançado.';
+            requiresContingency = true;
+        }
+    }
+
+    const isPendingContingency = lastContingency && !lastContingency.situacao_regularizada;
+
+    const handleSubmitContingency = async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            const payload = {
+                enfermeiro_plantao: enfermeiroPlantao,
+                comunicado_a: comunicadoA,
+                situacao_regularizada: situacaoRegularizada
+            };
+            const { data, error } = await supabase.from('log_plano_contingencia').insert([payload]).select();
+            if (error) throw error;
+            
+            showNotification('success', 'Plano de contingência registrado com sucesso.');
+            setIsContingencyModalOpen(false);
+            if (data && data.length > 0) setLastContingency(data[0]);
+        } catch (err) {
+            console.error(err);
+            showNotification('error', 'Erro ao registrar plano de contingência.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (isLoading) return <div className="p-8 text-center text-gray-500">Carregando painel...</div>;
+
+    return (
+        <div className="animate-fade-in p-6 max-w-6xl mx-auto space-y-6">
+            <div className="flex justify-between items-end">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                        <Activity className="mr-2 text-blue-600" /> Monitor de Reserva de Ventiladores
+                    </h2>
+                    <p className="text-gray-500 text-sm mt-1">Visão Global de UTIs (Mínimo de {minimoExigido} exigidos para {somaLeitos} leitos)</p>
+                </div>
+                {requiresContingency && !isPendingContingency && (
+                    <button onClick={() => setIsContingencyModalOpen(true)} className="btn-primary bg-red-600 hover:bg-red-700 focus:ring-red-500 animate-pulse flex items-center shadow-lg">
+                        <Siren size={18} className="mr-2" /> Acionar Plano de Contingência
+                    </button>
+                )}
+                {isPendingContingency && (
+                    <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-bold border border-red-200 flex items-center shadow-sm">
+                        <Siren size={18} className="mr-2" /> Plano de Contingência em Andamento
+                    </div>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center">
+                    <span className="text-sm font-semibold text-gray-500 mb-1">Total em Uso (Pacientes UTI)</span>
+                    <span className="text-4xl font-bold text-gray-800">{totalEmUso}</span>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center">
+                    <span className="text-sm font-semibold text-gray-500 mb-1">Total em Backup (Nas UTIs)</span>
+                    <span className="text-4xl font-bold text-gray-800">{totalBackupUti}</span>
+                </div>
+                <div className={`p-6 rounded-xl shadow-sm border flex flex-col items-center justify-center text-center
+                    ${statusColor === 'green' ? 'bg-green-50 border-green-200 text-green-800' : 
+                      statusColor === 'yellow' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 
+                      'bg-red-50 border-red-200 text-red-800'}`}>
+                    <span className="text-sm font-semibold opacity-80 mb-1">Total Disponível (CEIC)</span>
+                    <span className="text-4xl font-bold">{totalDisponivelCeic}</span>
+                    <span className="text-xs mt-2 font-medium">{statusText}</span>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-4 border-b border-gray-100 bg-gray-50">
+                    <h3 className="font-semibold text-gray-700">Distribuição por Unidade de Terapia Intensiva</h3>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-white border-b border-gray-100 text-gray-500">
+                            <tr>
+                                <th className="p-4 font-semibold">Unidade (Setor)</th>
+                                <th className="p-4 font-semibold text-center w-32">Em Uso (Pacientes)</th>
+                                <th className="p-4 font-semibold text-center w-32">Em Backup</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {utis.map((u) => {
+                                const emUso = countUsoNormal(u.setor);
+                                const emBackup = countBackupUti(u.setor);
+                                return (
+                                    <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="p-4 font-medium text-gray-800">{u.setor}</td>
+                                        <td className="p-4 text-center font-bold text-gray-600">{emUso}</td>
+                                        <td className="p-4 text-center font-bold text-blue-600">{emBackup}</td>
+                                    </tr>
+                                )
+                            })}
+                            {utis.length === 0 && (
+                                <tr>
+                                    <td colSpan="3" className="p-8 text-center text-gray-400">Nenhuma UTI configurada no sistema. Acesse a Configuração de Leitos de UTI.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {isContingencyModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up">
+                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-red-50">
+                            <h3 className="text-xl font-bold text-red-800 flex items-center">
+                                <Siren className="mr-2" /> Acionamento de Plano de Contingência
+                            </h3>
+                            <button onClick={() => setIsContingencyModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto bg-gray-50">
+                            <div className="bg-white p-5 rounded-xl border border-red-100 mb-6 shadow-sm">
+                                <h4 className="font-bold text-red-700 mb-3 text-lg">Orientações de Ação Imediata:</h4>
+                                <ol className="list-decimal pl-5 space-y-2 text-gray-700 font-medium">
+                                    <li>Fazer busca ativa nas UTIs para verificar se os ventiladores estão de acordo com o sistema.</li>
+                                    <li>Verificar com as equipes multiprofissional se há pacientes com extubação inferior a 48h mas com baixo risco de intubação.</li>
+                                    <li>Caso o estoque não seja regularizado, comunicar coordenação de enfermagem (Coordenação do CC/Divisão de enfermagem) solicitando acionamento do plano de contingência.</li>
+                                </ol>
+                            </div>
+
+                            <form onSubmit={handleSubmitContingency} className="space-y-5 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                <div>
+                                    <label className="label">Enfermeiro de Plantão na CEIC</label>
+                                    <input 
+                                        type="text" 
+                                        className="input" 
+                                        value={enfermeiroPlantao} 
+                                        onChange={e => setEnfermeiroPlantao(e.target.value)} 
+                                        placeholder="Nome completo"
+                                        required 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="label">A quem foi comunicado sobre o plano de contingência?</label>
+                                    <input 
+                                        type="text" 
+                                        className="input" 
+                                        value={comunicadoA} 
+                                        onChange={e => setComunicadoA(e.target.value)} 
+                                        placeholder="Nome e cargo (ex: Maria Silva - Coordenadora do CC)"
+                                        required 
+                                    />
+                                </div>
+                                
+                                <div className="pt-4 border-t border-gray-100">
+                                    <label className="label text-base font-bold text-gray-800 mb-3 block">A situação foi regularizada após a busca ativa?</label>
+                                    <div className="flex gap-4">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setSituacaoRegularizada(true)}
+                                            className={`flex-1 py-3 px-4 rounded-xl font-bold flex justify-center items-center transition-colors border-2
+                                                ${situacaoRegularizada ? 'bg-green-100 border-green-500 text-green-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                        >
+                                            <CheckCircle size={20} className="mr-2" /> Sim, Regularizada
+                                        </button>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setSituacaoRegularizada(false)}
+                                            className={`flex-1 py-3 px-4 rounded-xl font-bold flex justify-center items-center transition-colors border-2
+                                                ${!situacaoRegularizada ? 'bg-red-100 border-red-500 text-red-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                        >
+                                            <AlertCircle size={20} className="mr-2" /> Não, Contingência Mantida
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button type="submit" disabled={isSubmitting} className="btn-primary w-full h-[48px] text-lg font-bold mt-4">
+                                    {isSubmitting ? 'Registrando...' : 'Gravar Registro de Auditoria'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
