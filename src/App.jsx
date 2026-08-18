@@ -299,7 +299,14 @@ const LiveTimer = ({ startTime, variant = 'pending', slaLimitSeconds = 1200 }) =
 
     const m = Math.floor(elapsed / 60);
     const s = elapsed % 60;
-    const formatted = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    let formatted = '';
+    if (m >= 60) {
+        const h = Math.floor(m / 60);
+        const remM = m % 60;
+        formatted = `${h}h ${String(remM).padStart(2, '0')}m`;
+    } else {
+        formatted = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
 
     const isOverdue = elapsed >= slaLimitSeconds;
 
@@ -1397,10 +1404,8 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                         <div className="flex flex-col items-end gap-1">
                             <LiveTimer startTime={req.timestamp} variant="pending" slaLimitSeconds={getSlaInfo(req).secs} />
                             <span className="text-xs text-gray-500 flex items-center mt-1">
-                                <Clock size={12} className="mr-1" />{new Date(req.timestamp).toLocaleTimeString([], {
-                                    hour:
-                                        '2-digit', minute: '2-digit'
-                                })}
+                                <Clock size={12} className="mr-1" />
+                                {new Date(req.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às {new Date(req.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
                     </div>
@@ -1478,10 +1483,8 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
                         <LiveTimer startTime={req.timestamp} variant={timerVariantOp}
                             slaLimitSeconds={getSlaInfo(req).secs} />
                         <span className="text-xs text-gray-500 flex items-center mt-1">
-                            <Clock size={12} className="mr-1" />{new Date(req.timestamp).toLocaleTimeString([], {
-                                hour:
-                                    '2-digit', minute: '2-digit'
-                            })}
+                            <Clock size={12} className="mr-1" />
+                            {new Date(req.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às {new Date(req.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                     </div>
                 </div>
@@ -5467,6 +5470,7 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }
 
 const AdminIndicators = ({ inventory, requests }) => {
     const [selectedCategory, setSelectedCategory] = useState('ALL');
+    const [selectedEquipment, setSelectedEquipment] = useState('');
 
     const todayStr = new Date().toISOString().substring(0, 10);
     const [startDate, setStartDate] = useState(`${todayStr}T00:00`);
@@ -5489,13 +5493,32 @@ const AdminIndicators = ({ inventory, requests }) => {
     const baseInventory = inventory;
     const baseRequests = requests.filter(r => isWithinRange(r.timestamp));
 
-    const filteredInventory = selectedCategory === 'ALL'
-        ? baseInventory
-        : baseInventory.filter(i => getCategoryForType(i.type) === selectedCategory);
+    const availableEquipments = useMemo(() => {
+        const set = new Set();
+        baseInventory.forEach(i => {
+            if (selectedCategory === 'ALL' || getCategoryForType(i.type) === selectedCategory) {
+                if (i.type) set.add(i.type);
+            }
+        });
+        baseRequests.forEach(r => {
+            if (selectedCategory === 'ALL' || getCategoryForType(r.equipmentType) === selectedCategory) {
+                if (r.equipmentType) set.add(r.equipmentType);
+            }
+        });
+        return Array.from(set).sort();
+    }, [baseInventory, baseRequests, selectedCategory]);
 
-    const filteredRequests = selectedCategory === 'ALL'
-        ? baseRequests
-        : baseRequests.filter(r => getCategoryForType(r.equipmentType) === selectedCategory);
+    const filteredInventory = baseInventory.filter(i => {
+        const catMatch = selectedCategory === 'ALL' || getCategoryForType(i.type) === selectedCategory;
+        const equipMatch = !selectedEquipment || i.type === selectedEquipment;
+        return catMatch && equipMatch;
+    });
+
+    const filteredRequests = baseRequests.filter(r => {
+        const catMatch = selectedCategory === 'ALL' || getCategoryForType(r.equipmentType) === selectedCategory;
+        const equipMatch = !selectedEquipment || r.equipmentType === selectedEquipment;
+        return catMatch && equipMatch;
+    });
 
     const totalInventory = filteredInventory.length;
     const availableRate = totalInventory > 0 ? Math.round((filteredInventory.filter(i => i.status
@@ -5527,9 +5550,9 @@ const AdminIndicators = ({ inventory, requests }) => {
         acc[sec] = (acc[sec] || 0) + 1;
         return acc;
     }, {});
-    const topSectors = Object.entries(sectorCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+    const allSortedSectors = Object.entries(sectorCounts)
+        .sort((a, b) => b[1] - a[1]);
+    const topSectors = selectedCategory === 'VENTILATORIA' ? allSortedSectors : allSortedSectors.slice(0, 5);
 
     const approvedRequestsWithTime = filteredRequests.filter(r => ['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(r.status) &&
         r.fulfilledAt);
@@ -5576,6 +5599,21 @@ const AdminIndicators = ({ inventory, requests }) => {
                     <LineChart className="text-purple-600" /> Indicadores de Performance
                 </h2>
                 <div className="flex flex-wrap items-end gap-2 bg-white p-2 rounded-lg border border-gray-200 shadow-sm w-full md:w-auto">
+                    {selectedCategory !== 'ALL' && (
+                        <div className="flex flex-col w-full sm:w-auto">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">Equipamento</label>
+                            <select
+                                className="bg-gray-50 border border-gray-200 rounded text-xs px-2 py-1.5 outline-none focus:border-purple-500 w-full min-w-[150px]"
+                                value={selectedEquipment}
+                                onChange={e => setSelectedEquipment(e.target.value)}
+                            >
+                                <option value="">Todos (Visão Geral)</option>
+                                {availableEquipments.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     <div className="flex flex-col w-full sm:w-auto">
                         <label className="text-[10px] font-bold text-gray-500 uppercase">Início</label>
                         <input type="datetime-local" data-testid="report-filter-start"
@@ -5600,7 +5638,7 @@ const AdminIndicators = ({ inventory, requests }) => {
             <div
                 className="flex bg-white rounded-xl shadow-sm border border-gray-200 p-1 overflow-x-auto">
                 {TABS.map(tab => (
-                    <button key={tab.id} onClick={() => setSelectedCategory(tab.id)}
+                    <button key={tab.id} onClick={() => { setSelectedCategory(tab.id); setSelectedEquipment(''); }}
                         className={`flex-1 py-2.5 px-4 text-sm font-bold rounded-lg whitespace-nowrap
                                         transition-colors ${selectedCategory === tab.id ? 'bg-purple-600 text-white shadow-md shadow-purple-200' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
@@ -5751,7 +5789,7 @@ const AdminIndicators = ({ inventory, requests }) => {
                             <MapPin size={18} className="text-blue-500" /> Setores Que Mais
                             Solicitam
                         </h3>
-                        <div className="space-y-4">
+                        <div className={`space-y-4 ${selectedCategory === 'VENTILATORIA' ? 'max-h-64 overflow-y-auto pr-2 custom-scrollbar' : ''}`}>
                             {topSectors.length > 0 ? topSectors.map(([sec, count], index) => {
                                 const maxCount = topSectors[0][1];
                                 const pct = Math.round((count / maxCount) * 100);
@@ -6530,7 +6568,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
             
             if (!groups[type]) groups[type] = {};
             if (!groups[type][model]) {
-                groups[type][model] = { available: 0, in_use: 0, maintenance: 0, cleaning: 0, irregular: 0, total: 0 };
+                groups[type][model] = { available: 0, in_use: 0, maintenance: 0, preventive: 0, cleaning: 0, irregular: 0, total: 0 };
             }
             
             const stats = groups[type][model];
@@ -6542,7 +6580,8 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
             
             if (isInUse) stats.in_use += 1;
             else if (status === 'available') stats.available += 1;
-            else if (status === 'maintenance' || status === 'preventive') stats.maintenance += 1;
+            else if (status === 'maintenance') stats.maintenance += 1;
+            else if (status === 'preventive') stats.preventive += 1;
             else if (status === 'cleaning') stats.cleaning += 1;
             else stats.irregular += 1;
         });
@@ -6656,6 +6695,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Disp.</th>
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Em Uso</th>
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Manut.</th>
+                                    <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Prevent.</th>
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center">Total</th>
                                 </tr>
                             </thead>
@@ -6672,12 +6712,13 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-emerald-600">{stats.available}</td>
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-blue-600">{stats.in_use}</td>
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-red-600">{stats.maintenance}</td>
+                                            <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-purple-600">{stats.preventive}</td>
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 text-center font-bold text-gray-800 bg-gray-50/30">{stats.total}</td>
                                         </tr>
                                     ))
                                 ))}
                                 {Object.keys(reportSummary).length === 0 && (
-                                    <tr><td colSpan="6" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento registrado.</td></tr>
+                                    <tr><td colSpan="7" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento registrado.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -6737,6 +6778,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                 <th className="px-4 py-3 font-bold text-center text-emerald-700 bg-emerald-50 border-r border-gray-100">Disponível (CEIC)</th>
                                 <th className="px-4 py-3 font-bold text-center text-blue-700 bg-blue-50 border-r border-gray-100">Em Uso / Trânsito</th>
                                 <th className="px-4 py-3 font-bold text-center text-red-700 bg-red-50 border-r border-gray-100">Manutenção</th>
+                                <th className="px-4 py-3 font-bold text-center text-purple-700 bg-purple-50 border-r border-gray-100">Ag. Preventiva</th>
                                 <th className="px-4 py-3 font-bold text-center bg-gray-100">Total</th>
                             </tr>
                         </thead>
@@ -6749,11 +6791,12 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                         <td className="px-4 py-3 text-center font-bold text-emerald-600 bg-emerald-50/30 border-r border-gray-100">{stats.available}</td>
                                         <td className="px-4 py-3 text-center font-bold text-blue-600 bg-blue-50/30 border-r border-gray-100">{stats.in_use}</td>
                                         <td className="px-4 py-3 text-center font-bold text-red-600 bg-red-50/30 border-r border-gray-100">{stats.maintenance}</td>
+                                        <td className="px-4 py-3 text-center font-bold text-purple-600 bg-purple-50/30 border-r border-gray-100">{stats.preventive}</td>
                                         <td className="px-4 py-3 text-center font-bold text-gray-800 bg-gray-50">{stats.total}</td>
                                     </tr>
                                 ))
                             ))}
-                            {Object.keys(summary).length === 0 && <tr><td colSpan="6" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento no inventário.</td></tr>}
+                            {Object.keys(summary).length === 0 && <tr><td colSpan="7" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento no inventário.</td></tr>}
                         </tbody>
                     </table>
                 </div>
