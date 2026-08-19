@@ -4608,6 +4608,14 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
                                     className="text-sm font-bold text-gray-400">({calcPct(maintenanceItems)}%)</span>
                             </div>
                         </div>
+                        <div className="bg-white p-5 rounded-xl shadow-sm border-b-4 border-indigo-500">
+                            <p className="text-xs font-bold text-gray-500 uppercase">Backup</p>
+                            <div className="flex items-baseline gap-2 mt-1">
+                                <p className="text-3xl font-black text-indigo-600">{backupItems}</p>
+                                <span
+                                    className="text-sm font-bold text-gray-400">({calcPct(backupItems)}%)</span>
+                            </div>
+                        </div>
                     </div>
                 </>
             )}
@@ -6562,7 +6570,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
             const normLoc = String(item.location || '').toLowerCase().trim();
             
             // Ignorar inativos (status inativo ou se preencheram Inativo no local)
-            if (normStatus === 'inativo' || normStatus === 'inactive' || normLoc.includes('inativo') || normLoc === 'inativo (baixa)') return;
+            if (normStatus === 'inativo' || normStatus === 'inactive' || normStatus === 'backup' || normLoc.includes('inativo') || normLoc === 'inativo (baixa)') return;
             let type = item.type || 'NÃO ESPECIFICADO';
             const model = item.model || 'NÃO ESPECIFICADO';
             
@@ -6576,7 +6584,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
             
             if (!groups[type]) groups[type] = {};
             if (!groups[type][model]) {
-                groups[type][model] = { available: 0, in_use: 0, maintenance: 0, preventive: 0, backup: 0, cleaning: 0, irregular: 0, total: 0 };
+                groups[type][model] = { available: 0, in_use: 0, maintenance: 0, preventive: 0, cleaning: 0, irregular: 0, total: 0 };
             }
             
             const stats = groups[type][model];
@@ -6590,7 +6598,6 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
             else if (status === 'available') stats.available += 1;
             else if (status === 'maintenance') stats.maintenance += 1;
             else if (status === 'preventive') stats.preventive += 1;
-            else if (status === 'backup') stats.backup += 1;
             else if (status === 'cleaning') stats.cleaning += 1;
             else stats.irregular += 1;
         });
@@ -6705,7 +6712,6 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Em Uso</th>
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Manut.</th>
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Prevent.</th>
-                                    <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Backup</th>
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center">Total</th>
                                 </tr>
                             </thead>
@@ -6723,13 +6729,12 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-blue-600">{stats.in_use}</td>
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-red-600">{stats.maintenance}</td>
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-purple-600">{stats.preventive}</td>
-                                            <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-indigo-600">{stats.backup}</td>
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 text-center font-bold text-gray-800 bg-gray-50/30">{stats.total}</td>
                                         </tr>
                                     ))
                                 ))}
                                 {Object.keys(reportSummary).length === 0 && (
-                                    <tr><td colSpan="8" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento registrado.</td></tr>
+                                    <tr><td colSpan="7" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento registrado.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -6790,7 +6795,6 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                 <th className="px-4 py-3 font-bold text-center text-blue-700 bg-blue-50 border-r border-gray-100">Em Uso / Trânsito</th>
                                 <th className="px-4 py-3 font-bold text-center text-red-700 bg-red-50 border-r border-gray-100">Manutenção</th>
                                 <th className="px-4 py-3 font-bold text-center text-purple-700 bg-purple-50 border-r border-gray-100">Ag. Preventiva</th>
-                                <th className="px-4 py-3 font-bold text-center text-indigo-700 bg-indigo-50 border-r border-gray-100">Backup</th>
                                 <th className="px-4 py-3 font-bold text-center bg-gray-100">Total</th>
                             </tr>
                         </thead>
@@ -6804,12 +6808,11 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                         <td className="px-4 py-3 text-center font-bold text-blue-600 bg-blue-50/30 border-r border-gray-100">{stats.in_use}</td>
                                         <td className="px-4 py-3 text-center font-bold text-red-600 bg-red-50/30 border-r border-gray-100">{stats.maintenance}</td>
                                         <td className="px-4 py-3 text-center font-bold text-purple-600 bg-purple-50/30 border-r border-gray-100">{stats.preventive}</td>
-                                        <td className="px-4 py-3 text-center font-bold text-indigo-600 bg-indigo-50/30 border-r border-gray-100">{stats.backup}</td>
                                         <td className="px-4 py-3 text-center font-bold text-gray-800 bg-gray-50">{stats.total}</td>
                                     </tr>
                                 ))
                             ))}
-                            {Object.keys(summary).length === 0 && <tr><td colSpan="8" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento no inventário.</td></tr>}
+                            {Object.keys(summary).length === 0 && <tr><td colSpan="7" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento no inventário.</td></tr>}
                         </tbody>
                     </table>
                 </div>
