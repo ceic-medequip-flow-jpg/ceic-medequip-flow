@@ -337,6 +337,7 @@ const StatusBadge = ({ status }) => {
         cleaning: { label: 'Higienização', color: 'bg-amber-100 text-amber-800 border-amber-200' },
         preventive: { label: 'Ag. Preventiva', color: 'bg-purple-100 text-purple-800 border-purple-200' },
         irregular: { label: 'Irregular', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+        backup: { label: 'Backup (Restrito)', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
         inactive: { label: 'Inativo', color: 'bg-slate-100 text-slate-500 border-slate-200' }
     };
 
@@ -1753,7 +1754,7 @@ const InventoryViewV2 = ({ inventory }) => {
     const [selectedLocation, setSelectedLocation] = useState('');
 
     const getStatusLabel = (status) => {
-        const config = { available: 'Disponível', in_use: 'Em Uso', allocated: 'Em Uso', maintenance: 'Manutenção', cleaning: 'Higienização', preventive: 'Ag. Preventiva', irregular: 'Irregular', inactive: 'Inativo' };
+        const config = { available: 'Disponível', in_use: 'Em Uso', allocated: 'Em Uso', maintenance: 'Manutenção', cleaning: 'Higienização', preventive: 'Ag. Preventiva', irregular: 'Irregular', backup: 'Backup (Restrito)', inactive: 'Inativo' };
         return config[status] || 'Disponível';
     };
 
@@ -4465,8 +4466,9 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
     ).length;
     const maintenanceItems = activeInventory.filter(i => i.status === 'maintenance' || i.status === 'preventive').length;
     const cleaningItems = activeInventory.filter(i => i.status === 'cleaning').length;
+    const backupItems = activeInventory.filter(i => i.status === 'backup').length;
     
-    const totalItems = availableItems + inUseItems + maintenanceItems + cleaningItems;
+    const totalItems = availableItems + inUseItems + maintenanceItems + cleaningItems + backupItems;
     const calcPct = (val) => totalItems === 0 ? 0 : Math.round((val / totalItems) * 100);
 
     const isWithinRange = (timestamp) => {
@@ -5203,6 +5205,7 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }
                                         <option value="maintenance">Manutenção</option>
                                         <option value="cleaning">Higienização</option>
                                         <option value="preventive">Ag. Preventiva</option>
+                                        <option value="backup">Backup (Restrito)</option>
                                         <option value="inactive">Inativo (Baixa)</option>
                                     </select>
                                 </div>
@@ -6554,7 +6557,12 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
         const groups = {};
         
         (inventory || []).forEach(item => {
-            if (!item || item.status === 'inativo' || item.status === 'inactive') return;
+            if (!item) return;
+            const normStatus = String(item.status || '').toLowerCase().trim();
+            const normLoc = String(item.location || '').toLowerCase().trim();
+            
+            // Ignorar inativos (status inativo ou se preencheram Inativo no local)
+            if (normStatus === 'inativo' || normStatus === 'inactive' || normLoc.includes('inativo') || normLoc === 'inativo (baixa)') return;
             let type = item.type || 'NÃO ESPECIFICADO';
             const model = item.model || 'NÃO ESPECIFICADO';
             
@@ -6568,7 +6576,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
             
             if (!groups[type]) groups[type] = {};
             if (!groups[type][model]) {
-                groups[type][model] = { available: 0, in_use: 0, maintenance: 0, preventive: 0, cleaning: 0, irregular: 0, total: 0 };
+                groups[type][model] = { available: 0, in_use: 0, maintenance: 0, preventive: 0, backup: 0, cleaning: 0, irregular: 0, total: 0 };
             }
             
             const stats = groups[type][model];
@@ -6582,6 +6590,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
             else if (status === 'available') stats.available += 1;
             else if (status === 'maintenance') stats.maintenance += 1;
             else if (status === 'preventive') stats.preventive += 1;
+            else if (status === 'backup') stats.backup += 1;
             else if (status === 'cleaning') stats.cleaning += 1;
             else stats.irregular += 1;
         });
@@ -6696,6 +6705,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Em Uso</th>
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Manut.</th>
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Prevent.</th>
+                                    <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center border-r border-gray-200">Backup</th>
                                     <th className="px-4 py-3 print:px-2 print:py-1 font-bold text-center">Total</th>
                                 </tr>
                             </thead>
@@ -6713,12 +6723,13 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-blue-600">{stats.in_use}</td>
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-red-600">{stats.maintenance}</td>
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-purple-600">{stats.preventive}</td>
+                                            <td className="px-4 py-2 print:px-2 print:py-0.5 border-r border-gray-200 text-center font-bold text-indigo-600">{stats.backup}</td>
                                             <td className="px-4 py-2 print:px-2 print:py-0.5 text-center font-bold text-gray-800 bg-gray-50/30">{stats.total}</td>
                                         </tr>
                                     ))
                                 ))}
                                 {Object.keys(reportSummary).length === 0 && (
-                                    <tr><td colSpan="7" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento registrado.</td></tr>
+                                    <tr><td colSpan="8" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento registrado.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -6779,6 +6790,7 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                 <th className="px-4 py-3 font-bold text-center text-blue-700 bg-blue-50 border-r border-gray-100">Em Uso / Trânsito</th>
                                 <th className="px-4 py-3 font-bold text-center text-red-700 bg-red-50 border-r border-gray-100">Manutenção</th>
                                 <th className="px-4 py-3 font-bold text-center text-purple-700 bg-purple-50 border-r border-gray-100">Ag. Preventiva</th>
+                                <th className="px-4 py-3 font-bold text-center text-indigo-700 bg-indigo-50 border-r border-gray-100">Backup</th>
                                 <th className="px-4 py-3 font-bold text-center bg-gray-100">Total</th>
                             </tr>
                         </thead>
@@ -6792,11 +6804,12 @@ const QuickInventoryView = ({ inventory, showNotification, userProfile }) => {
                                         <td className="px-4 py-3 text-center font-bold text-blue-600 bg-blue-50/30 border-r border-gray-100">{stats.in_use}</td>
                                         <td className="px-4 py-3 text-center font-bold text-red-600 bg-red-50/30 border-r border-gray-100">{stats.maintenance}</td>
                                         <td className="px-4 py-3 text-center font-bold text-purple-600 bg-purple-50/30 border-r border-gray-100">{stats.preventive}</td>
+                                        <td className="px-4 py-3 text-center font-bold text-indigo-600 bg-indigo-50/30 border-r border-gray-100">{stats.backup}</td>
                                         <td className="px-4 py-3 text-center font-bold text-gray-800 bg-gray-50">{stats.total}</td>
                                     </tr>
                                 ))
                             ))}
-                            {Object.keys(summary).length === 0 && <tr><td colSpan="7" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento no inventário.</td></tr>}
+                            {Object.keys(summary).length === 0 && <tr><td colSpan="8" className="px-4 py-8 text-center text-gray-400">Nenhum equipamento no inventário.</td></tr>}
                         </tbody>
                     </table>
                 </div>
