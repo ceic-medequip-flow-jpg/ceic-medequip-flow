@@ -3238,12 +3238,41 @@ const ReturnView = ({ inventory, onReturnByTag, showNotification, initialData })
             tag: normUpper(typedTag), hasDefect: isDefective, defectDescription: defectDesc.trim(),
             returnedAllAccessories, unitNotified, patientDamage, notificationNumber
         });
-        setIsSubmitting(false);
-
+        
         if (ok) {
+            const t = normUpper(found.type);
+            const isCapnografiaKit = t === 'MODULO DE CAPNOGRAFIA' || t === 'MÓDULO DE CAPNOGRAFIA' || t === 'CABO DE CAPNOGRAFIA' || t === 'CELULA DE CAPNOGRAFIA' || t === 'CÉLULA DE CAPNOGRAFIA';
+            
+            if (isCapnografiaKit) {
+                const typesToFind = [];
+                if (t !== 'MODULO DE CAPNOGRAFIA' && t !== 'MÓDULO DE CAPNOGRAFIA') typesToFind.push('MÓDULO DE CAPNOGRAFIA');
+                if (t !== 'CABO DE CAPNOGRAFIA') typesToFind.push('CABO DE CAPNOGRAFIA');
+                if (t !== 'CELULA DE CAPNOGRAFIA' && t !== 'CÉLULA DE CAPNOGRAFIA') typesToFind.push('CÉLULA DE CAPNOGRAFIA');
+                
+                for (const typeKey of typesToFind) {
+                    const match = inventory.find(e => {
+                        const eType = normUpper(e.type);
+                        const isMatch = typeKey === 'MÓDULO DE CAPNOGRAFIA' ? (eType === 'MODULO DE CAPNOGRAFIA' || eType === 'MÓDULO DE CAPNOGRAFIA') :
+                                        typeKey === 'CÉLULA DE CAPNOGRAFIA' ? (eType === 'CELULA DE CAPNOGRAFIA' || eType === 'CÉLULA DE CAPNOGRAFIA') :
+                                        (eType === typeKey);
+                                        
+                        return isMatch && e.tag !== found.tag && e.status === found.status && e.location === found.location && e.patient_mv === found.patient_mv;
+                    });
+                    
+                    if (match) {
+                        await onReturnByTag({
+                            tag: match.tag, hasDefect: isDefective, defectDescription: defectDesc.trim(),
+                            returnedAllAccessories, unitNotified, patientDamage, notificationNumber
+                        });
+                    }
+                }
+            }
+
             setTypedTag(''); setStep(1); setIsDefective(false); setDefectDesc(''); setReturnedAllAccessories(true);
             setUnitNotified(false); setPatientDamage(false); setNotificationNumber('');
         }
+        
+        setIsSubmitting(false);
     };
 
     return (
@@ -3652,6 +3681,29 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                 linkedTags.add(uTag.tag);
             }
         }
+        
+        if (t === 'MODULO DE CAPNOGRAFIA' || t === 'MÓDULO DE CAPNOGRAFIA') {
+            const cabos = myEquipments.filter(e => normUpper(e.type) === 'CABO DE CAPNOGRAFIA' && !linkedTags.has(e.tag));
+            const caboTag = cabos.find(c => {
+                const relatedReq = requests.find(r => r.equipmentTag && r.equipmentTag.includes(normUpper(item.tag)) && r.equipmentTag.includes(normUpper(c.tag)));
+                return relatedReq || (c.location === item.location && c.patient_mv === item.patient_mv && c.patient_mv);
+            });
+            if (caboTag) {
+                item.pairedCapnoCabo = caboTag;
+                linkedTags.add(caboTag.tag);
+            }
+
+            const celulas = myEquipments.filter(e => normUpper(e.type) === 'CELULA DE CAPNOGRAFIA' || normUpper(e.type) === 'CÉLULA DE CAPNOGRAFIA' && !linkedTags.has(e.tag));
+            const celulaTag = celulas.find(c => {
+                const relatedReq = requests.find(r => r.equipmentTag && r.equipmentTag.includes(normUpper(item.tag)) && r.equipmentTag.includes(normUpper(c.tag)));
+                return relatedReq || (c.location === item.location && c.patient_mv === item.patient_mv && c.patient_mv);
+            });
+            if (celulaTag) {
+                item.pairedCapnoCelula = celulaTag;
+                linkedTags.add(celulaTag.tag);
+            }
+        }
+
         groupedEquipmentsRaw.push(item);
     });
 
@@ -3703,6 +3755,18 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                 equipmentTag: selectedItem.pairedUmidificador.tag, collaboratorName, collaboratorBadge, hasIssue, issueDescription
             });
         }
+        if (selectedItem.pairedCapnoCabo) {
+            await new Promise(r => setTimeout(r, 200));
+            await onRequestPickup({
+                equipmentTag: selectedItem.pairedCapnoCabo.tag, collaboratorName, collaboratorBadge, hasIssue, issueDescription
+            });
+        }
+        if (selectedItem.pairedCapnoCelula) {
+            await new Promise(r => setTimeout(r, 200));
+            await onRequestPickup({
+                equipmentTag: selectedItem.pairedCapnoCelula.tag, collaboratorName, collaboratorBadge, hasIssue, issueDescription
+            });
+        }
 
         setModalOpen(false);
     };
@@ -3719,6 +3783,9 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
         }
         let tagPayload = selectedItem.tag;
         if (selectedItem.pairedCassete) tagPayload += `, ${selectedItem.pairedCassete.tag}`;
+        if (selectedItem.pairedCapnoCabo) tagPayload += `, ${selectedItem.pairedCapnoCabo.tag}`;
+        if (selectedItem.pairedCapnoCelula) tagPayload += `, ${selectedItem.pairedCapnoCelula.tag}`;
+        
         onTransferEquipment({
             equipmentTag: tagPayload, destination: destinationSector, destinationBed,
             collaboratorName, collaboratorBadge, transferPatientName, transferPatientMV
@@ -4066,6 +4133,18 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
                                                             <span className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md text-green-800 shadow-sm text-xs font-medium">
                                                                 <Tag size={12} className="text-green-500" />
                                                                 Umidificador Vinculado: <span className="font-bold font-mono">{item.pairedUmidificador.tag}</span>
+                                                            </span>
+                                                        )}
+                                                        {item.pairedCapnoCabo && (
+                                                            <span className="flex items-center gap-1.5 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md text-teal-800 shadow-sm text-xs font-medium">
+                                                                <Tag size={12} className="text-teal-500" />
+                                                                Cabo Vinculado: <span className="font-bold font-mono">{item.pairedCapnoCabo.tag}</span>
+                                                            </span>
+                                                        )}
+                                                        {item.pairedCapnoCelula && (
+                                                            <span className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-md text-indigo-800 shadow-sm text-xs font-medium">
+                                                                <Tag size={12} className="text-indigo-500" />
+                                                                Célula Vinculada: <span className="font-bold font-mono">{item.pairedCapnoCelula.tag}</span>
                                                             </span>
                                                         )}
                                                         {isPendingTransferToMe && <span
@@ -4563,6 +4642,43 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     const totalCanceled = canceledRequestsList.length;
 
+    const consolidatedEquipmentData = useMemo(() => {
+        const groups = {
+            VENTILATORIA: {},
+            GERAIS: {}
+        };
+        (inventory || []).forEach(item => {
+            const isVent = ['VENTILADOR PULMONAR', 'GERADOR DE FLUXO', 'OXIDO NITRICO', 'APENAS ACESSORIOS'].some(v => {
+                const normType = String(item.type || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+                return normType.includes(v);
+            });
+            const groupKey = isVent ? 'VENTILATORIA' : 'GERAIS';
+            
+            const type = item.type || 'NÃO ESPECIFICADO';
+            const model = item.model || 'NÃO ESPECIFICADO';
+            const key = `${type}::${model}`;
+            
+            const normStatus = String(item.status || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+            const normLoc = String(item.location || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+            const isInactive = normStatus === 'INATIVO' || normStatus === 'INACTIVE' || normLoc.includes('INATIVO');
+            
+            if (!groups[groupKey][key]) {
+                groups[groupKey][key] = { type, model, ativo: 0, inativo: 0, total: 0 };
+            }
+            if (isInactive) {
+                groups[groupKey][key].inativo += 1;
+            } else {
+                groups[groupKey][key].ativo += 1;
+            }
+            groups[groupKey][key].total += 1;
+        });
+        
+        return {
+            vent: Object.values(groups.VENTILATORIA).sort((a, b) => a.type.localeCompare(b.type) || a.model.localeCompare(b.model)),
+            gerais: Object.values(groups.GERAIS).sort((a, b) => a.type.localeCompare(b.type) || a.model.localeCompare(b.model))
+        };
+    }, [inventory]);
+
     return (
         <div className={`space-y-6 pb-20 animate-fade-in max-w-6xl mx-auto w-full ${hideMetrics ? 'px-0' : ''}`} data-testid="management-dashboard">
             {!hideMetrics && (
@@ -4948,6 +5064,98 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 animate-fade-in" data-testid="consolidated-inventory-card">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-4">
+                        <Database size={18} className="text-gray-500" /> Consolidação de Equipamentos (Estoque Total)
+                    </h3>
+                    
+                    <div className="space-y-6">
+                        {/* Assistência Ventilatória */}
+                        <div>
+                            <h4 className="text-sm font-bold text-teal-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-b border-teal-100 pb-2">
+                                <div className="w-2 h-2 rounded-full bg-teal-400"></div>
+                                Assistência Ventilatória
+                            </h4>
+                            <div className="overflow-x-auto border border-gray-200 rounded-lg max-h-[400px] overflow-y-auto custom-scrollbar">
+                                <table className="w-full text-left text-sm text-gray-600">
+                                    <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase sticky top-0 shadow-sm z-10">
+                                        <tr>
+                                            <th className="px-4 py-3 font-bold bg-gray-50">Tipo</th>
+                                            <th className="px-4 py-3 font-bold bg-gray-50">Modelo</th>
+                                            <th className="px-4 py-3 font-bold text-center bg-gray-50 text-green-600">Ativo</th>
+                                            <th className="px-4 py-3 font-bold text-center bg-gray-50 text-red-500">Inativo</th>
+                                            <th className="px-4 py-3 font-bold text-center bg-gray-100 text-gray-800">Total Geral</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {consolidatedEquipmentData.vent.length > 0 ? consolidatedEquipmentData.vent.map((item, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-4 py-2 font-medium">{item.type}</td>
+                                                <td className="px-4 py-2">{item.model}</td>
+                                                <td className="px-4 py-2 text-center text-green-600 font-bold">{item.ativo}</td>
+                                                <td className="px-4 py-2 text-center text-red-500 font-medium">{item.inativo}</td>
+                                                <td className="px-4 py-2 text-center font-bold text-gray-800 bg-gray-50/50">{item.total}</td>
+                                            </tr>
+                                        )) : (
+                                            <tr><td colSpan="5" className="px-4 py-4 text-center text-gray-400 text-xs font-medium">Nenhum equipamento registrado.</td></tr>
+                                        )}
+                                    </tbody>
+                                    <tfoot className="bg-gray-100 font-black text-gray-800 text-xs uppercase sticky bottom-0 z-10 shadow-[0_-1px_2px_rgba(0,0,0,0.05)]">
+                                        <tr>
+                                            <td colSpan="2" className="px-4 py-3 text-right bg-gray-100">TOTAIS ASSISTÊNCIA VENTILATÓRIA:</td>
+                                            <td className="px-4 py-3 text-center text-green-700 bg-gray-100">{consolidatedEquipmentData.vent.reduce((acc, curr) => acc + curr.ativo, 0)}</td>
+                                            <td className="px-4 py-3 text-center text-red-600 bg-gray-100">{consolidatedEquipmentData.vent.reduce((acc, curr) => acc + curr.inativo, 0)}</td>
+                                            <td className="px-4 py-3 text-center bg-gray-200">{consolidatedEquipmentData.vent.reduce((acc, curr) => acc + curr.total, 0)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Equipamentos Gerais */}
+                        <div>
+                            <h4 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-b border-blue-100 pb-2">
+                                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                Equipamentos Gerais
+                            </h4>
+                            <div className="overflow-x-auto border border-gray-200 rounded-lg max-h-[400px] overflow-y-auto custom-scrollbar">
+                                <table className="w-full text-left text-sm text-gray-600">
+                                    <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase sticky top-0 shadow-sm z-10">
+                                        <tr>
+                                            <th className="px-4 py-3 font-bold bg-gray-50">Tipo</th>
+                                            <th className="px-4 py-3 font-bold bg-gray-50">Modelo</th>
+                                            <th className="px-4 py-3 font-bold text-center bg-gray-50 text-green-600">Ativo</th>
+                                            <th className="px-4 py-3 font-bold text-center bg-gray-50 text-red-500">Inativo</th>
+                                            <th className="px-4 py-3 font-bold text-center bg-gray-100 text-gray-800">Total Geral</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {consolidatedEquipmentData.gerais.length > 0 ? consolidatedEquipmentData.gerais.map((item, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-4 py-2 font-medium">{item.type}</td>
+                                                <td className="px-4 py-2">{item.model}</td>
+                                                <td className="px-4 py-2 text-center text-green-600 font-bold">{item.ativo}</td>
+                                                <td className="px-4 py-2 text-center text-red-500 font-medium">{item.inativo}</td>
+                                                <td className="px-4 py-2 text-center font-bold text-gray-800 bg-gray-50/50">{item.total}</td>
+                                            </tr>
+                                        )) : (
+                                            <tr><td colSpan="5" className="px-4 py-4 text-center text-gray-400 text-xs font-medium">Nenhum equipamento registrado.</td></tr>
+                                        )}
+                                    </tbody>
+                                    <tfoot className="bg-gray-100 font-black text-gray-800 text-xs uppercase sticky bottom-0 z-10 shadow-[0_-1px_2px_rgba(0,0,0,0.05)]">
+                                        <tr>
+                                            <td colSpan="2" className="px-4 py-3 text-right bg-gray-100">TOTAIS EQUIPAMENTOS GERAIS:</td>
+                                            <td className="px-4 py-3 text-center text-green-700 bg-gray-100">{consolidatedEquipmentData.gerais.reduce((acc, curr) => acc + curr.ativo, 0)}</td>
+                                            <td className="px-4 py-3 text-center text-red-600 bg-gray-100">{consolidatedEquipmentData.gerais.reduce((acc, curr) => acc + curr.inativo, 0)}</td>
+                                            <td className="px-4 py-3 text-center bg-gray-200">{consolidatedEquipmentData.gerais.reduce((acc, curr) => acc + curr.total, 0)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
