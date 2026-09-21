@@ -5696,6 +5696,8 @@ const AdminIndicators = ({ inventory, requests }) => {
     const [endDate, setEndDate] = useState(`${todayStr}T23:59`);
     const [appliedStart, setAppliedStart] = useState(`${todayStr}T00:00`);
     const [appliedEnd, setAppliedEnd] = useState(`${todayStr}T23:59`);
+    const [historicalData, setHistoricalData] = useState(null);
+    const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
 
     const isWithinRange = (timestamp) => {
         if (!timestamp) return false;
@@ -5709,8 +5711,39 @@ const AdminIndicators = ({ inventory, requests }) => {
         return !isNaN(t) && t >= s && t <= e;
     };
 
+    const handleApplyFilter = async () => {
+        setAppliedStart(startDate);
+        setAppliedEnd(endDate);
+        setIsLoadingIndicators(true);
+        try {
+            let allData = [];
+            let from = 0;
+            const step = 1000;
+            
+            while (true) {
+                const { data, error } = await supabase
+                    .from('pedidos')
+                    .select('*, catalogo_equipamentos(instrucao_devolucao)')
+                    .gte('created_at', new Date(startDate).toISOString())
+                    .lte('created_at', new Date(endDate).toISOString())
+                    .range(from, from + step - 1);
+                
+                if (error) throw error;
+                if (!data || data.length === 0) break;
+                
+                allData = allData.concat(data);
+                if (data.length < step) break; // Finished loading all pages
+                from += step;
+            }
+            setHistoricalData(allData.map(mapPedido));
+        } catch (err) {
+            console.error('Erro ao buscar dados históricos', err);
+        }
+        setIsLoadingIndicators(false);
+    };
+
     const baseInventory = inventory;
-    const baseRequests = requests.filter(r => isWithinRange(r.timestamp));
+    const baseRequests = (historicalData || requests).filter(r => isWithinRange(r.timestamp));
 
     const availableEquipments = useMemo(() => {
         const set = new Set();
@@ -5761,17 +5794,15 @@ const AdminIndicators = ({ inventory, requests }) => {
         return acc;
     }, {});
     const topRequested = Object.entries(reqCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+        .sort((a, b) => b[1] - a[1]);
 
     const sectorCounts = filteredRequests.reduce((acc, req) => {
         const sec = req.sector || req.unit || 'Não informado';
         acc[sec] = (acc[sec] || 0) + 1;
         return acc;
     }, {});
-    const allSortedSectors = Object.entries(sectorCounts)
+    const topSectors = Object.entries(sectorCounts)
         .sort((a, b) => b[1] - a[1]);
-    const topSectors = selectedCategory === 'VENTILATORIA' ? allSortedSectors : allSortedSectors.slice(0, 5);
 
     const approvedRequestsWithTime = filteredRequests.filter(r => ['approved', 'aprovado', 'delivered', 'completed', 'in_transit', 'in_transfer'].includes(r.status) &&
         r.fulfilledAt);
@@ -5797,10 +5828,11 @@ const AdminIndicators = ({ inventory, requests }) => {
     }); const
         avgFulfillmentTimeMs = approvedRequestsWithTime.length > 0 ? totalFulfillmentTimeMs /
             approvedRequestsWithTime.length : 0;
-    const avgFulfillmentMins = Math.floor(avgFulfillmentTimeMs / 60000);
-    const avgFulfillmentSecs = Math.floor((avgFulfillmentTimeMs % 60000) / 1000);
-    const formattedTMA = approvedRequestsWithTime.length > 0 ? `${avgFulfillmentMins}m
-                            ${avgFulfillmentSecs.toString().padStart(2, '0')}s` : '--';
+    const avgFulfillmentHours = Math.floor(avgFulfillmentTimeMs / 3600000);
+    const avgFulfillmentMins = Math.floor((avgFulfillmentTimeMs % 3600000) / 60000);
+    const formattedTMA = approvedRequestsWithTime.length > 0 ? (avgFulfillmentHours > 0 
+        ? `${avgFulfillmentHours}h ${avgFulfillmentMins.toString().padStart(2, '0')}m` 
+        : `${avgFulfillmentMins}m`) : '--';
 
     const slaComplianceRate = approvedRequestsWithTime.length > 0 ? Math.round((slaMetCount /
         approvedRequestsWithTime.length) * 100) : 0;
@@ -5846,10 +5878,11 @@ const AdminIndicators = ({ inventory, requests }) => {
                             value={endDate} onChange={e => setEndDate(e.target.value)} />
                     </div>
                     <button
-                        onClick={() => { setAppliedStart(startDate); setAppliedEnd(endDate); }}
-                        className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded text-xs shadow-sm transition-colors flex items-center justify-center gap-1"
+                        onClick={handleApplyFilter}
+                        disabled={isLoadingIndicators}
+                        className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded text-xs shadow-sm transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
                     >
-                        <Search size={14} /> Atualizar
+                        {isLoadingIndicators ? 'Carregando...' : <><Search size={14} /> Atualizar</>}
                     </button>
                 </div>
             </div>
@@ -5980,7 +6013,7 @@ const AdminIndicators = ({ inventory, requests }) => {
                             <Package size={18} className="text-purple-500" /> Equipamentos Mais
                             Solicitados
                         </h3>
-                        <div className="space-y-4">
+                        <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                             {topRequested.length > 0 ? topRequested.map(([equip, count], index) => {
                                 const maxCount = topRequested[0][1];
                                 const pct = Math.round((count / maxCount) * 100);
@@ -6008,7 +6041,7 @@ const AdminIndicators = ({ inventory, requests }) => {
                             <MapPin size={18} className="text-blue-500" /> Setores Que Mais
                             Solicitam
                         </h3>
-                        <div className={`space-y-4 ${selectedCategory === 'VENTILATORIA' ? 'max-h-64 overflow-y-auto pr-2 custom-scrollbar' : ''}`}>
+                        <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                             {topSectors.length > 0 ? topSectors.map(([sec, count], index) => {
                                 const maxCount = topSectors[0][1];
                                 const pct = Math.round((count / maxCount) * 100);
@@ -8131,11 +8164,15 @@ function App() {
         };
 
         if (hasDefect) {
-            localUpdates.defectdescription = defectDescription ?? '';
-            localUpdates.unitnotified = !!unitNotified;
-            localUpdates.notificationnumber = notificationNumber ?? '';
-            localUpdates.patientdamage = !!patientDamage;
-            localUpdates.servicerequestnumber = null;
+            const defectData = {
+                defectdescription: defectDescription ?? '',
+                unitnotified: !!unitNotified,
+                notificationnumber: notificationNumber ?? '',
+                patientdamage: !!patientDamage,
+                servicerequestnumber: null
+            };
+            Object.assign(supabaseUpdates, defectData);
+            Object.assign(localUpdates, defectData);
         }
 
         try {
