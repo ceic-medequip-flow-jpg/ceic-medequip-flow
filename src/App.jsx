@@ -211,6 +211,8 @@ const mapEquip = (raw) => {
         serviceRequestNumber: raw.serviceRequestNumber || raw.servicerequestnumber || null,
         unitNotified: raw.unitNotified ?? raw.unitnotified ?? false,
         patientDamage: raw.patientDamage ?? raw.patientdamage ?? false,
+        defectDescription: raw.defectdescription || raw.defectDescription || raw.maintenance_notes || null,
+        maintenance_notes: raw.maintenance_notes || raw.maintenanceNotes || null,
     };
 };
 
@@ -8164,14 +8166,22 @@ function App() {
         };
 
         if (hasDefect) {
+            const notes = [];
+            if (defectDescription) notes.push(`Defeito: ${defectDescription}`);
+            if (patientDamage) notes.push('Danos ao paciente');
+            if (unitNotified) notes.push(`Notificado (Nº: ${notificationNumber || 'N/A'})`);
+            const combinedNotes = notes.join(' | ');
+
+            supabaseUpdates.maintenance_notes = combinedNotes;
+
             const defectData = {
                 defectdescription: defectDescription ?? '',
                 unitnotified: !!unitNotified,
                 notificationnumber: notificationNumber ?? '',
                 patientdamage: !!patientDamage,
-                servicerequestnumber: null
+                servicerequestnumber: null,
+                maintenance_notes: combinedNotes
             };
-            Object.assign(supabaseUpdates, defectData);
             Object.assign(localUpdates, defectData);
         }
 
