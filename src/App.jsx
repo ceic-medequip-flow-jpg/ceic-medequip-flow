@@ -8,7 +8,7 @@ import {
     AlertCircle, Search, BadgeCheck, PlusCircle, List, MapPin, X, Send, ChevronDown,
     ChevronUp, XCircle, Menu, Wrench, BarChart3, Database, Edit, Trash2, LineChart,
     Volume2, VolumeX, Truck, CalendarClock, Eye, EyeOff, ChevronLeft, ChevronRight, ArrowRight,
-    HelpCircle, LifeBuoy, UserPlus, Briefcase, PackageOpen, ClipboardCheck, Printer, Calendar, FileText
+    HelpCircle, LifeBuoy, UserPlus, Briefcase, PackageOpen, ClipboardCheck, Printer, Calendar, FileText, Link2
 } from 'lucide-react';
 import logoCeic from './assets/logo-ceic.png';
 
@@ -1229,11 +1229,18 @@ const PendingRequestCard = ({ req, inventory, onFulfill, showNotification, onPro
             const enteredTags = [];
             for (const item of multiTagItemsList) {
                 const t = (multiTags[item] || '').trim().toUpperCase();
-                if (!t) {
-                    showNotification('error', `Por favor, informe a TAG para "${item}".`);
+                if (t) {
+                    enteredTags.push(t);
+                }
+            }
+            if (enteredTags.length === 0) {
+                showNotification('error', 'Por favor, informe pelo menos uma TAG para realizar o envio parcial ou completo.');
+                return;
+            }
+            if (enteredTags.length < multiTagItemsList.length) {
+                if (!window.confirm(`Você não preencheu todas as TAGs do conjunto (preencheu ${enteredTags.length} de ${multiTagItemsList.length}).\n\nTem certeza que deseja enviar o kit INCOMPLETO?`)) {
                     return;
                 }
-                enteredTags.push(t);
             }
             const uniqueTags = new Set(enteredTags);
             if (uniqueTags.size !== enteredTags.length) {
@@ -3191,10 +3198,16 @@ const ReturnView = ({ inventory, onReturnByTag, showNotification, initialData })
     const [unitNotified, setUnitNotified] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Novos estados para a gestão do kit
+    const [kitParts, setKitParts] = useState([]);
+    const [selectedKitTags, setSelectedKitTags] = useState(new Set());
+    const [extraTagsToReturn, setExtraTagsToReturn] = useState([]);
+    const [extraTagSearch, setExtraTagSearch] = useState('');
+
     useEffect(() => {
         if (initialData) {
             setTypedTag(normUpper(initialData.tag || initialData.type || ''));
-            if (initialData.tag) setStep(2);
+            if (initialData.tag) proceed(initialData.tag);
             if (initialData.hasDefect) { setIsDefective(true); setDefectDesc(initialData.defectDesc || ''); }
         }
     }, [initialData]);
@@ -3217,14 +3230,55 @@ const ReturnView = ({ inventory, onReturnByTag, showNotification, initialData })
         return inventory.find(i => normUpper(i.tag) === tagUpper);
     }, [typedTag, inventory]);
 
-    const proceed = () => {
-        if (!typedTag.trim()) { showNotification('error', 'Digite a TAG do equipamento.'); return; }
-        if (!found) { showNotification('error', 'TAG não encontrada.'); return; }
-        if (found && (found.status === 'cleaning' || found.status === 'maintenance')) {
-            showNotification('error', `A TAG ${found.tag} já está em ${found.status === 'cleaning' ? 'higienização' : 'manutenção'}.`);
+    const proceed = (overrideTag) => {
+        const tagToUse = typeof overrideTag === 'string' ? overrideTag : typedTag;
+        if (!tagToUse.trim()) { showNotification('error', 'Digite a TAG do equipamento.'); return; }
+        
+        const foundItem = typeof overrideTag === 'string' ? inventory.find(i => normUpper(i.tag) === normUpper(tagToUse)) : found;
+        
+        if (!foundItem) { showNotification('error', 'TAG não encontrada.'); return; }
+        if (foundItem && (foundItem.status === 'cleaning' || foundItem.status === 'maintenance')) {
+            showNotification('error', `A TAG ${foundItem.tag} já está em ${foundItem.status === 'cleaning' ? 'higienização' : 'manutenção'}.`);
             return;
         }
+
+        // Detecta partes do kit no mesmo local/paciente
+        const t = normUpper(foundItem.type);
+        let expectedTypes = [];
+        if (t.includes('CAPNOGRAFIA')) {
+            expectedTypes = ['MÓDULO DE CAPNOGRAFIA', 'MODULO DE CAPNOGRAFIA', 'CABO DE CAPNOGRAFIA', 'CELULA DE CAPNOGRAFIA', 'CÉLULA DE CAPNOGRAFIA'];
+        } else if (t === 'VENTILADOR PULMONAR INVASIVO' || t === 'CASSETE EXPIRATÓRIO' || t.includes('BACKUP - VENTILADOR MEC')) {
+            expectedTypes = ['VENTILADOR PULMONAR INVASIVO', 'CASSETE EXPIRATÓRIO', 'UMIDIFICADOR'];
+        } else if (t === 'ALTO FLUXO' || t === 'UMIDIFICADOR') {
+            expectedTypes = ['ALTO FLUXO', 'VENTILADOR PULMONAR INVASIVO', 'UMIDIFICADOR'];
+        }
+
+        let parts = [];
+        if (expectedTypes.length > 0) {
+            parts = inventory.filter(e => 
+                e.status === foundItem.status && 
+                e.location === foundItem.location && 
+                e.patient_mv === foundItem.patient_mv && 
+                Boolean(foundItem.patient_mv) &&
+                expectedTypes.some(et => normUpper(e.type).includes(et)) &&
+                e.tag !== foundItem.tag
+            );
+        }
+
+        setKitParts(parts);
+        setSelectedKitTags(new Set()); // Inicia sem selecionar os acessórios, o usuário deve selecionar
+        setExtraTagsToReturn([]);
+        setExtraTagSearch('');
         setStep(2);
+    };
+
+    const handleKitPartToggle = (tag) => {
+        setSelectedKitTags(prev => {
+            const next = new Set(prev);
+            if (next.has(tag)) next.delete(tag);
+            else next.add(tag);
+            return next;
+        });
     };
 
     const confirm = async () => {
@@ -3236,42 +3290,37 @@ const ReturnView = ({ inventory, onReturnByTag, showNotification, initialData })
         }
 
         setIsSubmitting(true);
+        
+        // Retorna o item principal
         const ok = await onReturnByTag({
             tag: normUpper(typedTag), hasDefect: isDefective, defectDescription: defectDesc.trim(),
             returnedAllAccessories, unitNotified, patientDamage, notificationNumber
         });
         
         if (ok) {
-            const t = normUpper(found.type);
-            const isCapnografiaKit = t === 'MODULO DE CAPNOGRAFIA' || t === 'MÓDULO DE CAPNOGRAFIA' || t === 'CABO DE CAPNOGRAFIA' || t === 'CELULA DE CAPNOGRAFIA' || t === 'CÉLULA DE CAPNOGRAFIA';
-            
-            if (isCapnografiaKit) {
-                const typesToFind = [];
-                if (t !== 'MODULO DE CAPNOGRAFIA' && t !== 'MÓDULO DE CAPNOGRAFIA') typesToFind.push('MÓDULO DE CAPNOGRAFIA');
-                if (t !== 'CABO DE CAPNOGRAFIA') typesToFind.push('CABO DE CAPNOGRAFIA');
-                if (t !== 'CELULA DE CAPNOGRAFIA' && t !== 'CÉLULA DE CAPNOGRAFIA') typesToFind.push('CÉLULA DE CAPNOGRAFIA');
-                
-                for (const typeKey of typesToFind) {
-                    const match = inventory.find(e => {
-                        const eType = normUpper(e.type);
-                        const isMatch = typeKey === 'MÓDULO DE CAPNOGRAFIA' ? (eType === 'MODULO DE CAPNOGRAFIA' || eType === 'MÓDULO DE CAPNOGRAFIA') :
-                                        typeKey === 'CÉLULA DE CAPNOGRAFIA' ? (eType === 'CELULA DE CAPNOGRAFIA' || eType === 'CÉLULA DE CAPNOGRAFIA') :
-                                        (eType === typeKey);
-                                        
-                        return isMatch && e.tag !== found.tag && e.status === found.status && e.location === found.location && e.patient_mv === found.patient_mv;
+            // Retorna as partes do kit selecionadas
+            for (const kitItem of kitParts) {
+                if (selectedKitTags.has(kitItem.tag)) {
+                    await onReturnByTag({
+                        tag: kitItem.tag, hasDefect: isDefective, defectDescription: defectDesc.trim(),
+                        returnedAllAccessories, unitNotified, patientDamage, notificationNumber
                     });
-                    
-                    if (match) {
-                        await onReturnByTag({
-                            tag: match.tag, hasDefect: isDefective, defectDescription: defectDesc.trim(),
-                            returnedAllAccessories, unitNotified, patientDamage, notificationNumber
-                        });
-                    }
+                }
+            }
+
+            // Retorna TAGs extras avulsas informadas
+            for (const extraTag of extraTagsToReturn) {
+                if (extraTag !== normUpper(typedTag)) {
+                    await onReturnByTag({
+                        tag: extraTag, hasDefect: false, defectDescription: '', // Assumimos sem defeito para as extras por padrão
+                        returnedAllAccessories: true, unitNotified: false, patientDamage: false, notificationNumber: ''
+                    });
                 }
             }
 
             setTypedTag(''); setStep(1); setIsDefective(false); setDefectDesc(''); setReturnedAllAccessories(true);
             setUnitNotified(false); setPatientDamage(false); setNotificationNumber('');
+            setKitParts([]); setSelectedKitTags(new Set()); setExtraTagsToReturn([]); setExtraTagSearch('');
         }
         
         setIsSubmitting(false);
@@ -3305,11 +3354,72 @@ const ReturnView = ({ inventory, onReturnByTag, showNotification, initialData })
                 {step === 2 && (
                     <div className="space-y-6">
                         <div className="bg-gray-50 p-4 rounded-xl text-center">
-                            <p className="text-sm text-gray-500">Item</p>
+                            <p className="text-sm text-gray-500">Item Principal da Devolução</p>
                             <p className="text-xl font-bold text-gray-800">{found?.tag}</p>
                             <p className="text-xs text-gray-400 mt-1">Modelo: {found?.model} • Setor atual: {found ?
                                 formatItemLocation(found) : '-'}</p>
                         </div>
+
+                        {kitParts.length > 0 && (
+                            <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl space-y-3">
+                                <h3 className="text-sm font-bold text-orange-900 flex items-center gap-2">
+                                    <AlertTriangle size={16} /> Acessórios/Kits na Unidade
+                                </h3>
+                                <p className="text-xs text-orange-800">
+                                    Identificamos que há outras partes deste conjunto alocadas no mesmo paciente. Selecione quais estão retornando com este equipamento:
+                                </p>
+                                <div className="space-y-2">
+                                    {kitParts.map(part => (
+                                        <label key={part.tag} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-orange-100 cursor-pointer hover:border-orange-300 transition-colors">
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500"
+                                                checked={selectedKitTags.has(part.tag)}
+                                                onChange={() => handleKitPartToggle(part.tag)}
+                                            />
+                                            <div className="flex-1">
+                                                <div className="font-bold text-gray-800">{part.tag} - {part.type}</div>
+                                                <div className="text-xs text-gray-500">Mod: {part.model || '-'}</div>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                                <div className="mt-3">
+                                    <label className="text-xs font-bold text-orange-900 block mb-1">Voltou alguma parte com TAG diferente? (Opcional)</label>
+                                    <div className="flex gap-2 items-center relative">
+                                        <div className="flex-1">
+                                            <SearchDropdown 
+                                                value={extraTagSearch} 
+                                                onChange={(val) => {
+                                                    const tag = normUpper(val);
+                                                    if (tag && !extraTagsToReturn.includes(tag)) {
+                                                        setExtraTagsToReturn(prev => [...prev, tag]);
+                                                    }
+                                                    setExtraTagSearch('');
+                                                }}
+                                                options={returnOptions.filter(o => !extraTagsToReturn.includes(o.value) && o.value !== found?.tag)} 
+                                                placeholder="Pesquisar TAG do acessório extra..." 
+                                                className="w-full text-sm font-mono uppercase" 
+                                            />
+                                        </div>
+                                    </div>
+                                    {extraTagsToReturn.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {extraTagsToReturn.map(tag => (
+                                                <div key={tag} className="flex items-center gap-1 bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-md font-bold border border-orange-200">
+                                                    {tag}
+                                                    <button onClick={() => setExtraTagsToReturn(prev => prev.filter(t => t !== tag))} className="text-orange-500 hover:text-orange-900 ml-1">
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <p className="text-[10px] text-orange-700 mt-1">Se não marcar as TAGs acima, elas continuarão constando no setor.</p>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                             <p className="text-sm font-bold text-blue-900 mb-2">Retornou com todos os acessórios?</p>
                             <div className="flex gap-3">
@@ -3723,7 +3833,14 @@ const MyAreaEquipmentView = ({ inventory, sector, requests, onRequestPickup, onT
             }
         }
         
-        const typeKey = item.type || item.model || 'Desconhecido';
+        let typeKey = item.type || item.model || 'Desconhecido';
+        const tUpper = normUpper(typeKey);
+        
+        if (tUpper === 'CABO DE CAPNOGRAFIA' || tUpper === 'CELULA DE CAPNOGRAFIA' || tUpper === 'CÉLULA DE CAPNOGRAFIA') {
+            typeKey = 'Capnografia - Acessórios Avulsos';
+        } else if (tUpper === 'CASSETE EXPIRATÓRIO' || tUpper === 'CASSETE EXPIRATORIO' || tUpper === 'UMIDIFICADOR') {
+            typeKey = 'Acessórios Avulsos (Ventilação/Alto Fluxo)';
+        }
         
         if (!acc[unitKey]) acc[unitKey] = {};
         if (!acc[unitKey][typeKey]) acc[unitKey][typeKey] = [];
@@ -5196,10 +5313,13 @@ const AdminDashboard = ({ inventory, requests, hideMetrics = false }) => {
     );
 };
 
-const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }) => {
+const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification, onReturnByTag }) => {
     const [search, setSearch] = useState('');
     const [selectedType, setSelectedType] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isRegroupModalOpen, setIsRegroupModalOpen] = useState(false);
+    const [linkingAccessory, setLinkingAccessory] = useState(null);
+    const [targetLinkTag, setTargetLinkTag] = useState('');
     const [editingId, setEditingId] = useState(null);
 
     const [viewMode, setViewMode] = useState('current');
@@ -5456,14 +5576,136 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification }
                 document.body
             )}
 
+            {isRegroupModalOpen && createPortal(
+                <div className="modal-overlay z-[60]">
+                    <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-4xl w-full animate-fade-in max-h-[85vh] flex flex-col">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Link2 className="text-orange-600"/> Acessórios Órfãos / Retidos</h3>
+                            <button onClick={() => setIsRegroupModalOpen(false)}><X className="text-gray-400" /></button>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">Abaixo estão os acessórios de kits (Cabos, Células, Cassetes, Umidificadores) que ficaram retidos nos setores após o recolhimento do equipamento principal. Você pode forçar o retorno deles para a CEIC clicando em "Devolver para CEIC".</p>
+                        
+                        <div className="flex-1 overflow-y-auto mb-4 border border-gray-100 rounded-xl relative min-h-[300px]">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 shadow-sm">
+                                    <tr>
+                                        <th className="p-3 font-bold text-gray-500 uppercase">Acessório (TAG)</th>
+                                        <th className="p-3 font-bold text-gray-500 uppercase">Setor Retido</th>
+                                        <th className="p-3 font-bold text-gray-500 uppercase text-right">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {inventory.filter(e => {
+                                        const isAccessory = normUpper(e.type).includes('CABO DE CAPNOGRAFIA') || normUpper(e.type).includes('CELULA DE CAPNOGRAFIA') || normUpper(e.type).includes('CÉLULA DE CAPNOGRAFIA') || normUpper(e.type).includes('CASSETE') || normUpper(e.type).includes('UMIDIFICADOR');
+                                        return isAccessory && e.location !== 'CEIC' && e.status !== 'inativo' && e.status !== 'maintenance';
+                                    }).length === 0 && (
+                                        <tr><td colSpan="3" className="p-8 text-center text-gray-400">Nenhum acessório órfão encontrado nos setores. Todos estão na base ou acompanhando pacientes.</td></tr>
+                                    )}
+                                    {inventory.filter(e => {
+                                        const isAccessory = normUpper(e.type).includes('CABO DE CAPNOGRAFIA') || normUpper(e.type).includes('CELULA DE CAPNOGRAFIA') || normUpper(e.type).includes('CÉLULA DE CAPNOGRAFIA') || normUpper(e.type).includes('CASSETE') || normUpper(e.type).includes('UMIDIFICADOR');
+                                        return isAccessory && e.location !== 'CEIC' && e.status !== 'inativo' && e.status !== 'maintenance';
+                                    }).map(acc => (
+                                        <tr key={acc.id} className={`border-b border-gray-50 hover:bg-gray-50 ${linkingAccessory?.id === acc.id ? 'bg-purple-50' : ''}`}>
+                                            <td className="p-3">
+                                                <div className="font-bold text-gray-800">{acc.tag}</div>
+                                                <div className="text-xs text-gray-500">{acc.type}</div>
+                                            </td>
+                                            <td className="p-3 font-bold text-orange-600">{acc.location} <span className="text-xs text-gray-400 font-normal">({acc.patient_mv || 'Sem MV'})</span></td>
+                                            <td className="p-3 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => { setLinkingAccessory(acc); setTargetLinkTag(''); }} className="px-3 py-1.5 bg-purple-100 text-purple-700 font-bold text-xs rounded-lg hover:bg-purple-200 transition-colors">
+                                                        Vincular...
+                                                    </button>
+                                                    <button onClick={async () => {
+                                                        if (window.confirm(`Tem certeza que este ${acc.type} (${acc.tag}) foi recolhido fisicamente e deve ser retornado à base CEIC?`)) {
+                                                            if (onReturnByTag) {
+                                                                await onReturnByTag({tag: acc.tag, hasDefect: false, defectDescription: '', returnedAllAccessories: true, unitNotified: false, patientDamage: false, notificationNumber: ''});
+                                                                showNotification('success', 'Acessório devolvido para a base e reagrupado ao estoque!');
+                                                                if (linkingAccessory?.id === acc.id) setLinkingAccessory(null);
+                                                            } else {
+                                                                showNotification('error', 'Função de devolução não injetada corretamente na Gestão de Frota.');
+                                                            }
+                                                        }
+                                                    }} className="px-3 py-1.5 bg-gray-900 text-white font-bold text-xs rounded-lg hover:bg-black transition-colors">
+                                                        Devolver
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {linkingAccessory && (
+                            <div className="mt-2 p-4 border border-purple-200 bg-purple-50 rounded-xl animate-fade-in shadow-sm">
+                                <h4 className="font-bold text-purple-900 mb-2 flex items-center gap-2"><Link2 size={16}/> Vincular "{linkingAccessory.tag}" a qual Equipamento Principal?</h4>
+                                <div className="flex flex-col md:flex-row gap-3 items-center">
+                                    <div className="flex-1 w-full relative">
+                                        <input 
+                                            list="mainEquipmentsList" 
+                                            className="input w-full bg-white font-mono uppercase" 
+                                            placeholder="Digite ou selecione a TAG do equipamento principal..." 
+                                            value={targetLinkTag}
+                                            onChange={(e) => setTargetLinkTag(e.target.value.toUpperCase())}
+                                        />
+                                        <datalist id="mainEquipmentsList">
+                                            {inventory.filter(e => {
+                                                if (e.tag === linkingAccessory.tag || e.status === 'inativo') return false;
+                                                
+                                                const accType = normUpper(linkingAccessory.type);
+                                                const mainType = normUpper(e.type);
+                                                
+                                                if (accType.includes('CAPNOGRAFIA')) {
+                                                    return mainType.includes('MODULO DE CAPNOGRAFIA') || mainType.includes('MÓDULO DE CAPNOGRAFIA');
+                                                } else if (accType.includes('CASSETE') || accType.includes('UMIDIFICADOR')) {
+                                                    return mainType.includes('VENTILADOR') || mainType.includes('ALTO FLUXO');
+                                                }
+                                                return !mainType.includes('CABO') && !mainType.includes('CELULA') && !mainType.includes('CÉLULA') && !mainType.includes('CASSETE') && !mainType.includes('UMIDIFICADOR');
+                                            }).map(e => (
+                                                <option key={e.tag} value={e.tag}>{e.type} ({e.location})</option>
+                                            ))}
+                                        </datalist>
+                                    </div>
+                                    <div className="flex gap-2 w-full md:w-auto">
+                                        <button onClick={() => {
+                                            const targetEq = inventory.find(e => e.tag === targetLinkTag);
+                                            if (!targetEq) { showNotification('error', 'Equipamento principal não encontrado.'); return; }
+                                            if (window.confirm(`Deseja vincular o acessório ${linkingAccessory.tag} ao equipamento ${targetEq.tag}? O acessório passará a estar em ${targetEq.location} com o mesmo status do equipamento principal.`)) {
+                                                onEdit(linkingAccessory.id, {
+                                                    location: targetEq.location,
+                                                    status: targetEq.status,
+                                                    patient_mv: targetEq.patient_mv || '',
+                                                    transferTo: targetEq.transferTo || '',
+                                                    transferStatus: targetEq.transferStatus || ''
+                                                });
+                                                showNotification('success', `Acessório ${linkingAccessory.tag} vinculado ao ${targetEq.tag} com sucesso.`);
+                                                setLinkingAccessory(null);
+                                            }
+                                        }} className="px-4 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 w-full md:w-auto">Confirmar</button>
+                                        <button onClick={() => setLinkingAccessory(null)} className="px-4 py-2 bg-white text-gray-700 font-bold rounded-lg border border-gray-200 hover:bg-gray-50 w-full md:w-auto">Cancelar</button>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-purple-700 mt-2">O acessório será logicamente transferido para o mesmo setor e paciente do equipamento principal selecionado.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>,
+                document.body
+            )}
+
             <div
                 className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <Database className="text-purple-600" /> Gestão da Frota
                 </h2>
-                <button data-testid="create-equipment-button" onClick={() => openModal()} className="h-[44px] px-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 flex items-center shadow-lg shadow-purple-200 transition-colors">
-                    <PlusCircle size={20} className="mr-2" /> Adicionar Equipamento
-                </button>
+                <div className="flex gap-2">
+                    <button onClick={() => setIsRegroupModalOpen(true)} className="h-[44px] px-4 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 flex items-center shadow-lg shadow-orange-200 transition-colors">
+                        <Link2 size={20} className="mr-2" /> Reagrupar Acessórios (Kits)
+                    </button>
+                    <button data-testid="create-equipment-button" onClick={() => openModal()} className="h-[44px] px-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 flex items-center shadow-lg shadow-purple-200 transition-colors">
+                        <PlusCircle size={20} className="mr-2" /> Adicionar Equipamento
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in">
@@ -9077,7 +9319,7 @@ function App() {
                 {currentView === 'admin_frota' &&
                     <AdminFleetCRUD inventory={inventory} onAdd={handleAddEquipment}
                         onEdit={handleEditEquipment} onDelete={handleDeleteEquipment}
-                        showNotification={showNotification} />}
+                        showNotification={showNotification} onReturnByTag={handleReturnByTag} />}
                 {currentView === 'admin_ocorrencias' &&
                     <AdminOcorrencias inventory={inventory}
                         onUpdateNotification={handleUpdateNotification}
