@@ -243,9 +243,14 @@ function formatElapsedVerbose(iso) {
 
 const formatItemLocation = (item) => {
     if (!item || !item.location) return '-';
-    if (sameText(item.location, 'CEIC')) return 'CEIC (Disponível)';
+    if (sameText(item.location, 'CEIC')) {
+        return item.status === 'available' ? 'CEIC (Disponível)' : `CEIC (${item.status || 'Disponível'})`;
+    }
 
     const locStr = item.specificLocation ? `${item.location} - ${item.specificLocation}` : item.location;
+    if (item.status === 'pickup_requested') {
+        return `${locStr} (Devolução Solicitada)`;
+    }
     return `Alocado: ${locStr}`;
 };
 
@@ -335,15 +340,16 @@ const StatusBadge = ({ status }) => {
         available: { label: 'Disponível', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
         allocated: { label: 'Em Uso', color: 'bg-blue-100 text-blue-800 border-blue-200' },
         in_use: { label: 'Em Uso', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+        pickup_requested: { label: 'Devolução Solicitada', color: 'bg-amber-100 text-amber-800 border-amber-200' },
         maintenance: { label: 'Manutenção', color: 'bg-red-100 text-red-800 border-red-200' },
-        cleaning: { label: 'Higienização', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+        cleaning: { label: 'Higienização', color: 'bg-teal-100 text-teal-800 border-teal-200' },
         preventive: { label: 'Ag. Preventiva', color: 'bg-purple-100 text-purple-800 border-purple-200' },
         irregular: { label: 'Irregular', color: 'bg-orange-100 text-orange-800 border-orange-200' },
         backup: { label: 'Backup (Restrito)', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
         inactive: { label: 'Inativo', color: 'bg-slate-100 text-slate-500 border-slate-200' }
     };
 
-    const current = config[status] || config.available;
+    const current = config[status] || { label: status || 'Desconhecido', color: 'bg-gray-100 text-gray-800 border-gray-200' };
 
     return (
         <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${current.color}`}>
@@ -722,7 +728,7 @@ const LoanedEquipmentSection = ({ requests, inventory }) => {
 
     const loanedList = useMemo(() => {
         const list = [];
-        const approvedRequests = requests.filter(r => (r.status === 'approved' || r.status === 'completed') && splitTagList(r.equipmentTag).length > 0);
+        const approvedRequests = requests.filter(r => (r.status === 'approved' || r.status === 'completed' || r.status === 'pickup_requested') && splitTagList(r.equipmentTag).length > 0);
 
         approvedRequests.forEach(req => {
             const tags = splitTagList(req.equipmentTag);
@@ -730,16 +736,20 @@ const LoanedEquipmentSection = ({ requests, inventory }) => {
             tags.forEach(tag => {
                 const invItem = inventory.find(i => normUpper(i.tag) === tag);
 
-                if (invItem && invItem.status !== 'in_use') return;
+                if (invItem && invItem.status !== 'in_use' && invItem.status !== 'allocated' && invItem.status !== 'pickup_requested') return;
 
-                const pendingReturn = requests.find(r => r.kind === 'return_pickup' && r.status === 'pending' && splitTagList(r.equipmentTag).includes(tag));
+                const pendingReturn = requests.find(r => 
+                    (r.kind === 'return_pickup' || r.kind === 'recolhimento' || r.status === 'pickup_requested') && 
+                    (r.status === 'pending' || r.status === 'pickup_requested') && 
+                    splitTagList(r.equipmentTag).includes(tag)
+                );
                 const isTransferring = invItem && (invItem.transferStatus === 'pending' || invItem.transferTo);
                 const isPendingReceive = invItem && invItem.receivedBySector === false;
                 const isTransferRejected = invItem && invItem.transferRejected;
 
                 const searchStr = normLower(`${tag} ${req.equipmentType || ''} ${invItem?.type || ''} ${invItem?.location || ''} ${req.sector || ''} ${req.patientBed || ''} ${req.patientName || ''} ${req.patient_mv || ''} ${req.requesterName || ''} ${req.requesterBadge || ''} ${invItem?.transferTo || ''}`);
 
-                list.push({ tag, req, invItem, pendingReturn, isTransferring, isPendingReceive, isTransferRejected, searchStr });
+                list.push({ tag, req, invItem, pendingReturn: !!pendingReturn, isTransferring, isPendingReceive, isTransferRejected, searchStr });
             });
         });
         return list;
@@ -1721,18 +1731,16 @@ const InventoryView = ({ inventory }) => {
                                         </td>
                                         <td className="p-4 text-sm font-bold text-gray-700">{item.model}</td>
                                         <td className="p-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${item.status === 'allocated' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
-                                                {item.status === 'allocated' ? 'Em Uso' : 'Disponível'}
-                                            </span>
+                                            <StatusBadge status={item.status} />
                                         </td>
                                         <td className="p-4 text-sm font-bold">
-                                            {item.status === 'allocated' ? item.location : 'CEIC'}
+                                            {item.status === 'available' ? 'CEIC' : (item.location || 'CEIC')}
                                         </td>
                                         <td className="p-4 text-sm font-mono text-gray-500">
-                                            {item.status === 'allocated' ? (item.patient_mv || '-') : '-'}
+                                            {['allocated', 'in_use', 'pickup_requested'].includes(item.status) ? (item.patient_mv || '-') : '-'}
                                         </td>
                                         <td className="p-4 text-sm text-gray-600">
-                                            {item.status === 'allocated' && item.in_use_since ? (
+                                            {['allocated', 'in_use', 'pickup_requested'].includes(item.status) && item.in_use_since ? (
                                                 `${Math.floor((new Date() - new Date(item.in_use_since)) / (1000 * 60 * 60 * 24))} dias`
                                             ) : '-'}
                                         </td>
@@ -1763,8 +1771,19 @@ const InventoryViewV2 = ({ inventory }) => {
     const [selectedLocation, setSelectedLocation] = useState('');
 
     const getStatusLabel = (status) => {
-        const config = { available: 'Disponível', in_use: 'Em Uso', allocated: 'Em Uso', maintenance: 'Manutenção', cleaning: 'Higienização', preventive: 'Ag. Preventiva', irregular: 'Irregular', backup: 'Backup (Restrito)', inactive: 'Inativo' };
-        return config[status] || 'Disponível';
+        const config = {
+            available: 'Disponível',
+            in_use: 'Em Uso',
+            allocated: 'Em Uso',
+            pickup_requested: 'Devolução Solicitada',
+            maintenance: 'Manutenção',
+            cleaning: 'Higienização',
+            preventive: 'Ag. Preventiva',
+            irregular: 'Irregular',
+            backup: 'Backup (Restrito)',
+            inactive: 'Inativo'
+        };
+        return config[status] || status || 'Disponível';
     };
 
     const types = useMemo(() => Array.from(new Set((inventory || []).filter(item => item.status !== 'inativo' && item.status !== 'inactive').map(item => item.type || 'OUTROS'))).sort(), [inventory]);
@@ -1787,9 +1806,9 @@ const InventoryViewV2 = ({ inventory }) => {
             TIPO: item.type || '-',
             MODELO: item.model || '-',
             STATUS: getStatusLabel(item.status), // AGORA USA O STATUS REAL
-            LOCAL: item.status !== 'available' ? item.location : 'CEIC',
-            MV_ATUAL: item.status === 'allocated' ? (item.patient_mv || '-') : '-',
-            TEMPO: item.status === 'allocated' && item.in_use_since
+            LOCAL: item.status === 'available' ? 'CEIC' : (item.location || 'CEIC'),
+            MV_ATUAL: ['allocated', 'in_use', 'pickup_requested'].includes(item.status) ? (item.patient_mv || '-') : '-',
+            TEMPO: ['allocated', 'in_use', 'pickup_requested'].includes(item.status) && item.in_use_since
                 ? `${Math.floor((new Date() - new Date(item.in_use_since)) / (1000 * 60 * 60 * 24))} dias`
                 : '-'
         }));
@@ -1827,10 +1846,10 @@ const InventoryViewV2 = ({ inventory }) => {
         let tableRows = '';
         filteredItems.forEach(item => {
             const isScheduled = (item.preventiveScheduled && item.status !== 'preventive') ? 'Sim' : 'Não';
-            const statusLabel = item.status === 'allocated' ? 'Em Uso' : 'Disponível';
-            const locationLabel = item.status === 'allocated' ? item.location : 'CEIC';
-            const mvLabel = item.status === 'allocated' ? (item.patient_mv || '-') : '-';
-            const timeLabel = item.status === 'allocated' && item.in_use_since
+            const statusLabel = getStatusLabel(item.status);
+            const locationLabel = item.status === 'available' ? 'CEIC' : (item.location || 'CEIC');
+            const mvLabel = ['allocated', 'in_use', 'pickup_requested'].includes(item.status) ? (item.patient_mv || '-') : '-';
+            const timeLabel = ['allocated', 'in_use', 'pickup_requested'].includes(item.status) && item.in_use_since
                 ? `${Math.floor((new Date() - new Date(item.in_use_since)) / (1000 * 60 * 60 * 24))} dias`
                 : '-';
 
@@ -1932,13 +1951,13 @@ const InventoryViewV2 = ({ inventory }) => {
                                             <StatusBadge status={item.status} />
                                         </td>
                                         <td className="p-4 text-sm font-bold">
-                                            {item.status !== 'available' ? item.location : 'CEIC'}
+                                            {item.status === 'available' ? 'CEIC' : (item.location || 'CEIC')}
                                         </td>
                                         <td className="p-4 text-sm font-mono text-gray-500">
-                                            {item.status === 'allocated' ? (item.patient_mv || '-') : '-'}
+                                            {['allocated', 'in_use', 'pickup_requested'].includes(item.status) ? (item.patient_mv || '-') : '-'}
                                         </td>
                                         <td className="p-4 text-sm text-gray-600">
-                                            {item.status === 'allocated' && item.in_use_since ? (
+                                            {['allocated', 'in_use', 'pickup_requested'].includes(item.status) && item.in_use_since ? (
                                                 `${Math.floor((new Date() - new Date(item.in_use_since)) / (1000 * 60 * 60 * 24))} dias`
                                             ) : '-'}
                                         </td>
@@ -5540,6 +5559,7 @@ const AdminFleetCRUD = ({ inventory, onAdd, onEdit, onDelete, showNotification, 
                                         setFormData({ ...formData, status: e.target.value })}>
                                         <option value="available">Disponível</option>
                                         <option value="in_use">Em Uso</option>
+                                        <option value="pickup_requested">Devolução Solicitada</option>
                                         <option value="maintenance">Manutenção</option>
                                         <option value="cleaning">Higienização</option>
                                         <option value="preventive">Ag. Preventiva</option>
@@ -8083,6 +8103,8 @@ function App() {
             if (equipment.status !== 'available') {
                 const statusLabel = {
                     in_use: 'em uso',
+                    allocated: 'em uso',
+                    pickup_requested: 'com devolução solicitada (aguardando recolhimento)',
                     cleaning: 'em higienização',
                     maintenance: 'em manutenção',
                     preventive: 'retido para preventiva'
